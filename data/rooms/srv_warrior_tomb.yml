@@ -1,0 +1,21 @@
+name: Server Warrior Tomb
+description: An ancient battleground where digital warriors test their strength.
+detailed_description: |
+  The /srv directory has transformed into a massive stone fortress resembling an ancient tomb dedicated to digital warriors. Weapon-like data structures line the walls, and the floor is inscribed with battle patterns resembling both circuit diagrams and martial formations.
+  
+  This area resonates with those who rely on strength and combat prowess. For a fighter, the environment seems to enhance your physical abilities and combat skills.
+  
+  Deep within the tomb, a powerful corrupted entity awaits challengers - the source of corruption that has infected the system's core services.
+exits:
+  - mnt_forest
+items:
+  - combat_amplifier
+  - armor_upgrade.dat
+enemies:
+  - tomb_guardian.sys
+  - corruption_overlord.exe
+npcs: []
+locked: true
+key_required: opt_key
+class_restriction: fighter
+hidden: false 

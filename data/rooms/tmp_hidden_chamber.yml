@@ -1,0 +1,21 @@
+name: Temporary Hidden Chamber
+description: A secretive cache where powerful temporary items are stored.
+detailed_description: |
+  The /tmp directory has been transformed into a mysterious chamber filled with flickering, ephemeral treasures. Unlike other areas of the system, everything here seems to exist in a half-state, neither fully corrupted nor completely clean.
+  
+  Valuable resources and powerful artifacts hover in containment fields, each radiating with significant power. A warning etched in the wall reads: "All items here are temporary. Use them wisely before they are cleaned from memory."
+  
+  The air crackles with unstable energy - this place seems both valuable and potentially dangerous.
+exits:
+  - var_dungeon
+items:
+  - combat_amplifier
+  - spell_amplifier
+  - admin_badge.dat
+  - opt_key
+enemies:
+  - memory_cleaner.exe
+npcs: []
+locked: true
+key_required: tmp_key
+hidden: true 

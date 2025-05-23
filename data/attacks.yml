@@ -1,0 +1,88 @@
+# Unified attack definitions
+# This file contains all attack data that can be used by any character class
+attacks:
+  # Basic attacks
+  strike:
+    name: Strike
+    description: A standard attack with your weapon
+    bonus_damage: 5
+    cooldown: 0
+    type: physical
+  
+  # Fighter attacks
+  power_strike:
+    name: Power Strike
+    description: A powerful blow that deals extra damage
+    bonus_damage: 19
+    cooldown: 2
+    type: physical
+  
+  shield_bash:
+    name: Shield Bash
+    description: A defensive move that deals moderate damage but reduces enemy damage next turn
+    bonus_damage: 10
+    enemy_damage_reduction: 0.5
+    cooldown: 3
+    type: physical
+  
+  # Mage attacks
+  arcane_bolt:
+    name: Arcane Bolt
+    description: A quick burst of magical energy
+    bonus_damage: 6
+    cooldown: 0
+    type: magical
+  
+  fireball:
+    name: Fireball
+    description: A ball of digital fire that deals significant damage
+    bonus_damage: 18
+    cooldown: 2
+    type: magical
+  
+  frost_nova:
+    name: Frost Nova
+    description: A freezing attack that deals moderate damage and reduces enemy damage next turn
+    bonus_damage: 12
+    enemy_damage_reduction: 0.3
+    cooldown: 3
+    type: magical
+  
+  # Celtic attacks
+  nature_strike:
+    name: Nature Strike
+    description: A standard attack infused with nature's energy
+    bonus_damage: 6
+    cooldown: 0
+    type: nature
+  
+  ancient_fury:
+    name: Ancient Fury
+    description: Channels ancient power for enhanced damage
+    bonus_damage: 17
+    cooldown: 2
+    type: nature
+  
+  healing_strike:
+    name: Healing Strike
+    description: A balanced attack that deals damage and heals you
+    bonus_damage: 8
+    healing: 10
+    cooldown: 3
+    type: nature
+  
+  # Learned spell attacks
+  fireball_spell:
+    name: Learned Fireball
+    description: A powerful fire spell
+    bonus_damage: 15
+    cooldown: 1
+    type: magical
+  
+  healing_touch:
+    name: Healing Touch
+    description: A spell that heals you during combat
+    bonus_damage: 0
+    healing: 15
+    cooldown: 2
+    type: magical 

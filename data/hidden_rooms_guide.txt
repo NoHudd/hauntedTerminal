@@ -1,0 +1,42 @@
+# Hidden Rooms Discovery Guide
+
+The filesystem contains several hidden directories that don't appear in normal navigation. These secret areas contain powerful items and unique encounters that can significantly help your journey.
+
+## How to Discover Hidden Rooms
+
+1. **The /etc Configuration Room**
+   - Hint found in: /usr/lib/arcane
+   - Discovery method: Look for hidden files using `ls -a` in the Arcane Library
+   - Clue text: "To find what's hidden, one must look at all, even that which seems invisible."
+   - Once found, you can access via: `cd /etc/hidden_configs`
+
+2. **The /dev/null Void**
+   - Hint found in: /bin/armory
+   - Discovery method: Examine the output of corrupt commands and look for void references
+   - Execute the command: `find /dev -type f -name "null"`
+   - Once found, you can access via: `cd /dev/null_void`
+
+3. **The /proc Secrets Chamber**
+   - Hint found in: /mnt/forest
+   - Discovery method: Use `ps` or process-related commands when prompted by the lost_user.dat NPC
+   - Follow the cryptic suggestion to "examine the living processes"
+   - Once found, you can access via: `cd /proc/secrets`
+
+## Rewards for Discovery
+
+Each hidden room contains unique and powerful items:
+
+- **/etc/hidden_configs**: Configuration files that can permanently boost your stats
+- **/dev/null_void**: Recover powerful deleted weapons and spells
+- **/proc/secrets**: Gain insights into the system's operation, providing combat advantages
+
+## Additional Hidden Content
+
+Throughout the filesystem, there are other secrets that can be discovered using Linux command knowledge:
+
+1. Use `grep` to search for hidden passwords in text files
+2. Try `cat` on seemingly insignificant files - they may contain crucial hints
+3. The `find` command can reveal hidden paths and secret items
+4. Some NPCs will provide extra information if you use the right commands in conversation
+
+Remember: Exploration and clever use of Linux commands will be rewarded! 

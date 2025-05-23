@@ -1,0 +1,79 @@
+# Character abilities configuration
+# This file defines all available abilities for all player classes
+abilities:
+  # Guardian abilities
+  system_shield:
+    name: "System Shield"
+    description: "Generate a defensive barrier that reduces incoming damage"
+    bonus_damage: 3
+    enemy_damage_reduction: 0.4
+    cooldown: 2
+    class: "guardian"
+  
+  core_recovery:
+    name: "Core Recovery"
+    description: "Tap into system resources to restore health"
+    bonus_damage: 2
+    healing: 15
+    cooldown: 3
+    class: "guardian"
+  
+  shield_bash:
+    name: "Shield Bash"
+    description: "A defensive move that deals damage and reduces enemy attacks"
+    bonus_damage: 8
+    enemy_damage_reduction: 0.2
+    class: "guardian"
+  
+  # Weaver abilities
+  code_injection:
+    name: "Code Injection"
+    description: "Inject malicious code that deals significant damage"
+    bonus_damage: 15
+    cooldown: 2
+    class: "weaver"
+  
+  exploit_vulnerability:
+    name: "Exploit Vulnerability"
+    description: "Find and attack a weak point in the enemy's defense"
+    bonus_damage: 10
+    enemy_damage_reduction: 0.1
+    cooldown: 1
+    class: "weaver"
+  
+  buffer_overflow:
+    name: "Buffer Overflow"
+    description: "Overwhelm enemy defenses with a massive data attack"
+    bonus_damage: 20
+    cooldown: 4
+    class: "weaver"
+  
+  # Shaman abilities
+  data_stitch:
+    name: "Data Stitch"
+    description: "Repair damaged code to heal yourself"
+    bonus_damage: 4
+    healing: 12
+    cooldown: 2
+    class: "shaman"
+  
+  ghost_sense:
+    name: "Ghost Sense"
+    description: "Commune with lost data to find enemy weaknesses"
+    bonus_damage: 8
+    enemy_damage_reduction: 0.2
+    class: "shaman"
+  
+  echo_blast:
+    name: "Echo Blast"
+    description: "Channel echoes of lost data into a powerful attack"
+    bonus_damage: 14
+    cooldown: 3
+    class: "shaman"
+  
+  # Universal abilities (available to all classes)
+  basic_attack:
+    name: "Basic Attack"
+    description: "A standard attack that does modest damage"
+    bonus_damage: 3
+    class: "all" 

@@ -1,0 +1,4 @@
+rich==13.0.0
+pyyaml==6.0
+tqdm==4.65.0
+readchar==0.7 

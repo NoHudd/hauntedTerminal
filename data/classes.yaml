@@ -1,0 +1,30 @@
+classes:
+  guardian:
+    name: "Guardian"
+    description: "Defenders of the core, wielding shields and restoration protocols."
+    base_health: 120
+    base_damage: 10
+    starter_weapon: "protocol_shield"
+    starter_abilities:
+      - system_shield
+      - core_recovery
+
+  weaver:
+    name: "Weaver"
+    description: "Aggressive code manipulators who exploit system vulnerabilities."
+    base_health: 90
+    base_damage: 15
+    starter_weapon: "byte_blaster"
+    starter_abilities:
+      - code_injection
+      - exploit_vulnerability
+
+  shaman:
+    name: "Shaman"
+    description: "Mystics who commune with the lost data and heal corrupted sectors."
+    base_health: 100
+    base_damage: 8
+    starter_weapon: "echo_staff"
+    starter_abilities:
+      - data_stitch
+      - ghost_sense 

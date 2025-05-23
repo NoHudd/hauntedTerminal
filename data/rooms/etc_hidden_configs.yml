@@ -1,0 +1,18 @@
+name: Hidden Configuration Room
+description: A secretive chamber containing powerful system configurations.
+detailed_description: |
+  This hidden area within the /etc directory contains the core configuration files for the entire system. The room is bathed in a soft blue light, with countless tiny configuration options floating in the air like stars.
+  
+  Ancient system secrets are stored here, providing immense power to those who understand how to properly configure and utilize them. The room appears to be untouched by the corruption, protected by its hidden nature.
+  
+  A message glows on the central terminal: "Configuration is power. Edit wisely."
+exits:
+  - usr_lib_arcane
+items:
+  - master_config.yml
+  - power_boost.conf
+  - health_overflow.conf
+enemies: []
+npcs:
+  - sysadmin_ghost.bin
+hidden: true  # This room is completely hidden until discovered 

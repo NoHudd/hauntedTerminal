@@ -1,0 +1,14 @@
+name: Hidden Directory
+description: A secret directory that few know about. It contains ancient system knowledge.
+detailed_description: This hidden directory is a repository of ancient system knowledge, untouched by the corruption. The walls are lined with pristine code structures and archived commands from the early days of computing. This place feels sacred, preserved from the chaos that affected the rest of the system.
+exits:
+  - root
+items:
+  - ancient_manual.txt
+  - chmod_scroll.sh
+npcs:
+  - guardian.bin
+enemies: []
+locked: true
+key_required: system_badge.dat
+hidden: true 

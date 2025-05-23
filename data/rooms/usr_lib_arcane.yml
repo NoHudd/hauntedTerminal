@@ -1,0 +1,22 @@
+name: Arcane Library
+description: A vast repository of system knowledge and arcane secrets.
+detailed_description: |
+  The /usr/lib/arcane directory is a labyrinthine library filled with shimmering data streams and floating code fragments. Knowledge literally flows through the air, occasionally forming into readable text before dispersing again.
+  
+  Mysterious symbols are etched into the walls, resembling both ancient runes and modern programming syntax. This place seems to hold secrets about the system's inner workings and hints at hidden pathways.
+  
+  A faint inscription on one of the walls reads: "To find what's hidden, one must look at all, even that which seems invisible."
+exits:
+  - root
+  - bin_armory
+  - var_dungeon
+items:
+  - ancient_manual.txt
+  - lib_key
+  - hidden_notes.txt
+enemies:
+  - knowledge_guardian.sys
+npcs:
+  - librarian.bin
+locked: []
+hidden: false 

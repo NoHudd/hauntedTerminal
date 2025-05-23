@@ -1,0 +1,18 @@
+name: Dev Null Void
+description: A mysterious void where deleted data accumulates.
+detailed_description: |
+  You've discovered the infamous /dev/null, but in this corrupted system, it has manifested as a bizarre void where deleted data accumulates rather than disappearing. The space defies normal logic, appearing simultaneously empty yet filled with fragmented data.
+  
+  Lost commands, deleted files, and discarded code float through the void like digital ghosts. Somehow, in this strange place, you might be able to recover things that were meant to be gone forever.
+  
+  The edges of the void seem to be constantly shifting, as if the very concept of this place is unstable.
+exits:
+  - bin_armory
+items:
+  - void_fragment.dat
+  - deleted_weapon.exe
+  - forgotten_spell.sh
+enemies:
+  - null_guardian.sys
+npcs: []
+hidden: false  # This room is completely hidden until discovered 

@@ -1,0 +1,14 @@
+name: Corrupted File Entity
+short_description: A corrupted executable file that has gained malevolent sentience
+description: Once a normal system file, this executable has been warped and corrupted by the Daemon Overlord's influence. It moves erratically, flickering between states of execution and corruption.
+health: 60
+damage: 10
+is_boss: false
+auto_attack: true
+dialogue: 01100011 01101111 01110010 01110010 01110101 01110000 01110100... CORRUPTION SPREADS. JOIN US.
+drops:
+  - item: purge.sh
+    chance: 100
+on_defeat:
+  message: The corrupted entity breaks down into harmless code fragments, its malevolent influence neutralized.
+  spawn_item: access_log.txt 

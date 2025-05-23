@@ -1,0 +1,163 @@
+health_potions:
+  small_health_potion:
+    name: "Small Health Potion"
+    description: "A small vial containing a glowing red liquid that restores health."
+    type: "consumable"
+    effect:
+      heal: 10
+  large_health_potion:
+    name: "Large Health Potion"
+    description: "A large flask containing a powerful healing elixir that restores significant health."
+    type: "consumable"
+    effect:
+      heal: 25
+  mega_health_potion:
+    name: "Mega Health Potion"
+    description: "An extremely potent health elixir that instantly restores a large amount of health."
+    type: "consumable"
+    effect:
+      heal: 50
+
+spell_scrolls:
+  healing_scroll:
+    name: "Healing Incantation"
+    description: "A scroll containing healing incantations for use in combat."
+    type: "consumable"
+    effect:
+      heal: 15
+      class_restriction: ["mage", "rogue"]
+  arcane_scroll:
+    name: "Arcane Scroll"
+    description: "An ancient scroll containing powerful arcane knowledge."
+    type: "consumable"
+    effect:
+      reveal_hidden: true
+      class_restriction: "mage"
+  fire_scroll:
+    name: "Fire Scroll"
+    description: "A scroll that releases a devastating burst of fire when read."
+    type: "consumable"
+    effect:
+      damage: 20
+      area_effect: true
+      class_restriction: "mage"
+
+special_consumables:
+  protein_supplement:
+    name: "Digital Protein Supplement"
+    description: "A special formula that temporarily enhances physical combat abilities."
+    type: "consumable"
+    effect:
+      bonus_damage: 5
+      duration: 3
+      class_restriction: "fighter"
+  magic_amplifier:
+    name: "Magic Amplifier"
+    description: "A rare crystal that temporarily boosts magical power."
+    type: "consumable"
+    effect:
+      spell_damage_boost: 8
+      duration: 3
+      class_restriction: "mage"
+  stealth_elixir:
+    name: "Stealth Elixir"
+    description: "A dark liquid that makes the user harder to detect."
+    type: "consumable"
+    effect:
+      stealth_boost: 15
+      duration: 5
+      class_restriction: "rogue"
+
+consumables:
+  health_potion_minor:
+    name: "Minor Health Potion"
+    description: "A small vial containing a glowing red liquid that restores a small amount of health."
+    type: "consumable"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    on_use:
+      message: "You drink the minor health potion and feel slightly better."
+      heal: 20
+    rarity: common
+  
+  health_potion_major:
+    name: "Major Health Potion"
+    description: "A large flask containing a vibrant red liquid that restores a significant amount of health."
+    type: "consumable"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    on_use:
+      message: "You drink the major health potion and feel much stronger."
+      heal: 50
+    rarity: uncommon
+    
+  strength_potion:
+    name: "Strength Potion"
+    description: "A bubbling crimson potion that temporarily enhances your combat abilities."
+    type: "consumable"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    on_use:
+      message: "Power surges through your body as the potion takes effect."
+      status_effect:
+        id: "strength_boost"
+        name: "Strength Boost"
+        description: "Increases damage by 5 points"
+        damage_bonus: 5
+        duration: 3
+    rarity: uncommon
+    
+  fortitude_elixir:
+    name: "Fortitude Elixir"
+    description: "A golden elixir that temporarily enhances your maximum health."
+    type: "consumable"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    on_use:
+      message: "You feel more resilient as the elixir flows through your system."
+      status_effect:
+        id: "fortitude_boost"
+        name: "Fortitude"
+        description: "Increases maximum health by 15 points"
+        max_health_bonus: 15
+        duration: 5
+    rarity: rare
+    
+  swiftness_tonic:
+    name: "Swiftness Tonic"
+    description: "A fizzing blue tonic that grants temporary swiftness in combat."
+    type: "consumable"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    on_use:
+      message: "Your reflexes sharpen as the tonic takes effect."
+      status_effect:
+        id: "swiftness"
+        name: "Swiftness"
+        description: "Allows you to attack first in combat"
+        attack_first: true
+        duration: 3
+    rarity: uncommon
+    
+  focus_draught:
+    name: "Focus Draught"
+    description: "A shimmering purple draught that heightens mental clarity for spellcasting."
+    type: "consumable"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    class_restriction: ["Mage", "Celtic"]
+    on_use:
+      message: "Your mind clears and your magical abilities are enhanced."
+      status_effect:
+        id: "magical_focus"
+        name: "Magical Focus"
+        description: "Increases magic damage by 7 points"
+        damage_bonus: 7
+        duration: 3
+    rarity: rare 

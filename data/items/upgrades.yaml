@@ -1,0 +1,43 @@
+combat_upgrades:
+  combat_amplifier:
+    name: "Tactical Combat Amplifier"
+    description: "A tactical enhancement device that can increase the damage of physical weapons."
+    type: "upgrade"
+    effect:
+      permanent_damage: 3
+      class_restriction: "fighter"
+  ancient_rune:
+    name: "Ancient Combat Rune"
+    description: "A mysterious rune containing knowledge of ancient fighting techniques."
+    type: "upgrade"
+    effect:
+      permanent_damage: 2
+      special_attack: "whirlwind_strike"
+      class_restriction: "fighter"
+
+magic_upgrades:
+  spell_amplifier:
+    name: "Magical Amplifier"
+    description: "A crystal that can enhance a mage's spell potency."
+    type: "upgrade"
+    effect:
+      permanent_damage: 4
+      class_restriction: "mage"
+
+nature_upgrades:
+  natural_tonic:
+    name: "Ancient Digital Tonic"
+    description: "A tonic containing ancient digital wisdom to enhance vitality."
+    type: "upgrade"
+    effect:
+      max_health: 9
+      class_restriction: "celtic"
+
+universal_upgrades:
+  universal_enhancer:
+    name: "Universal Enhancement Module"
+    description: "A powerful module that can enhance any character's capabilities regardless of class."
+    type: "upgrade"
+    effect:
+      permanent_damage: 2
+      max_health: 5 

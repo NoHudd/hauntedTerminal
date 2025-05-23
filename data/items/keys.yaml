@@ -1,0 +1,70 @@
+keys:
+  lib_key:
+    name: Library Key
+    short_description: A key that unlocks the var_dungeon
+    description: A digital key with arcane symbols etched into its surface. It appears to unlock the passage to the variable dungeon (/var/dungeon).
+    takeable: true
+    usable: true
+    droppable: false
+    type: "key"
+    unlocks: ["/var/dungeon"]
+    on_take:
+      message: As you take the key, you feel a connection forming with the locked passage to the variable dungeon.
+    on_use:
+      message: The key glows with arcane energy, waiting to be used at the proper location.
+    on_examine:
+      message: The key's design suggests it's specifically crafted to access the variable dungeon area. The arcane symbols seem to resonate with the lock mechanism.
+
+  master_key:
+    name: Master Key
+    short_description: A master key for the core system
+    description: A digital master key that can unlock the core system directory. It's heavily encrypted and seems to be one-use only.
+    takeable: true
+    usable: true
+    type: "key"
+    unlocks: ["/core"]
+    max_spawn: 1
+    allowed_rooms: 
+      - archive
+    rarity: 1
+    only_in_unlocked: false
+    on_take:
+      message: As you take the master key, you feel the weight of its importance. The system itself seems to acknowledge its power.
+    on_use:
+      message: The master key pulses with intense energy as it interfaces with the core system lock.
+    on_examine:
+      message: This is the legendary master key, capable of unlocking the corrupted core. It can only be used once as it will dissolve into the lock mechanism.
+
+  system_badge:
+    name: System Badge
+    short_description: An administrative access badge
+    description: A digital badge that grants access to protected system directories. It pulses with administrative privileges.
+    takeable: true
+    usable: true
+    droppable: false
+    type: "key"
+    unlocks: ["ghost_hidden"]
+    on_take:
+      message: The badge recognizes you as a user with potential administrative privileges.
+    on_use:
+      message: The badge glows with authority, authenticating your access to restricted areas.
+    on_examine:
+      message: This administrative badge grants elevated permissions within the system. It could access hidden directories.
+      
+  tmp_key:
+    name: "Temporary Access Key"
+    description: "Unlocks access to /tmp/hidden_chamber."
+    short_description: A temporary key for accessing hidden chambers
+    type: "key"
+    takeable: true
+    usable: true
+    unlocks: ["/tmp/hidden_chamber"]
+  
+  root_key:
+    name: "Root Access Token"
+    description: "A powerful key that grants access to the /root/vault."
+    short_description: A token for accessing the root vault
+    type: "key"
+    takeable: true
+    usable: true
+    unlocks: ["/root/vault"] 

@@ -1,0 +1,12 @@
+name: Archive
+description: An old, dusty archive full of fragmented files and corrupted information.
+detailed_description: The archive is filled with dust and fragments of old data. Cabinets of digital drawers line the walls, most of them in disrepair. The air is thick with bits of corrupted data floating like dust motes. This place feels ancient, like it holds secrets from before the system was corrupted.
+exits:
+  - root
+items:
+  - log_fragment.txt
+  - master.key
+npcs: []
+enemies:
+  - corrupt_file.exe
+hidden: true 

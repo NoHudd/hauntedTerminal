@@ -1,0 +1,211 @@
+enhancements:
+  # Combat Enhancers
+  combat_amplifier:
+    name: Combat Amplifier
+    short_description: A device that enhances combat abilities
+    description: A small device that permanently increases your combat effectiveness.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 2
+    consumed_on_use: true
+    max_spawn: 2
+    allowed_rooms:
+      - bin_armory
+      - srv_warrior_tomb
+    class_restriction: fighter
+    rarity: 3
+    on_use:
+      message: The amplifier dissolves into your armor, enhancing your strikes with additional power.
+
+  power_rune:
+    name: Power Rune
+    short_description: A rune that enhances weapon damage
+    description: This ancient rune can be applied to weapons to increase their damage output.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 3
+    consumed_on_use: true
+    max_spawn: 1
+    class_restriction: fighter
+    rarity: 2
+    on_use:
+      message: The rune fuses with your weapon, creating a network of glowing symbols along its surface.
+
+  # Magical Enhancers
+  spell_amplifier:
+    name: Spell Amplifier
+    short_description: A device that enhances magical abilities
+    description: A mystical device that permanently increases your spell power.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 2
+    consumed_on_use: true
+    max_spawn: 2
+    allowed_rooms:
+      - usr_lib_arcane
+      - opt_mage_tower
+    class_restriction: mage
+    rarity: 3
+    on_use:
+      message: The amplifier dissolves into a cloud of arcane energy that you absorb, feeling your magical potential increase.
+
+  arcane_focus:
+    name: Arcane Focus
+    short_description: An item that sharpens magical focus
+    description: A crystal that helps focus magical energies, making spells more efficient and powerful.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 3
+    consumed_on_use: true
+    max_spawn: 1
+    class_restriction: mage
+    rarity: 2
+    on_use:
+      message: The crystal shatters into motes of light that sink into your skin, enhancing your connection to the arcane.
+
+  # Celtic/Nature Enhancers
+  nature_tonic:
+    name: Nature's Tonic
+    short_description: A mystical tonic that enhances natural abilities
+    description: A tonic brewed from the essence of natural algorithms, permanently increasing your connection to the system's natural patterns.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 2
+    consumed_on_use: true
+    max_spawn: 2
+    allowed_rooms:
+      - mnt_forest
+      - home_grove
+    class_restriction: celtic
+    rarity: 3
+    on_use:
+      message: As you consume the tonic, you feel your connection to the system's natural patterns strengthen.
+
+  harmony_stone:
+    name: Harmony Stone
+    short_description: A stone that resonates with natural energies
+    description: This stone vibrates with the natural frequencies of the system, enhancing the power of those who can channel nature's energy.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 3
+    consumed_on_use: true
+    max_spawn: 1
+    class_restriction: celtic
+    rarity: 2
+    on_use:
+      message: The stone crumbles to dust in your hands, its energy flowing into you and amplifying your natural abilities.
+
+  # Universal Enhancers
+  health_overflow:
+    name: Health Overflow
+    short_description: A buffer overflow patch that increases max health
+    description: A peculiar code snippet that exploits a buffer overflow in your health monitoring system, permanently increasing your maximum health.
+    takeable: true
+    usable: true
+    item_type: max_health_boost
+    boost_amount: 15
+    consumed_on_use: true
+    max_spawn: 3
+    rarity: 3
+    on_use:
+      message: The code snippet executes and your health monitoring system recalibrates to a higher maximum threshold.
+
+  admin_badge:
+    name: Admin Badge
+    short_description: A high-level security badge
+    description: A system administrator's badge that permanently enhances all of your abilities through elevated permissions.
+    takeable: true
+    usable: true
+    item_type: damage_boost
+    boost_amount: 5
+    max_health_boost: 20
+    consumed_on_use: true
+    max_spawn: 1
+    rarity: 1
+    on_use:
+      message: The badge glows intensely as it grants you administrator privileges, significantly enhancing your capabilities.
+
+  # Spell Enhancement
+  fireball_spell:
+    name: Fireball Spell
+    short_description: A magical spell that deals fire damage
+    description: A scroll containing the knowledge of how to cast a powerful Fireball spell.
+    takeable: true
+    usable: true
+    consumed_on_use: true
+    item_type: spell
+    spell_name: Fireball
+    spell_description: A devastating ball of fire
+    spell_damage: 15
+    max_spawn: 1
+    allowed_rooms:
+      - usr_lib_arcane
+      - opt_mage_tower
+    class_restriction: mage
+    rarity: 2
+    on_use:
+      message: You absorb the knowledge of the Fireball spell, adding it to your arcane repertoire.
+
+  healing_spell:
+    name: Healing Spell
+    short_description: A spell that restores health
+    description: A scroll containing the knowledge of a powerful healing spell.
+    takeable: true
+    usable: true
+    consumed_on_use: true
+    item_type: spell
+    spell_name: Healing Light
+    spell_description: A soothing light that restores health
+    spell_heal: 20
+    max_spawn: 1
+    allowed_rooms:
+      - home_grove
+    class_restriction: celtic
+    rarity: 2
+    on_use:
+      message: You absorb the healing knowledge, feeling it become a part of your natural abilities.
+
+  # Consumable Potions
+  health_potion_small:
+    name: Small Health Potion
+    short_description: A small vial of glowing red liquid
+    description: A small vial containing a glowing red liquid. It can restore some health.
+    takeable: true
+    usable: true
+    usable_in_combat: true
+    combat_effects:
+      player_heal: 10
+    item_type: health_boost
+    boost_amount: 10
+    consumed_on_use: true
+    max_spawn: 5
+    allowed_rooms:
+      - deprecated_dir
+      - root
+      - archive
+    rarity: 10
+    on_use:
+      message: You drink the small health potion, feeling its healing energy flow through you.
+
+  health_potion_large:
+    name: Large Health Potion
+    short_description: A large flask of glowing red liquid
+    description: A large flask containing a vibrant red liquid. It can restore a significant amount of health.
+    takeable: true
+    usable: true
+    usable_in_combat: true
+    combat_effects:
+      player_heal: 25
+    item_type: health_boost
+    boost_amount: 25
+    consumed_on_use: true
+    max_spawn: 3
+    rarity: 5
+    on_use:
+      message: You drink the large health potion, feeling a powerful surge of healing energy restoring your health. 

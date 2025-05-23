@@ -1,0 +1,110 @@
+lore_items:
+  hidden_notes:
+    name: Hidden Notes
+    short_description: Cryptic notes about the filesystem's secrets
+    description: A collection of hastily written notes that reveal secrets about the corrupted filesystem and hidden locations.
+    type: "lore"
+    content: |
+      RESEARCH NOTES - HIDDEN FILESYSTEM SECRETS
+      
+      I've been documenting the anomalies in the system since the corruption began:
+      
+      1. Hidden Directories:
+         - There appears to be a ghost_hidden directory that contains ancient system knowledge
+         - The etc_hidden_configs room contains powerful configuration files that can enhance abilities
+         - The archive contains crucial historical data, including a master key
+         - The opt_mage_tower is perfect for those with arcane abilities
+         - The tmp_hidden_chamber contains powerful temporary items, including keys
+      
+      2. Access Methods:
+         - Some rooms require special keys
+         - Others may only be accessible to specific character classes
+         - Some may be completely hidden and require special knowledge to find
+      
+      3. Warning: The corruption is strongest in the core directory, where the daemon_overlord.sys resides.
+      
+      If you're reading this, be careful. Not all processes can be trusted...
+    takeable: true
+    usable: false
+    on_read:
+      message: The notes reveal valuable information about hidden locations in the filesystem. You make a mental note of the secret areas mentioned.
+
+  access_log:
+    name: Access Log
+    short_description: A system log containing access records
+    description: A system log that has recorded access attempts to various parts of the system. It contains valuable information about the core directory and the Daemon Overlord's activities.
+    type: "lore"
+    content: |
+      ACCESS LOG - SYSTEM CORE
+      
+      [TIMESTAMP CORRUPTED] - Admin access to core/ directory
+      [TIMESTAMP CORRUPTED] - Backup system activated
+      [TIMESTAMP CORRUPTED] - ERROR: Unauthorized access detected
+      [TIMESTAMP CORRUPTED] - WARNING: System corruption spreading
+      [TIMESTAMP CORRUPTED] - ALERT: Daemon process detected
+      [TIMESTAMP CORRUPTED] - CRITICAL: Core systems compromised
+      [TIMESTAMP CORRUPTED] - NOTE: Backup.bak is only hope
+      [TIMESTAMP CORRUPTED] - NOTE: Daemon Overlord weakness - recursive execution of clean backup data
+    takeable: true
+    usable: false
+    on_read:
+      message: The access log reveals crucial information about the Daemon Overlord's weakness!
+
+  note:
+    name: Mysterious Note
+    short_description: A cryptic note left by a previous user
+    description: A handwritten note that appears to have been left by someone who was in the system before you. The handwriting is shaky, as if written in haste.
+    type: "lore"
+    content: |
+      If you're reading this, I'm probably gone. The corruption has spread too far.
+      I've hidden the master key in the archive, but it won't be easy to find.
+      The Daemon Overlord guards the core. You'll need the backup to defeat it.
+      Don't trust anything you see in /tmp - it's all illusions.
+      Good luck. You'll need it.
+    takeable: true
+    usable: false
+    on_read:
+      message: The note gives you valuable information about the master key and the Daemon Overlord.
+      
+  corrupted_log_fragment:
+    name: "Corrupted Log Fragment"
+    short_description: A piece of corrupted system logs
+    description: "A fragment of a corrupted system log. May contain hidden information."
+    type: "lore"
+    takeable: true
+    usable: false
+  
+  system_manual_fragment:
+    name: "System Manual Fragment"
+    short_description: A torn page from system documentation
+    description: "A damaged piece of the original system documentation."
+    type: "lore"
+    takeable: true
+    usable: false
+  
+  hidden_note:
+    name: "Hidden Developer Note"
+    short_description: A note from one of the developers
+    description: "A cryptic note left by one of the system developers."
+    type: "lore"
+    takeable: true
+    usable: false
+  
+  random_memory_fragment:
+    name: "Memory Fragment"
+    short_description: A fragment of corrupted system memory
+    description: "A corrupted fragment of memory containing traces of system operations. May hold clues about the corruption's origin."
+    type: "lore"
+    content: |
+      [FRAGMENT START]
+      ...system initialization sequence corrupted...
+      ...unauthorized access detected at PORT: 31337...
+      ...daemon_overlord.sys executed with root privileges...
+      ...system integrity compromised...
+      ...backup.bak created in emergency protocol...
+      ...encryption keys compromised...
+      [FRAGMENT END]
+    takeable: true
+    usable: false
+    on_read:
+      message: The fragment gives you insight into how the corruption began. There may be more fragments to find. 

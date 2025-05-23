@@ -1,0 +1,34 @@
+quest_items:
+  quest_amulet:
+    name: Quest Amulet
+    short_description: A mysterious amulet tied to your destiny
+    description: This ancient amulet glows with mysterious energy. It feels strangely connected to your very being, as if it were meant for you alone. The runes inscribed on its surface change occasionally, responding to your thoughts.
+    type: "quest"
+    content: |
+      An intricately designed amulet with shifting runes.
+      Something tells you this item is vital to your journey.
+    takeable: true
+    usable: true
+    droppable: false
+    on_take:
+      message: As you take the amulet, it pulses with a warm light and seems to bond with you. You feel it would be impossible to part with it now.
+    on_use:
+      message: The amulet glows briefly but nothing else happens. Perhaps it will reveal its purpose later in your journey.
+    on_examine_special:
+      message: The amulet seems to respond to your touch, warming slightly. You feel that this item is bound to you and cannot be discarded.
+
+  backup_bak:
+    name: System Backup
+    short_description: A clean backup of the file system
+    description: A compressed backup of the original system, uncorrupted by the Daemon Overlord. This might be your only hope for restoring the system.
+    type: "quest"
+    takeable: true
+    usable: true
+    max_spawn: 1
+    allowed_rooms: 
+      - core
+    only_in_unlocked: false
+    on_take:
+      message: You feel a sense of hope as you acquire the uncorrupted backup.
+    on_use:
+      message: The backup begins to decompress, flooding the corrupted system with clean data. 

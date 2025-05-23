@@ -1,0 +1,11 @@
+name: System Guardian
+short_description: An ancient entity that protects system knowledge
+description: A glowing, ethereal entity that appears to be made of pristine code. The Guardian has protected this hidden directory since the beginning of the system, keeping its secrets safe from corruption.
+dialogues:
+  - "Greetings, Administrator. You have cleansed the system of corruption. This knowledge is now yours to protect."
+  - "The commands and tools found here date back to the dawn of this system. Use them wisely."
+  - "Before the Daemon Overlord, this system ran in perfect harmony. With your guidance, it may do so again."
+  - "The chmod scroll is particularly powerful. It can alter the very nature of files and entities."
+  - "Remember that with great administrator privileges comes great responsibility."
+on_talk:
+  message: The Guardian's voice seems to come from everywhere and nowhere at once, resonating with ancient wisdom. 

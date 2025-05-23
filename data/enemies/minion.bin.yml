@@ -1,0 +1,13 @@
+name: Daemon Minion
+short_description: A small corrupted process that can cause harm
+description: A small but malevolent entity, created by the Daemon Overlord to protect its domain. It appears as a glitching, unstable mass of corrupted code.
+health: 30
+damage: 5
+is_boss: false
+auto_attack: true
+dialogue: Master... will... reward... deletion...
+drops:
+  - item: fragment.dat
+    chance: 50
+on_defeat:
+  message: The minion dissolves into inert code fragments, no longer a threat. 

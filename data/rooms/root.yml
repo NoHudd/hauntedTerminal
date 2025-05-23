@@ -1,0 +1,16 @@
+name: Root Directory
+description: The system's root directory, a relatively safe starting point for your journey.
+detailed_description: |
+  You stand in the root directory (/) of the corrupted filesystem. This area appears less corrupted than others you can sense in the distance. Digital tendrils occasionally flicker across the walls, but quickly retreat when you approach them. 
+  
+  A terminal glows softly in the center, displaying basic command references and system information. This seems like a good place to get oriented before venturing deeper into the system.
+exits:
+  - bin_armory
+  - usr_lib_arcane
+items:
+  - helper.sh
+  - system_guide.txt
+npcs:
+  - helper_script.bin
+enemies: []
+hidden: false 

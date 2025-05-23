@@ -1,0 +1,23 @@
+name: Mount Forest
+description: A vast, corrupted landscape where external systems connect to the core.
+detailed_description: |
+  The /mnt directory has become a sprawling digital forest where external filesystems connect to the core system. Massive data trunks rise like trees, their branches splitting into countless connections that vanish into the distance.
+  
+  Corruption has spread deeply here, with glitched terrain and fragmented pathways. The sound of corrupted processes can be heard throughout, and dark energy pulses through the ground like malevolent roots.
+  
+  This vast area seems to be a critical junction between different parts of the system, with pathways leading to even more dangerous territories.
+exits:
+  - home_grove
+  - opt_mage_tower
+  - srv_warrior_tomb
+items:
+  - forest_map.txt
+  - corrupted_memory.dat
+  - health_potion_small
+enemies:
+  - forest_sentinel.sys
+  - mount_daemon.exe
+  - feral_process.bin
+npcs:
+  - lost_user.dat
+hidden: false 
