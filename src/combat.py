@@ -11,7 +11,7 @@ class CombatSystem:
         """Initialize the combat system and load attack data."""
         debug_log("Initializing CombatSystem")
         self.attacks = self.load_attacks()
-        self.active_cooldowns = {}  # player_id -> {attack_id -> remaining_cooldown}
+        self.active_cooldowns = {}  # player_object_id -> {attack_id -> remaining_cooldown}
     
     def load_attacks(self):
         """Load attack definitions from YAML file."""
@@ -52,102 +52,133 @@ class CombatSystem:
         debug_log(f"Initializing cooldowns for player ID: {player_id}")
         self.active_cooldowns[player_id] = {}
     
-    def calculate_damage(self, player_total_damage, attack_id):
+    def calculate_damage(self, base_player_damage, attack_id):
         """Calculate damage for an attack using simplified formula.
         
-        Formula: player_total_damage + attack_bonus_damage from YAML
+        Formula: base_player_damage + attack_bonus_damage from YAML
         """
-        debug_log(f"Calculating damage for attack '{attack_id}' with base damage {player_total_damage}")
+        debug_log(f"Calculating damage for attack '{attack_id}' with base player damage {base_player_damage}")
         attack_data = self.get_attack_data(attack_id)
         if not attack_data:
             debug_log(f"No attack data found for '{attack_id}', using base damage only")
-            return player_total_damage  # Just use total damage if attack not found
+            return base_player_damage  # Just use total damage if attack not found
         
         # Use bonus_damage or fallback to damage for backward compatibility
         bonus_damage = attack_data.get('bonus_damage', attack_data.get('damage', 0))
-        total_damage = player_total_damage + bonus_damage
-        debug_log(f"Attack '{attack_id}' calculation: {player_total_damage} (base) + {bonus_damage} (bonus) = {total_damage}")
+        total_damage = base_player_damage + bonus_damage
+        debug_log(f"Attack '{attack_id}' calculation: {base_player_damage} (base) + {bonus_damage} (bonus) = {total_damage}")
         return total_damage
-    
-    def perform_attack(self, player_id, player_total_damage, attack_id):
+
+    def perform_attack(self, player, attack_id):
         """Execute an attack and return the results.
         
         Args:
-            player_id: Unique identifier for the player
-            player_total_damage: Player's total damage value
-            attack_id: ID of the attack to perform
+            player: The Player object initiating the attack.
+            attack_id: ID of the attack to perform.
             
         Returns:
-            dict: Results of the attack including damage, message, etc.
+            dict: Results of the attack including damage, message, healing_amount,
+                  enemy_damage_reduction, and success status.
         """
-        debug_log(f"Player {player_id} initiating attack '{attack_id}' with base damage {player_total_damage}")
-        
-        # Initialize cooldowns if not already done
+        player_id = player.player_id # Using the player object's unique ID
+        player_base_damage = player.calculate_damage()
+        debug_log(f"Player {player_id} (Name: {player.name}) initiating attack '{attack_id}' with base damage {player_base_damage}")
+
+        # Initialize cooldowns if not already done for this player
         if player_id not in self.active_cooldowns:
             debug_log(f"Cooldowns not initialized for player {player_id}, initializing now")
             self.initialize_cooldowns(player_id)
         
-        # Get attack data
         attack_data = self.get_attack_data(attack_id)
+        
         if not attack_data:
             debug_log(f"Attack '{attack_id}' not found, falling back to basic attack")
-            # Fallback to basic attack if attack not found
             return {
-                "damage": player_total_damage,
+                "damage": player_base_damage,
                 "message": "You attack with your weapon.",
+                "healing_amount": 0,
                 "enemy_damage_reduction": 0,
-                "healing": 0
+                "success": True, # Basic attacks always succeed if attack_id is invalid
+                "bonus_damage": 0
             }
-        
+
         # Check if attack is on cooldown
         if attack_id in self.active_cooldowns[player_id] and self.active_cooldowns[player_id][attack_id] > 0:
-            debug_log(f"Attack '{attack_id}' is on cooldown ({self.active_cooldowns[player_id][attack_id]} turns remaining)")
+            remaining_cooldown = self.active_cooldowns[player_id][attack_id]
+            debug_log(f"Attack '{attack_id}' is on cooldown ({remaining_cooldown} turns remaining)")
+            # Perform a basic attack instead
             return {
-                "damage": player_total_damage,
-                "message": f"{attack_data['name']} is on cooldown! You use a regular attack instead.",
+                "damage": player_base_damage, # Player's normal damage without skill bonus
+                "message": f"{attack_data['name']} is on cooldown ({remaining_cooldown} turns)! You use a regular attack.",
+                "healing_amount": 0,
                 "enemy_damage_reduction": 0,
-                "healing": 0
+                "success": False, # Indicate the chosen skill didn't fire
+                "bonus_damage": 0
             }
-        
-        # Calculate damage using simplified formula
-        damage = self.calculate_damage(player_total_damage, attack_id)
-        
-        # Get bonus damage for the message
-        bonus_damage = attack_data.get('bonus_damage', attack_data.get('damage', 0))
-        
-        # Set cooldown
-        cooldown = attack_data.get('cooldown', 0)
-        if cooldown > 0:
-            self.active_cooldowns[player_id][attack_id] = cooldown
-            debug_log(f"Setting cooldown for '{attack_id}': {cooldown} turns")
-        
-        # Get additional effects
-        healing = attack_data.get('healing', 0)
+
+        # Hit/Miss mechanic
+        attack_accuracy = attack_data.get('accuracy')
+        if attack_accuracy is None:
+            attack_accuracy = 90 # Default to 90 if not specified
+            debug_log(f"Warning: Attack '{attack_id}' has no 'accuracy' defined. Defaulting to {attack_accuracy}%.", "warning")
+        else:
+            debug_log(f"Attack '{attack_id}' has accuracy: {attack_accuracy}%")
+
+        if random.randint(1, 100) > attack_accuracy:
+            debug_log(f"Attack '{attack_id}' (Name: {attack_data.get('name', attack_id)}) MISSED!")
+            return {
+                "success": False,
+                "message": f"Your {attack_data.get('name', attack_id)} missed!",
+                "damage": 0,
+                "healing_amount": 0,
+                "enemy_damage_reduction": 0,
+                "bonus_damage": 0 
+            }
+        else:
+            debug_log(f"Attack '{attack_id}' (Name: {attack_data.get('name', attack_id)}) HIT!")
+            # Proceed with successful attack logic
+
+            # Calculate final damage using player's damage and attack's bonus
+            damage = self.calculate_damage(player_base_damage, attack_id)
+            bonus_damage = attack_data.get('bonus_damage', attack_data.get('damage', 0)) # For message consistency
+
+            # Set cooldown ONLY IF THE ATTACK HITS
+            cooldown = attack_data.get('cooldown', 0)
+            if cooldown > 0:
+                self.active_cooldowns[player_id][attack_id] = cooldown
+                debug_log(f"Setting cooldown for '{attack_id}': {cooldown} turns for player {player_id}")
+            
+            healing_amount = attack_data.get('healing', 0)
         enemy_damage_reduction = attack_data.get('enemy_damage_reduction', 0)
         
-        debug_log(f"Attack '{attack_id}' results: damage={damage}, healing={healing}, enemy_damage_reduction={enemy_damage_reduction}")
+        debug_log(f"Attack '{attack_id}' results: damage={damage}, healing_amount={healing_amount}, enemy_damage_reduction={enemy_damage_reduction}")
         
-        # Build message
         message = f"You use {attack_data['name']} for {damage} damage!"
-        
-        if healing > 0:
-            message += f" You also heal for {healing} health."
+        if bonus_damage > 0: # Show total damage and bonus if bonus damage exists
+            message = f"You use {attack_data['name']} for {damage} damage ({player_base_damage} base + {bonus_damage} bonus)!"
+        else: # Otherwise, just show total damage
+            message = f"You use {attack_data['name']} for {damage} damage!"
+
+        if healing_amount > 0:
+            message += f" You also heal for {healing_amount} health."
         
         if enemy_damage_reduction > 0:
             message += f" Enemy damage reduced by {int(enemy_damage_reduction * 100)}% next turn."
-        
+            
         return {
             "damage": damage,
             "message": message,
+            "healing_amount": healing_amount,
             "enemy_damage_reduction": enemy_damage_reduction,
-            "healing": healing,
-            "bonus_damage": bonus_damage  # Include bonus_damage in the result
+            "success": True,
+            "bonus_damage": bonus_damage
         }
-    
-    def update_cooldowns(self, player_id):
-        """Update cooldowns at the end of a combat turn."""
+
+    def update_cooldowns(self, player):
+        """Update cooldowns at the end of a combat turn for a specific player."""
+        player_id = player.player_id
         if player_id not in self.active_cooldowns:
-            debug_log(f"No cooldowns to update for player {player_id}")
+            debug_log(f"No cooldowns to update for player {player_id} (Name: {player.name})")
             return
         
         updated_attacks = []
@@ -159,63 +190,66 @@ class CombatSystem:
                 updated_attacks.append(f"{attack_id}: {old_cooldown}->{new_cooldown}")
         
         if updated_attacks:
-            debug_log(f"Updated cooldowns for player {player_id}: {', '.join(updated_attacks)}")
-    
-    def reset_cooldowns(self, player_id):
+            debug_log(f"Updated cooldowns for player {player_id} (Name: {player.name}): {', '.join(updated_attacks)}")
+
+    def reset_cooldowns(self, player):
         """Reset all cooldowns for a player (used when combat ends)."""
-        debug_log(f"Resetting all cooldowns for player {player_id}")
+        player_id = player.player_id
+        debug_log(f"Resetting all cooldowns for player {player_id} (Name: {player.name})")
         self.active_cooldowns[player_id] = {}
-    
-    def get_available_attacks(self, player_id, player_class, learned_spells=None):
+
+    def get_available_attacks(self, player, learned_spells=None):
         """Get available attacks for a player, including learned spells."""
-        debug_log(f"Getting available attacks for player {player_id} (class: {player_class})")
+        player_id = player.player_id
+        player_class = player.player_class
+        debug_log(f"Getting available attacks for player {player_id} (Name: {player.name}, Class: {player_class})")
+        
         if player_id not in self.active_cooldowns:
             debug_log(f"Cooldowns not initialized for player {player_id}, initializing now")
             self.initialize_cooldowns(player_id)
         
-        # Get base attacks for class
-        base_attacks = self.get_attacks_for_class(player_class)
-        
-        # Add learned spells if provided and class can use spells
-        spell_attacks = []
-        if learned_spells and player_class in ["mage", "celtic"]:
-            for spell in learned_spells:
-                spell_id = spell.get('spell_name', '').lower().replace(' ', '_')
-                if spell_id in self.attacks:
-                    spell_attacks.append(spell_id)
-            
-            if spell_attacks:
-                debug_log(f"Added {len(spell_attacks)} learned spell attacks: {spell_attacks}")
-        
-        # Combine all attacks
-        all_attacks = base_attacks + spell_attacks
-        debug_log(f"Combined attacks list: {all_attacks}")
-        
-        # Build available attacks with cooldown info
-        available_attacks = {}
-        for attack_id in all_attacks:
-            attack_data = self.get_attack_data(attack_id)
-            if not attack_data:
-                debug_log(f"No data found for attack '{attack_id}', skipping")
+        # Get base attacks for class from CombatSystem
+        base_attacks_ids = self.get_attacks_for_class(player_class) # This returns list of IDs
+        # Add learned spells (which are also attack_ids)
+        spell_attack_ids = []
+        if learned_spells and player_class in ["mage", "celtic"]: # Ensure only spellcasting classes get spells
+            for spell in learned_spells: # Assuming learned_spells is a list of spell dicts
+                spell_id = spell.get('spell_name', '').lower().replace(' ', '_') # Convert to attack_id format
+                if spell_id in self.attacks: # Check if this spell_id is a defined attack
+                    spell_attack_ids.append(spell_id)
+            if spell_attack_ids:
+                 debug_log(f"Added {len(spell_attack_ids)} learned spell attacks: {spell_attack_ids}")
+
+        all_attack_ids = list(set(base_attacks_ids + spell_attack_ids)) # Use set to avoid duplicates
+        debug_log(f"Combined attack IDs for {player_class}: {all_attack_ids}")
+
+        available_attacks_data = {}
+        for attack_id in all_attack_ids:
+            attack_definition = self.get_attack_data(attack_id) # Fetches from attacks.yml
+            if not attack_definition:
+                debug_log(f"No attack definition found for '{attack_id}' in attacks.yml, skipping.")
                 continue
-                
-            attack_copy = attack_data.copy()
             
-            # Use bonus_damage or fallback to damage for backward compatibility
-            if 'bonus_damage' not in attack_copy and 'damage' in attack_copy:
-                attack_copy['bonus_damage'] = attack_copy['damage']
-                
+            attack_display_data = attack_definition.copy() # Use a copy for modification
+
+            # Ensure 'bonus_damage' is present, falling back to 'damage' if necessary
+            if 'bonus_damage' not in attack_display_data and 'damage' in attack_display_data:
+                attack_display_data['bonus_damage'] = attack_display_data['damage']
+            elif 'bonus_damage' not in attack_display_data:
+                 attack_display_data['bonus_damage'] = 0 # Default if neither exists
+
+            # Check and apply cooldown status
             if attack_id in self.active_cooldowns[player_id] and self.active_cooldowns[player_id][attack_id] > 0:
-                attack_copy["on_cooldown"] = True
-                attack_copy["cooldown_remaining"] = self.active_cooldowns[player_id][attack_id]
-                debug_log(f"Attack '{attack_id}' is currently on cooldown: {attack_copy['cooldown_remaining']} turns remaining")
+                attack_display_data["on_cooldown"] = True
+                attack_display_data["cooldown_remaining"] = self.active_cooldowns[player_id][attack_id]
+                debug_log(f"Attack '{attack_id}' is on cooldown for player {player_id}: {attack_display_data['cooldown_remaining']} turns.")
             else:
-                attack_copy["on_cooldown"] = False
-                
-            available_attacks[attack_id] = attack_copy
+                attack_display_data["on_cooldown"] = False
             
-        debug_log(f"Returning {len(available_attacks)} available attacks for player {player_id}")
-        return available_attacks
+            available_attacks_data[attack_id] = attack_display_data
+            
+        debug_log(f"Returning {len(available_attacks_data)} available attacks for player {player_id} (Name: {player.name})")
+        return available_attacks_data
 
 # Create a singleton instance that can be imported elsewhere
 combat_system = CombatSystem() 

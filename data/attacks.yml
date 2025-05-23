@@ -7,6 +7,7 @@ attacks:
     description: A standard attack with your weapon
     bonus_damage: 5
     cooldown: 0
+    accuracy: 95
     type: physical
   
   # Fighter attacks
@@ -15,6 +16,7 @@ attacks:
     description: A powerful blow that deals extra damage
     bonus_damage: 19
     cooldown: 2
+    accuracy: 85
     type: physical
   
   shield_bash:
@@ -23,6 +25,7 @@ attacks:
     bonus_damage: 10
     enemy_damage_reduction: 0.5
     cooldown: 3
+    accuracy: 90
     type: physical
   
   # Mage attacks
@@ -31,6 +34,7 @@ attacks:
     description: A quick burst of magical energy
     bonus_damage: 6
     cooldown: 0
+    accuracy: 90
     type: magical
   
   fireball:
@@ -38,6 +42,7 @@ attacks:
     description: A ball of digital fire that deals significant damage
     bonus_damage: 18
     cooldown: 2
+    accuracy: 80
     type: magical
   
   frost_nova:
@@ -46,6 +51,7 @@ attacks:
     bonus_damage: 12
     enemy_damage_reduction: 0.3
     cooldown: 3
+    accuracy: 90
     type: magical
   
   # Celtic attacks
@@ -54,6 +60,7 @@ attacks:
     description: A standard attack infused with nature's energy
     bonus_damage: 6
     cooldown: 0
+    accuracy: 90
     type: nature
   
   ancient_fury:
@@ -61,6 +68,7 @@ attacks:
     description: Channels ancient power for enhanced damage
     bonus_damage: 17
     cooldown: 2
+    accuracy: 85
     type: nature
   
   healing_strike:
@@ -69,6 +77,7 @@ attacks:
     bonus_damage: 8
     healing: 10
     cooldown: 3
+    accuracy: 95
     type: nature
   
   # Learned spell attacks
@@ -77,6 +86,7 @@ attacks:
     description: A powerful fire spell
     bonus_damage: 15
     cooldown: 1
+    accuracy: 90
     type: magical
   
   healing_touch:
@@ -85,4 +95,5 @@ attacks:
     bonus_damage: 0
     healing: 15
     cooldown: 2
+    accuracy: 90
     type: magical 
