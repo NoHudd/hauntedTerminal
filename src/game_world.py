@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import random
-from debug_tools import debug_log
+from utils.debug_tools import debug_log
 
 class GameWorld:
     """Manages the game world, including rooms, items, enemies, and NPCs"""
