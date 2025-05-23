@@ -936,20 +936,30 @@ class CommandHandler:
                     self.player.remove_from_inventory(item_id)
                     self.console.print(f"[yellow]You used up the {item_id}.[/yellow]")
             else:
-                # Use the selected attack
-                attack_result = self.player.perform_attack(action_id)
-                damage = attack_result["damage"]
+                # Use the selected attack via CombatSystem
+                attack_result = combat_system.perform_attack(self.player, action_id)
                 
-                # Apply damage to enemy
-                enemy_health -= damage
-                
-                # Display message
-                self.console.print(f"[green]{attack_result['message']}[/green]")
-                
-                # Apply enemy damage reduction if applicable
-                if attack_result.get("enemy_damage_reduction", 0) > 0:
-                    enemy_damage_reduction = attack_result["enemy_damage_reduction"]
-                    debug_log(f"Set enemy damage reduction to {enemy_damage_reduction}")
+                if attack_result["success"]:
+                    damage = attack_result["damage"]
+                    
+                    # Apply damage to enemy
+                    enemy_health -= damage
+                    
+                    # Display message
+                    self.console.print(f"[green]{attack_result['message']}[/green]")
+                    
+                    # Apply healing to player if any
+                    if "healing_amount" in attack_result and attack_result["healing_amount"] > 0:
+                        self.player.heal(attack_result["healing_amount"])
+                        # Message for healing is already part of attack_result['message']
+                    
+                    # Apply enemy damage reduction if applicable
+                    if "enemy_damage_reduction" in attack_result and attack_result["enemy_damage_reduction"] > 0:
+                        enemy_damage_reduction = attack_result["enemy_damage_reduction"]
+                        debug_log(f"Set enemy damage reduction to {enemy_damage_reduction}")
+                else:
+                    # Attack was not successful (e.g., on cooldown)
+                    self.console.print(f"[yellow]{attack_result['message']}[/yellow]")
             
             # Check if we defeated the enemy
             if enemy_health <= 0:
@@ -1002,11 +1012,11 @@ class CommandHandler:
                     
                 # Update cooldowns and status effects
                 debug_log("Updating player cooldowns and status effects")
-                # Update player cooldowns
-                self.player.update_cooldowns()
+                # Update player cooldowns via CombatSystem
+                combat_system.update_cooldowns(self.player)
                 
                 # Display any status effect expiration messages
-                expiration_messages = self.player.update_status_effects()
+                expiration_messages = self.player.update_status_effects() # Player still manages its own status effects list
                 for message in expiration_messages:
                     debug_log(f"Status effect expired: {message}")
                     self.console.print(f"[magenta]{message}[/magenta]")
