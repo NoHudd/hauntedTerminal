@@ -1,4 +1,4 @@
-from debug_tools import debug_log
+from utils.debug_tools import debug_log
 from src.data_loader import load_class_data, load_weapon_data, get_abilities_for_class
 import random
 

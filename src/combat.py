@@ -2,7 +2,7 @@
 import os
 import yaml
 import random
-from debug_tools import debug_log
+from utils.debug_tools import debug_log
 
 class CombatSystem:
     """Handles all combat-related functionality with a unified approach."""

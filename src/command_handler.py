@@ -5,7 +5,7 @@ import readchar
 from rich.panel import Panel
 from rich.text import Text
 from src.combat import combat_system
-from debug_tools import debug_log
+from utils.debug_tools import debug_log
 
 class CommandHandler:
     """Handles processing of player commands"""

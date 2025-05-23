@@ -17,8 +17,8 @@ from src.player import Player
 from src.command_handler import CommandHandler
 from src.save import save_manager
 # Import debug tools
-from debug_tools import debug_log
-from dev_config import DEBUG_MODE
+from utils.debug_tools import debug_log
+from config.dev_config import DEBUG_MODE
 
 console = Console()
 

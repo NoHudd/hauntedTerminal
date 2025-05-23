@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import yaml
-from debug_tools import debug_log
+from utils.debug_tools import debug_log
 
 # Cache for loaded data to avoid repeated disk reads
 _class_data_cache = None
