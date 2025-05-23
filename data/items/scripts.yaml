@@ -1,0 +1,49 @@
+scripts:
+  purge_script:
+    name: Purge Script
+    short_description: A dangerous script that purges corruption
+    description: A powerful but volatile script that can purge corruption from a directory. It seems dangerous to use without proper caution.
+    type: "script"
+    content: |
+      #!/bin/bash
+      # WARNING: This script will purge all corruption from the current directory
+      # but may have unintended consequences. Use with extreme caution.
+      
+      echo "Initiating corruption purge..."
+      # Scan for corruption markers
+      find . -type f -name "*.corrupt" -delete
+      # Remove infected processes
+      killall -9 *daemon* 2>/dev/null
+      echo "Purge complete. Check for collateral damage."
+    takeable: true
+    usable: true
+    consumed_on_use: true
+    on_use:
+      message: The purge script executes violently, tearing through corrupted data in the area. The script burns itself out in the process.
+      damage_room_enemies: 30
+
+  helper.sh:
+    name: Helper Script
+    short_description: A glowing script that seems eager to provide assistance
+    description: A helpful script that appears to be unaffected by the corruption. It emanates a soft, benevolent glow. This entity seems to want to assist you in your journey.
+    type: "script"
+    content: |
+      #!/bin/bash
+      # This script appears to be a helpful entity
+      echo "I am the Helper Script. I can provide guidance through this corrupted system."
+      echo "Use 'ls' to list files and directories."
+      echo "Use 'cd [directory]' to change directories."
+      echo "Use 'cat [file]' to read files."
+      echo "Type 'inventory' to see what you've collected."
+      echo "Type 'map' to see where you can go."
+      echo "The Daemon Overlord's minions lurk in hidden files. Be cautious."
+    takeable: true
+    usable: true
+    usable_in_combat: true
+    on_read:
+      message: The Helper Script glows brightly, seeming pleased to be acknowledged.
+    on_use:
+      message: The Helper Script executes, filling the air with glowing text that offers guidance.
+      heal: 10
+    combat_effects:
+      player_heal: 15 

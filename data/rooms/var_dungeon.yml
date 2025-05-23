@@ -1,0 +1,19 @@
+name: Variable Dungeon
+description: A volatile region of the filesystem filled with darkness and danger.
+detailed_description: |
+  The /var directory has been twisted into a nightmarish dungeon. Data streams flow like rivers of darkness between unstable structures that shift and change without warning. The very foundation of this directory seems in constant flux.
+  
+  Warning messages flash periodically through the environment, and the sounds of corrupted processes echo from deeper within. This place is clearly dangerous, but may hold valuable resources and paths to other areas.
+exits:
+  - usr_lib_arcane
+  - home_grove
+items:
+  - corrupted_data.dat
+  - tmp_key
+enemies:
+  - var_daemon.sys
+  - data_corruptor.exe
+npcs: []
+locked: true
+key_required: lib_key
+hidden: false 

@@ -1,0 +1,27 @@
+weapons:
+  protocol_shield:
+    name: "Protocol Shield"
+    description: "A defensive matrix shield designed to block attacks and restore system stability."
+    type: "weapon"
+    damage: 6
+    allowed_classes:
+      - guardian
+    rarity: common
+
+  byte_blaster:
+    name: "Byte Blaster"
+    description: "A corrupted hacking device that weaponizes data packets into raw offensive force."
+    type: "weapon"
+    damage: 8
+    allowed_classes:
+      - weaver
+    rarity: common
+
+  echo_staff:
+    name: "Echo Staff"
+    description: "A resonant staff attuned to the ghost echoes of the ancient system. Its strikes discrupt enemy proceeses."
+    type: "weapon"
+    damage: 7
+    allowed_classes:
+      - shaman
+    rarity: common

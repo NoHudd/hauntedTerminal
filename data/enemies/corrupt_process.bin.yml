@@ -1,0 +1,13 @@
+name: Corrupted Process
+short_description: A system process corrupted by daemon influence
+description: A once-harmless system process that has been corrupted by the Daemon Overlord. It flickers with malicious intent.
+health: 40
+damage: 8
+is_boss: false
+auto_attack: true
+dialogue: "01001011 01001001 01001100 01001100 00100000 01001001 01001110 01010100 01010010 01010101 01000100 01000101 01010010"
+drops:
+  - item: random_memory_fragment
+    chance: 75
+on_defeat:
+  message: The corrupted process dissolves into bits of binary code, harmless once more. 

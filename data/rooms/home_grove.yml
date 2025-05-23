@@ -1,0 +1,19 @@
+name: Home Grove
+description: A peaceful directory where user files mingle with natural system processes.
+detailed_description: |
+  The /home/grove directory is a surprising oasis of tranquility within the corrupted system. Here, user data has taken the form of lush digital foliage, creating a forest-like environment that seems to actively resist the corruption.
+  
+  Streams of clean data flow like healing springs, and the gentle hum of optimized processes creates a soothing atmosphere. This seems like a safe place to recover and prepare for more dangerous explorations.
+  
+  In the center of the grove stands a tall data structure resembling an ancient tree, its branches extending toward various user homes that appear as smaller clearings within the digital forest.
+exits:
+  - var_dungeon
+  - mnt_forest
+items:
+  - health_potion_large
+  - natural_tonic
+  - healing_touch
+enemies: []
+npcs:
+  - home_guardian.sys
+hidden: false 

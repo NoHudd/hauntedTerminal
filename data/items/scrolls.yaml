@@ -1,0 +1,87 @@
+scrolls:
+  system_guide.txt:
+    name: System Guide
+    short_description: A helpful guide to navigating the haunted filesystem
+    description: A comprehensive guide to the filesystem, explaining how to navigate through the corrupted system.
+    type: "scroll"
+    content: |
+      SYSTEM GUIDE - NAVIGATING THE HAUNTED FILESYSTEM
+      
+      Welcome, brave sysadmin! This guide will help you navigate the corrupted filesystem:
+      
+      1. Basic Navigation Commands:
+         - ls: List files and directories in the current location
+         - cd [directory]: Change to a different directory
+         - cat [file]: Read the contents of a file
+         - inventory (or inv): View your collected items
+         - map: View known locations
+      
+      2. Combat Commands:
+         - attack [enemy]: Initiate combat with an enemy
+         - talk [npc]: Communicate with a process (NPC)
+         
+      3. Item Commands:
+         - take [item]: Add an item to your inventory
+         - drop [item]: Remove an item from inventory
+         - use [item]: Use an item from your inventory
+         - examine [item]: Get detailed information about an item
+      
+      Remember that the Daemon Overlord has corrupted the system. Be cautious as you explore, and look for ways to cleanse the corruption!
+      
+      The core system is heavily protected. You'll need to find the master.key to access it.
+      
+      Good luck on your quest to save the filesystem!
+    takeable: true
+    usable: false
+    on_read:
+      message: You feel more confident about navigating the system after reading the guide.
+
+  ancient_manual:
+    name: Ancient System Manual
+    short_description: An old manual containing powerful system commands
+    description: An ancient text file containing documentation for powerful system commands from the earliest days of computing. The text glows with a soft, ancient light, untouched by corruption.
+    type: "scroll"
+    content: |
+      === ANCIENT SYSTEM MANUAL ===
+      
+      These commands were part of the original system before the modern interfaces.
+      They hold great power when wielded by a true system administrator.
+      
+      chmod - Change file permissions
+        chmod 777 file_name (full permissions)
+        chmod 400 file_name (read-only)
+        chmod 000 file_name (no permissions)
+      
+      grep - Search for patterns
+        grep "pattern" file_name
+        grep -r "pattern" directory_name
+      
+      awk - Text processing
+        awk '{print $1}' file_name
+      
+      sed - Stream editor
+        sed 's/old/new/g' file_name
+      
+      These commands may prove useful in maintaining the system now that
+      you have defeated the corruption. Guard this knowledge well.
+    takeable: true
+    usable: false
+    on_read:
+      message: The ancient knowledge flows into your mind, expanding your understanding of the system.
+
+  chmod_scroll:
+    name: Permission Scroll
+    short_description: A script that modifies access permissions
+    description: A scroll containing code that can modify permissions within the system. It glows with authority.
+    type: "scroll"
+    content: |
+      #!/bin/bash
+      # This ancient script contains permission-modifying code
+      chmod 777 $1
+      echo "Access granted to all entities"
+    takeable: true
+    usable: true
+    consumed_on_use: true
+    on_use:
+      message: The scroll dissolves into streams of permission codes, unlocking something nearby.
+      unlock_room: usr_lib_arcane 

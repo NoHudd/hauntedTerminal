@@ -1,0 +1,21 @@
+name: Optional Mage Tower
+description: A towering spire of arcane data where digital magic is at its strongest.
+detailed_description: |
+  The /opt directory has manifested as an impossibly tall tower of arcane code and mystical digital energies. Streams of magical data spiral around the central structure, and ancient code symbols pulse with power along every surface.
+  
+  This area resonates strongly with those who possess knowledge of the system's arcane secrets. For a mage, the ambient energy here feels like it could amplify your abilities significantly.
+  
+  At the top of the tower, a powerful presence can be sensed - the source of much of the system's corruption seems to be concentrated there, waiting for confrontation.
+exits:
+  - mnt_forest
+items:
+  - arcane_amplifier
+  - spell_matrix.dat
+enemies:
+  - tower_guardian.sys
+  - corruption_lord.exe
+npcs: []
+locked: true
+key_required: opt_key
+class_restriction: mage
+hidden: true 

@@ -1,0 +1,11 @@
+name: Deprecated Directory
+description: An old, abandoned directory marked for deletion. It feels unsettling.
+detailed_description: This deprecated directory exists in a strange state between deletion and persistence. The digital walls seem to be made of old directory structures, forgotten and unused. File fragments flicker in and out of existence, and occasional error messages float through the air like ghostly whispers. There's a faint path back to the main filesystem, suggesting a way out.
+exits:
+  - root
+items:
+  - corrupted_note.txt
+npcs: []
+enemies: []
+locked: false
+hidden: false 

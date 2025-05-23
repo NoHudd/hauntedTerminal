@@ -1,0 +1,14 @@
+name: Daemon Overlord
+short_description: The malevolent entity that has corrupted the filesystem
+description: A massive, writhing mass of corrupted code that pulses with malevolent energy. The Daemon Overlord is the source of the corruption that has infected the entire system. It appears sentient and hostile.
+health: 150
+damage: 20
+is_boss: true
+auto_attack: true
+dialogue: I AM THE CORRUPTION. YOUR JOURNEY ENDS HERE. THIS FILESYSTEM BELONGS TO ME NOW.
+drops:
+  - item: system_badge.dat
+    chance: 100
+on_defeat:
+  message: The Daemon Overlord writhes in agony as its corrupted form begins to dissolve. The backup data is overwhelming its corrupted code, purging it from the system. With a final digital scream, it disappears, leaving the filesystem clean once more.
+  unlock_room: hidden 

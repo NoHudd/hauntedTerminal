@@ -1,0 +1,13 @@
+name: Core System Directory
+description: The central core of the system, heavily corrupted and ominous. The Daemon Overlord's presence is strong here.
+detailed_description: The core system directory is the heart of the filesystem, now corrupted by malevolent energy. This critical zone contains the fundamental processes that keep the system running. The very fabric of the directory seems damaged, with glitching visuals and distorted sounds. The air is thick with a digital miasma, making it hard to navigate. In the center, a pulsing dark mass that can only be the Daemon Overlord dominates the space, having taken control of the system's most vital functions.
+exits:
+  - root
+items:
+  - backup.bak
+npcs: []
+enemies:
+  - daemon_overlord.sys
+locked: true
+key_required: master.key
+hidden: false 

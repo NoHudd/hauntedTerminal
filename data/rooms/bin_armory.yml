@@ -1,0 +1,17 @@
+name: Binary Armory
+description: A directory filled with executable tools and corrupted binaries.
+detailed_description: |
+  The /bin directory has been transformed into a makeshift armory. Executable files hover in the air, pulsing with energy like weapons waiting to be wielded. The walls are lined with command structures that resemble racks of digital weaponry.
+  
+  Several corrupted processes patrol the area, their code visibly glitched and hostile. This appears to be where system tools have been weaponized by the corruption.
+exits:
+  - root
+  - usr_lib_arcane
+items:
+  - rusty_sword
+  - chmod_scroll.sh
+enemies:
+  - corrupt_process.bin
+  - zombie_daemon.exe
+npcs: []
+hidden: false 

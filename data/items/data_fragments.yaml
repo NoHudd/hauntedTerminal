@@ -1,0 +1,30 @@
+data_fragments:
+  fragment_dat:
+    name: Data Fragment
+    short_description: A fragment of uncorrupted system data
+    description: A small fragment of uncorrupted system data. It seems to contain partial information that might be valuable.
+    type: "data_fragment"
+    takeable: true
+    usable: true
+    consumed_on_use: true
+    on_use:
+      message: The fragment dissolves and integrates with your system knowledge, revealing a small bit of useful information.
+      heal: 5
+
+  log_fragment:
+    name: Log Fragment
+    short_description: A fragment of system logs
+    description: A partial system log that contains fragments of information about system operations before the corruption.
+    type: "data_fragment"
+    content: |
+      ... corrupted ...
+      ... system integrity at 98% ...
+      ... unknown process detected in /etc ...
+      ... attempting security lockdown ...
+      ... corruption spreading through /var ...
+      ... backup initiated ...
+      ... corrupted ...
+    takeable: true
+    usable: false
+    on_read:
+      message: The log fragment provides some insight into how the corruption began. 

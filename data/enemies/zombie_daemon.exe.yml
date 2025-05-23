@@ -1,0 +1,15 @@
+name: Zombie Daemon
+short_description: A reanimated daemon process that hungers for memory
+description: A daemon process that should have terminated but continues to run, consuming system resources. Its code is decayed and glitched.
+health: 65
+damage: 12
+is_boss: false
+auto_attack: true
+dialogue: "M-m-m-memmorryyy...n-need...m-more...RAM..."
+drops:
+  - item: digital_charm
+    chance: 20
+  - item: health_potion_minor
+    chance: 50
+on_defeat:
+  message: The zombie daemon process finally terminates, leaving behind fragments of its corrupted code. 
