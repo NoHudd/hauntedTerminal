@@ -18,7 +18,7 @@ class Player:
         self.inventory = {}
         self.equipped_weapon = None
         self.status_effects = {}
-        self.cooldowns = {}
+        # self.cooldowns = {} # Removed: Cooldowns are now managed by CombatSystem
         self.spells = []  # For special abilities later
         self.class_description = ""
 
@@ -233,60 +233,13 @@ class Player:
         debug_log(f"Returning {len(combined_attacks)} available attacks for player {self.player_id}")
         return combined_attacks
         
-    def perform_attack(self, attack_id):
-        """Execute an attack and return the results."""
-        debug_log(f"Player {self.player_id} initiating attack '{attack_id}' with base damage {self.calculate_damage()}")
-        available_attacks = self.get_available_attacks()
-        
-        if attack_id not in available_attacks:
-            debug_log(f"Attack '{attack_id}' not found in available attacks")
-            return {"damage": self.calculate_damage(), "message": f"You attack for {self.calculate_damage()} damage!"}
-            
-        attack = available_attacks[attack_id]
-        
-        # Check if attack is on cooldown
-        if attack.get("on_cooldown", False):
-            debug_log(f"Attack '{attack_id}' is on cooldown, using basic attack instead")
-            return {"damage": self.calculate_damage(), "message": f"Attack on cooldown! You use a basic attack for {self.calculate_damage()} damage."}
-            
-        # Calculate damage
-        base_damage = self.calculate_damage()
-        bonus_damage = attack.get("bonus_damage", 0)
-        total_damage = base_damage + bonus_damage
-        debug_log(f"Attack '{attack_id}' calculation: {base_damage} (base) + {bonus_damage} (bonus) = {total_damage}")
-        
-        # Apply healing if the attack has it
-        healing = attack.get("healing", 0)
-        if healing > 0:
-            self.heal(healing)
-            
-        # Set cooldown if attack has one
-        cooldown = attack.get("cooldown", 0)
-        if cooldown > 0:
-            self.cooldowns[attack_id] = cooldown
-            debug_log(f"Set cooldown for '{attack_id}' to {cooldown} turns")
-            
-        # Prepare result with enemy damage reduction if applicable
-        result = {
-            "damage": total_damage,
-            "healing": healing,
-            "enemy_damage_reduction": attack.get("enemy_damage_reduction", 0),
-            "message": f"You use {attack.get('name', attack_id)} for {total_damage} damage!"
-        }
-        
-        if healing > 0:
-            result["message"] += f" You heal yourself for {healing} health."
-            
-        debug_log(f"Attack '{attack_id}' results: damage={total_damage}, healing={healing}, enemy_damage_reduction={result['enemy_damage_reduction']}")
-        return result
-        
-    def update_cooldowns(self):
-        """Reduce all ability cooldowns by 1."""
-        for attack_id in list(self.cooldowns.keys()):
-            self.cooldowns[attack_id] -= 1
-            if self.cooldowns[attack_id] <= 0:
-                debug_log(f"Cooldown for '{attack_id}' has expired")
-                del self.cooldowns[attack_id]
+    # def update_cooldowns(self): # Fully removed as it's handled by CombatSystem
+    #     """Reduce all ability cooldowns by 1."""
+    #     for attack_id in list(self.cooldowns.keys()):
+    #         self.cooldowns[attack_id] -= 1
+    #         if self.cooldowns[attack_id] <= 0:
+    #             debug_log(f"Cooldown for '{attack_id}' has expired")
+    #             del self.cooldowns[attack_id]
                 
     def increase_max_health(self, amount):
         """Permanently increase maximum health."""
