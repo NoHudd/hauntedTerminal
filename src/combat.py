@@ -155,7 +155,7 @@ class CombatSystem:
         
         message = f"You use {attack_data['name']} for {damage} damage!"
         if bonus_damage > 0: # Show total damage and bonus if bonus damage exists
-            message = f"You use {attack_data['name']} for {damage} damage ({player_base_damage} base + {bonus_damage} bonus)!"
+            message = f"You use {attack_data['name']} for {damage} damage ({player_base_damage} base + {bonus_damage} weapon bonus)!"
         else: # Otherwise, just show total damage
             message = f"You use {attack_data['name']} for {damage} damage!"
 

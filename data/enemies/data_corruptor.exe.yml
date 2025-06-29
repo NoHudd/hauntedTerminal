@@ -1,0 +1,22 @@
+name: Data Corruptor
+description: A vicious executable that specializes in destroying valuable data
+health: 60
+damage: 12
+is_boss: false
+dialogue: "I will delete everything you hold dear!"
+loot:
+  - recovery_tool.exe
+  - backup_fragment.dat
+experience: 20
+attack_patterns:
+  - name: "File Deletion"
+    damage: 15
+    description: "Attempts to delete critical files"
+  - name: "Memory Leak"
+    damage: 10
+    description: "Causes system slowdown and minor damage"
+weaknesses:
+  - "backup_tool"
+  - "file_recovery"
+resistances:
+  - "deletion"

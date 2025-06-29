@@ -1,0 +1,27 @@
+name: Mount Daemon
+description: A system daemon that has become hostile while managing mount points
+health: 70
+damage: 16
+is_boss: false
+dialogue: "Access denied! This mount point is under my control!"
+loot:
+  - mount_token.sys
+  - access_key.dat
+  - daemon_core.bin
+experience: 25
+attack_patterns:
+  - name: "Mount Strike"
+    damage: 20
+    description: "Strikes with mounting system authority"
+  - name: "Access Denial"
+    damage: 18
+    description: "Denies access, causing system damage"
+  - name: "Permission Lock"
+    damage: 14
+    description: "Locks permissions, reducing effectiveness"
+weaknesses:
+  - "admin_rights"
+  - "unmount_tool"
+resistances:
+  - "system_calls"
+  - "permissions"

@@ -1,0 +1,27 @@
+name: Null Guardian
+description: A mysterious guardian that protects the void, born from deleted data
+health: 90
+damage: 20
+is_boss: false
+dialogue: "Nothing exists here. You should not have come."
+loot:
+  - void_essence.dat
+  - null_pointer.sys
+  - forgotten_memory.bin
+experience: 35
+attack_patterns:
+  - name: "Void Strike"
+    damage: 25
+    description: "Strikes with the power of nothingness"
+  - name: "Memory Drain"
+    damage: 15
+    description: "Drains memories, causing confusion and damage"
+  - name: "Null Pointer"
+    damage: 18
+    description: "Causes system errors with null references"
+weaknesses:
+  - "memory_restore"
+  - "pointer_fix"
+resistances:
+  - "void"
+  - "deletion"

@@ -1,0 +1,27 @@
+name: Forest Sentinel
+description: A nature-based guardian process that protects the mount forest
+health: 80
+damage: 18
+is_boss: false
+dialogue: "The forest must remain untouched by corruption!"
+loot:
+  - nature_essence.dat
+  - forest_key.bin
+  - sentinel_core.sys
+experience: 30
+attack_patterns:
+  - name: "Root Strike"
+    damage: 22
+    description: "Attacks with powerful root systems"
+  - name: "Nature's Wrath"
+    damage: 20
+    description: "Calls upon the fury of the natural world"
+  - name: "Healing Sap"
+    damage: -12
+    description: "Heals itself with natural regeneration"
+weaknesses:
+  - "fire"
+  - "corruption"
+resistances:
+  - "nature"
+  - "earth"

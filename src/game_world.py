@@ -590,3 +590,43 @@ class GameWorld:
         else:
             debug_log(f"WARNING: Attempted to discover non-existent room: {room_id}")
         return False 
+
+    def get_formatted_room_description(self, room_id):
+        """
+        Returns a formatted, user-friendly description of a room,
+        including its name, description, items, enemies, and NPCs.
+        """
+        room_data = self.get_room(room_id)
+        if not room_data:
+            return "You are in a void. Something is terribly wrong."
+
+        # Name and description
+        name = room_data.get('name', 'An Unnamed Room')
+        description = room_data.get('description', 'A featureless space.')
+        full_description = f"[bold cyan]{name}[/bold cyan]\n{description}\n"
+
+        # Items
+        items_in_room = self.get_items_in_room(room_id)
+        if items_in_room:
+            full_description += "\n[bold yellow]You see the following items:[/bold yellow]\n"
+            for item_id in items_in_room:
+                item_name = self.items.get(item_id, {}).get('name', item_id)
+                full_description += f"- {item_name}\n"
+
+        # Enemies
+        enemies_in_room = self.get_enemies_in_room(room_id)
+        if enemies_in_room:
+            full_description += "\n[bold red]Enemies:[/bold red]\n"
+            for enemy_id in enemies_in_room:
+                enemy_name = self.enemies.get(enemy_id, {}).get('name', enemy_id)
+                full_description += f"- {enemy_name}\n"
+
+        # NPCs
+        npcs_in_room = self.get_npcs_in_room(room_id)
+        if npcs_in_room:
+            full_description += "\n[bold green]People:[/bold green]\n"
+            for npc_id in npcs_in_room:
+                npc_name = self.npcs.get(npc_id, {}).get('name', npc_id)
+                full_description += f"- {npc_name}\n"
+
+        return full_description.strip()

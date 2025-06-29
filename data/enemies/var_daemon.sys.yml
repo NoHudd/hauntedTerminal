@@ -1,0 +1,22 @@
+name: Variable Daemon
+description: A malevolent daemon that feeds on unstable data in the /var directory
+health: 75
+damage: 15
+is_boss: false
+dialogue: "Your data will be corrupted and lost forever!"
+loot:
+  - corrupted_essence.dat
+  - system_fragment.bin
+experience: 25
+attack_patterns:
+  - name: "Data Corruption"
+    damage: 18
+    description: "Corrupts your data, dealing extra damage"
+  - name: "System Drain"
+    damage: 12
+    description: "Drains system resources, reducing your next attack"
+weaknesses:
+  - "antivirus_tool"
+  - "system_restore"
+resistances:
+  - "corruption"

@@ -1,0 +1,27 @@
+name: Tower Guardian
+description: An ancient magical construct that protects the mage tower's secrets
+health: 100
+damage: 22
+is_boss: false
+dialogue: "Only true mages may pass. Your magic is insufficient!"
+loot:
+  - guardian_core.sys
+  - arcane_crystal.dat
+  - tower_key.bin
+experience: 40
+attack_patterns:
+  - name: "Arcane Blast"
+    damage: 28
+    description: "Unleashes a powerful blast of arcane energy"
+  - name: "Magic Shield"
+    damage: 0
+    description: "Creates a protective barrier, reducing incoming damage"
+  - name: "Mana Drain"
+    damage: 15
+    description: "Drains magical energy, weakening spellcasters"
+weaknesses:
+  - "dispel_magic"
+  - "anti_magic"
+resistances:
+  - "magic"
+  - "arcane"

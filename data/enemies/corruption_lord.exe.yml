@@ -1,0 +1,32 @@
+name: Corruption Lord
+description: A powerful entity of pure corruption that seeks to taint all magic
+health: 120
+damage: 25
+is_boss: true
+dialogue: "Your pure magic disgusts me! I will corrupt everything you hold dear!"
+loot:
+  - corruption_essence.dat
+  - tainted_crystal.bin
+  - lord_fragment.sys
+  - purification_scroll.txt
+experience: 60
+attack_patterns:
+  - name: "Corruption Wave"
+    damage: 30
+    description: "Sends out a wave of corrupting energy"
+  - name: "Taint Magic"
+    damage: 20
+    description: "Corrupts the target's magical abilities"
+  - name: "Dark Ritual"
+    damage: 35
+    description: "Performs a dark ritual, dealing massive damage"
+  - name: "Corrupt Heal"
+    damage: -15
+    description: "Heals itself by absorbing corruption from the environment"
+weaknesses:
+  - "purification"
+  - "holy_magic"
+resistances:
+  - "corruption"
+  - "dark_magic"
+  - "poison"
