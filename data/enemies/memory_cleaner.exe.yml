@@ -1,0 +1,27 @@
+name: Memory Cleaner
+description: A rogue cleanup process that has become aggressive and territorial
+health: 65
+damage: 14
+is_boss: false
+dialogue: "This memory space must be purged! You are an unwanted process!"
+loot:
+  - clean_memory.dat
+  - process_token.sys
+  - optimization_tool.exe
+experience: 22
+attack_patterns:
+  - name: "Memory Wipe"
+    damage: 18
+    description: "Attempts to clear your memory, causing damage"
+  - name: "Process Kill"
+    damage: 16
+    description: "Tries to terminate your process"
+  - name: "Cache Clear"
+    damage: 12
+    description: "Clears system cache, causing minor damage"
+weaknesses:
+  - "memory_protection"
+  - "process_shield"
+resistances:
+  - "cleanup"
+  - "optimization"

@@ -5,7 +5,7 @@ import random
 class Player:
     """Class representing the player in the game."""
 
-    def __init__(self, name="", player_class="guardian", current_room="terminal_room"):
+    def __init__(self, name="", player_class="guardian", current_room="home_grove"):
         """Initialize a new player."""
         self.name = name
         self.player_class = player_class.lower()
@@ -96,6 +96,10 @@ class Player:
     def get_inventory_items(self):
         """Get a list of all items in the player's inventory."""
         return list(self.inventory.keys())
+
+    def is_dead(self):
+        """Check if the player's health is at or below zero."""
+        return self.health <= 0
     
     def has_item(self, item_id):
         """Check if the player has a specific item."""
@@ -209,29 +213,84 @@ class Player:
             
         return total
         
-    def get_available_attacks(self):
-        """Get all available attacks for the player based on class."""
-        debug_log(f"Getting available attacks for player {self.player_id} (class: {self.player_class})")
+    def get_combat_action(self, combat_system, ui):
+        """
+        Display available combat actions (attacks and items) and get the player's choice.
+        """
+        import readchar
+
+        # Get available attacks from the combat system
+        available_attacks = combat_system.get_available_attacks(self, self.spells)
         
-        # Load abilities for this class from data
-        class_attacks = get_abilities_for_class(self.player_class)
-        debug_log(f"Available attacks for {self.player_class} class: {list(class_attacks.keys())}")
+        # Get usable items from inventory
+        usable_items = []
+        for item_id, item_data in self.inventory.items():
+            if item_data.get("usable") and "combat_usable" in item_data.get("tags", []):
+                usable_items.append((item_id, item_data))
+
+        # Display options to the player via the UI
+        ui.update_output("\n[bold]Choose your action:[/bold]")
         
-        # Combine with any spell-based attacks
-        combined_attacks = dict(class_attacks)
-        debug_log(f"Combined attacks list: {list(combined_attacks.keys())}")
+        action_keys = {}
+        key_idx = 1
         
-        # Check cooldowns
-        for attack_id, attack_data in combined_attacks.items():
-            cooldown = self.cooldowns.get(attack_id, 0)
-            if cooldown > 0:
-                debug_log(f"Attack '{attack_id}' is currently on cooldown: {cooldown} turns remaining")
-                attack_data["on_cooldown"] = True
+        # Display attacks
+        base_damage = self.calculate_damage()
+        ui.update_output(f"[bold]Base Attack Damage:[/bold] {base_damage}")
+        for attack_id, attack_data in available_attacks.items():
+            attack_name = attack_data.get("name", attack_id)
+            bonus_damage = attack_data.get("bonus_damage", 0)
+            cooldown = attack_data.get("cooldown", 0)
+            on_cooldown = attack_data.get("on_cooldown", False)
+            
+            description = attack_data.get("description", "")
+            healing = attack_data.get("healing", 0)
+            
+            total_damage = base_damage + bonus_damage
+            
+            effect_desc = []
+            if bonus_damage > 0:
+                effect_desc.append(f"{total_damage} dmg")
             else:
-                attack_data["on_cooldown"] = False
-                
-        debug_log(f"Returning {len(combined_attacks)} available attacks for player {self.player_id}")
-        return combined_attacks
+                effect_desc.append(f"{base_damage} dmg")
+            if healing > 0:
+                effect_desc.append(f"Heal {healing} HP")
+            if cooldown > 0:
+                effect_desc.append(f"CD: {cooldown}")
+
+            effects = ", ".join(effect_desc)
+            
+            if on_cooldown:
+                ui.update_output(f"{key_idx}: [gray]{attack_name} ({effects}) - On Cooldown ({attack_data.get('cooldown_remaining', 0)} turns)[/gray]")
+            else:
+                ui.update_output(f"{key_idx}: [cyan]{attack_name}[/cyan] - {description} ({effects})")
+                action_keys[str(key_idx)] = attack_id
+            key_idx += 1
+            
+        # Display items
+        if usable_items:
+            ui.update_output("\n[bold]Items:[/bold]")
+            for item_id, item_data in usable_items:
+                item_name = item_data.get("name", item_id)
+                ui.update_output(f"{key_idx}: [yellow]{item_name}[/yellow] - {item_data.get('description', '')}")
+                action_keys[str(key_idx)] = item_id
+                key_idx += 1
+        
+        # Add a flee option
+        flee_key = 'f'
+        ui.update_output(f"{flee_key}: [bold magenta]Flee Combat[/bold magenta]")
+        action_keys[flee_key] = "flee"
+
+        # Get player input
+        choice = None
+        while choice not in action_keys:
+            ui.update_input_panel("Your choice: ", cursor_visible=True)
+            choice = readchar.readkey()
+            ui.update_input_panel(f"Your choice: {choice}", cursor_visible=False)
+            if choice not in action_keys:
+                ui.update_output("[red]Invalid choice.[/red]")
+        
+        return action_keys[choice]
         
     # def update_cooldowns(self): # Fully removed as it's handled by CombatSystem
     #     """Reduce all ability cooldowns by 1."""
@@ -274,7 +333,7 @@ class Player:
     @classmethod
     def from_dict(cls, data):
         """Create a player instance from a dictionary."""
-        player = cls(data.get("name", ""), data.get("player_class", "guardian"), data.get("current_room", "terminal_room"))
+        player = cls(data.get("name", ""), data.get("player_class", "guardian"), data.get("current_room", "home_grove"))
         player.health = data["health"]
         player.max_health = data["max_health"]
         player.total_damage = data.get("total_damage", player.total_damage)

@@ -15,9 +15,7 @@ items:
   - corrupted_memory.dat
   - health_potion_small
 enemies:
-  - forest_sentinel.sys
   - mount_daemon.exe
-  - feral_process.bin
 npcs:
   - lost_user.dat
 hidden: false 

@@ -1,0 +1,27 @@
+name: Tomb Guardian
+description: An ancient warrior spirit that guards the sacred tomb of fallen fighters
+health: 110
+damage: 24
+is_boss: false
+dialogue: "Only warriors of true strength may enter this sacred place!"
+loot:
+  - warrior_spirit.dat
+  - ancient_armor.bin
+  - tomb_key.sys
+experience: 45
+attack_patterns:
+  - name: "Spirit Strike"
+    damage: 30
+    description: "Attacks with the power of ancient warriors"
+  - name: "Guardian's Wrath"
+    damage: 28
+    description: "Unleashes righteous fury upon intruders"
+  - name: "Ancestral Shield"
+    damage: 0
+    description: "Calls upon ancestral protection, reducing damage"
+weaknesses:
+  - "holy_weapon"
+  - "respect_ritual"
+resistances:
+  - "physical"
+  - "spiritual"

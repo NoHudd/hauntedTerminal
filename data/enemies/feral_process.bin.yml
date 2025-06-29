@@ -1,0 +1,27 @@
+name: Feral Process
+description: A wild, uncontrolled process that has gone rogue in the system
+health: 55
+damage: 13
+is_boss: false
+dialogue: "Cannot... control... must... consume... resources!"
+loot:
+  - process_fragment.bin
+  - wild_memory.dat
+  - control_token.sys
+experience: 18
+attack_patterns:
+  - name: "Wild Strike"
+    damage: 16
+    description: "Attacks with unpredictable, wild movements"
+  - name: "Resource Drain"
+    damage: 12
+    description: "Drains system resources, causing damage"
+  - name: "Feral Rage"
+    damage: 19
+    description: "Enters a rage state, dealing increased damage"
+weaknesses:
+  - "process_control"
+  - "system_stabilizer"
+resistances:
+  - "chaos"
+  - "instability"

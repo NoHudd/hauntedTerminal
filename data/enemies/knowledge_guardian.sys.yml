@@ -1,0 +1,28 @@
+name: Knowledge Guardian
+description: An ancient guardian that protects the sacred knowledge within the arcane library
+health: 85
+damage: 19
+is_boss: false
+dialogue: "Knowledge is power, and power must be earned through trial!"
+loot:
+  - wisdom_fragment.dat
+  - arcane_knowledge.txt
+  - library_key.bin
+experience: 32
+attack_patterns:
+  - name: "Mind Blast"
+    damage: 24
+    description: "Attacks with pure mental energy"
+  - name: "Knowledge Drain"
+    damage: 17
+    description: "Drains knowledge, causing confusion and damage"
+  - name: "Wisdom Shield"
+    damage: 0
+    description: "Creates a protective barrier of accumulated wisdom"
+weaknesses:
+  - "ignorance"
+  - "anti_magic"
+resistances:
+  - "mental"
+  - "knowledge"
+  - "wisdom"

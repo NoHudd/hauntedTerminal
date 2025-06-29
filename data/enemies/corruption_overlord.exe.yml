@@ -1,0 +1,33 @@
+name: Corruption Overlord
+description: A supreme entity of corruption that commands lesser corrupt beings
+health: 150
+damage: 30
+is_boss: true
+dialogue: "I am the master of all corruption! Your strength means nothing!"
+loot:
+  - overlord_core.sys
+  - corruption_crown.dat
+  - master_fragment.bin
+  - purification_blade.exe
+experience: 80
+attack_patterns:
+  - name: "Overlord's Command"
+    damage: 35
+    description: "Commands the battlefield with supreme authority"
+  - name: "Corruption Storm"
+    damage: 32
+    description: "Unleashes a devastating storm of corruption"
+  - name: "Dark Dominion"
+    damage: 28
+    description: "Establishes dominance, weakening all opposition"
+  - name: "Corrupt Regeneration"
+    damage: -20
+    description: "Regenerates health by absorbing nearby corruption"
+weaknesses:
+  - "purification"
+  - "divine_power"
+resistances:
+  - "corruption"
+  - "dark_magic"
+  - "fear"
+  - "physical"
