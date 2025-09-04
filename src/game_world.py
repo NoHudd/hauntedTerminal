@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import random
+import yaml
+import os
 from utils.debug_tools import debug_log
 
 class GameWorld:
@@ -27,6 +29,9 @@ class GameWorld:
         
         # Track how many of each item have been spawned (for max_spawn)
         self.item_spawn_counts = {}
+        
+        # Load class data for world generation
+        self.class_data = self._load_class_data()
         
         # Initialize the world state from room data
         debug_log("Starting world state initialization")
@@ -108,14 +113,64 @@ class GameWorld:
             
             debug_log(f"Room {room_id} initialized with {item_count} items")
     
+    def _load_class_data(self):
+        """Load class configuration data for world generation."""
+        try:
+            with open('data/classes.yaml', 'r') as file:
+                data = yaml.safe_load(file)
+                debug_log(f"Loaded class data for {len(data.get('classes', {}))} classes")
+                return data.get('classes', {})
+        except Exception as e:
+            debug_log(f"Error loading class data: {e}")
+            return {}
+    
     def place_items(self, player_class=None):
         """
-        Place items in the game world based on their configuration and rarity.
+        Place items in the game world based on class, zones, and rarity.
         
         Args:
-            player_class: Optional player class to filter items by class restriction
+            player_class: Player class to determine item placement strategy
         """
-        debug_log(f"Placing items for player_class: {player_class}")
+        debug_log(f"Starting class-based item placement for player_class: {player_class}")
+        
+        if not player_class or player_class not in self.class_data:
+            debug_log(f"Invalid or missing player class, using default placement")
+            return self._place_items_default()
+            
+        return self._place_items_class_based(player_class)
+    
+    def _place_items_class_based(self, player_class):
+        """Place items based on player class preferences and zone affinity."""
+        debug_log(f"Executing class-based placement for {player_class}")
+        
+        class_info = self.class_data[player_class]
+        preferred_zones = class_info.get("preferred_zones", [])
+        loot_preferences = class_info.get("loot_preference", [])
+        power_scaling = class_info.get("power_scaling", "balanced")
+        
+        # Get class-specific rarity weights based on power scaling
+        rarity_weights = self._get_class_rarity_weights(power_scaling)
+        
+        # Organize rooms by zones
+        rooms_by_zone = self._organize_rooms_by_zone()
+        
+        # Place items zone by zone
+        total_placed = 0
+        for zone, zone_rooms in rooms_by_zone.items():
+            zone_multiplier = 2.0 if zone in preferred_zones else 1.0
+            items_placed = self._place_items_in_zone(
+                zone, zone_rooms, player_class, rarity_weights, 
+                loot_preferences, zone_multiplier
+            )
+            total_placed += items_placed
+            debug_log(f"Placed {items_placed} items in {zone} zone (multiplier: {zone_multiplier})")
+        
+        debug_log(f"Class-based placement complete: {total_placed} items placed")
+        return total_placed
+    
+    def _place_items_default(self):
+        """Fallback to original placement algorithm."""
+        debug_log("Using default item placement")
         # Define rarity weights
         rarity_weights = {
             "common": 60,
@@ -335,6 +390,174 @@ class GameWorld:
         self.item_spawn_counts[item_id] = self.item_spawn_counts.get(item_id, 0) + 1
         debug_log(f"Placed item {item_id} in room {chosen_room_id} (spawn count: {self.item_spawn_counts[item_id]})")
         
+        return True
+    
+    def _get_class_rarity_weights(self, power_scaling):
+        """Get rarity weights based on class power scaling."""
+        if power_scaling == "aggressive":
+            # Weavers get more rare/powerful items
+            return {
+                "common": 40,
+                "uncommon": 30,
+                "rare": 20,
+                "epic": 8,
+                "legendary": 2
+            }
+        elif power_scaling == "defensive":
+            # Guardians get more consistent, common items
+            return {
+                "common": 70,
+                "uncommon": 20,
+                "rare": 7,
+                "epic": 2,
+                "legendary": 1
+            }
+        else:  # balanced (shaman)
+            return {
+                "common": 50,
+                "uncommon": 25,
+                "rare": 15,
+                "epic": 7,
+                "legendary": 3
+            }
+    
+    def _organize_rooms_by_zone(self):
+        """Organize rooms by their zone classification."""
+        rooms_by_zone = {}
+        
+        for room_id, room_data in self.rooms.items():
+            zone = room_data.get("zone", "neutral")
+            if zone not in rooms_by_zone:
+                rooms_by_zone[zone] = []
+            rooms_by_zone[zone].append(room_id)
+        
+        debug_log(f"Organized rooms into {len(rooms_by_zone)} zones: {list(rooms_by_zone.keys())}")
+        return rooms_by_zone
+    
+    def _place_items_in_zone(self, zone, zone_rooms, player_class, rarity_weights, loot_preferences, multiplier):
+        """Place items within a specific zone."""
+        debug_log(f"Placing items in {zone} zone with {len(zone_rooms)} rooms")
+        
+        # Filter items suitable for this zone and class
+        suitable_items = self._get_suitable_items_for_zone(zone, player_class, loot_preferences)
+        
+        if not suitable_items:
+            debug_log(f"No suitable items found for {zone} zone")
+            return 0
+        
+        # Calculate items to place based on zone size and multiplier
+        base_items_per_room = 2
+        target_items = int(len(zone_rooms) * base_items_per_room * multiplier)
+        
+        items_placed = 0
+        for _ in range(target_items):
+            # Select random item based on rarity weights
+            item_id, item_data = self._select_weighted_item(suitable_items, rarity_weights)
+            
+            if not item_id:
+                break
+                
+            # Select random room from zone
+            room_id = random.choice(zone_rooms)
+            
+            # Place the item
+            if self._place_item_in_room(item_id, item_data, room_id):
+                items_placed += 1
+                # Remove from suitable items to prevent duplicates
+                suitable_items = [(id, data) for id, data in suitable_items if id != item_id]
+        
+        return items_placed
+    
+    def _get_suitable_items_for_zone(self, zone, player_class, loot_preferences):
+        """Get items suitable for a zone and class."""
+        suitable_items = []
+        
+        for item_id, item_data in self.items.items():
+            # Skip already placed items
+            if item_id in self.item_locations:
+                continue
+                
+            # Check class restrictions
+            if not self._item_suitable_for_class(item_data, player_class):
+                continue
+                
+            # Check loot preferences
+            if loot_preferences and not self._item_matches_preferences(item_data, loot_preferences):
+                continue
+                
+            # Check zone restrictions (if any)
+            allowed_zones = item_data.get("allowed_zones", [])
+            if allowed_zones and zone not in allowed_zones:
+                continue
+                
+            suitable_items.append((item_id, item_data))
+        
+        debug_log(f"Found {len(suitable_items)} suitable items for {zone} zone and {player_class} class")
+        return suitable_items
+    
+    def _item_suitable_for_class(self, item_data, player_class):
+        """Check if item is suitable for the player class."""
+        # Check class_restriction
+        if "class_restriction" in item_data:
+            restrictions = item_data["class_restriction"]
+            if isinstance(restrictions, str):
+                restrictions = [restrictions]
+            return player_class.lower() in [r.lower() for r in restrictions]
+        
+        # Check allowed_classes
+        if "allowed_classes" in item_data:
+            allowed = item_data["allowed_classes"]
+            if isinstance(allowed, str):
+                allowed = [allowed]
+            return player_class.lower() in [c.lower() for c in allowed]
+            
+        return True  # No restrictions
+    
+    def _item_matches_preferences(self, item_data, loot_preferences):
+        """Check if item matches class loot preferences."""
+        item_type = item_data.get("type", "").lower()
+        item_tags = item_data.get("tags", [])
+        
+        for preference in loot_preferences:
+            if preference.lower() in item_type or preference.lower() in [tag.lower() for tag in item_tags]:
+                return True
+        return False
+    
+    def _select_weighted_item(self, suitable_items, rarity_weights):
+        """Select an item based on rarity weights."""
+        if not suitable_items:
+            return None, None
+            
+        # Organize by rarity
+        items_by_rarity = {}
+        for item_id, item_data in suitable_items:
+            rarity = item_data.get("rarity", "common")
+            if rarity not in items_by_rarity:
+                items_by_rarity[rarity] = []
+            items_by_rarity[rarity].append((item_id, item_data))
+        
+        # Select rarity based on weights
+        available_rarities = [r for r in rarity_weights.keys() if r in items_by_rarity]
+        if not available_rarities:
+            return None, None
+            
+        weights = [rarity_weights[r] for r in available_rarities]
+        selected_rarity = random.choices(available_rarities, weights=weights, k=1)[0]
+        
+        # Select random item from rarity
+        return random.choice(items_by_rarity[selected_rarity])
+    
+    def _place_item_in_room(self, item_id, item_data, room_id):
+        """Place a specific item in a specific room."""
+        # Check if room is locked
+        if self.room_states.get(room_id, {}).get("locked", False):
+            return False
+            
+        # Place the item
+        self.item_locations[item_id] = room_id
+        self.item_spawn_counts[item_id] = self.item_spawn_counts.get(item_id, 0) + 1
+        
+        debug_log(f"Placed {item_id} in room {room_id}")
         return True
     
     def get_room(self, room_id):

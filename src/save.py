@@ -2,6 +2,10 @@
 import os
 import json
 import time
+import logging
+from src.events import event_bus, EventType
+
+logger = logging.getLogger(__name__)
 
 class SaveManager:
     """Handles saving and loading game data."""
@@ -53,11 +57,30 @@ class SaveManager:
             "save_date": time.strftime("%Y-%m-%d %H:%M:%S")
         }
         
-        # Write to file
-        with open(save_path, 'w') as file:
-            json.dump(save_data, file, indent=2)
-        
-        return save_path
+        try:
+            # Write to file
+            with open(save_path, 'w') as file:
+                json.dump(save_data, file, indent=2)
+            
+            logger.info(f"Game saved successfully to {save_path}")
+            
+            # Emit save completion event
+            event_bus.emit_event(
+                EventType.GAME_SAVED,
+                {
+                    "save_path": save_path,
+                    "save_name": save_name,
+                    "player_name": player.name,
+                    "timestamp": save_data["timestamp"]
+                },
+                "SaveManager"
+            )
+            
+            return save_path
+            
+        except Exception as e:
+            logger.error(f"Failed to save game: {e}")
+            raise
     
     def load_game(self, filename):
         """
@@ -74,10 +97,32 @@ class SaveManager:
         try:
             with open(file_path, 'r') as file:
                 save_data = json.load(file)
+            
+            logger.info(f"Game loaded successfully from {filename}")
+            
+            # Emit load completion event
+            event_bus.emit_event(
+                EventType.GAME_LOADED,
+                {
+                    "filename": filename,
+                    "file_path": file_path,
+                    "player_name": save_data.get("player", {}).get("name", "Unknown"),
+                    "timestamp": save_data.get("timestamp"),
+                    "save_date": save_data.get("save_date")
+                },
+                "SaveManager"
+            )
+            
             return save_data
+            
         except FileNotFoundError:
+            logger.warning(f"Save file not found: {filename}")
             return None
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse save file {filename}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to load game from {filename}: {e}")
             return None
     
     def get_save_files(self):

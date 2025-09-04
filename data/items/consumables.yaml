@@ -3,18 +3,30 @@ health_potions:
     name: "Small Health Potion"
     description: "A small vial containing a glowing red liquid that restores health."
     type: "consumable"
+    usable: true
+    tags: ["combat_usable", "healing"]
+    healing: 10
+    consumable: true
     effect:
       heal: 10
   large_health_potion:
     name: "Large Health Potion"
     description: "A large flask containing a powerful healing elixir that restores significant health."
     type: "consumable"
+    usable: true
+    tags: ["combat_usable", "healing"]
+    healing: 25
+    consumable: true
     effect:
       heal: 25
   mega_health_potion:
     name: "Mega Health Potion"
     description: "An extremely potent health elixir that instantly restores a large amount of health."
     type: "consumable"
+    usable: true
+    tags: ["combat_usable", "healing"]
+    healing: 50
+    consumable: true
     effect:
       heal: 50
 
@@ -23,6 +35,11 @@ spell_scrolls:
     name: "Healing Incantation"
     description: "A scroll containing healing incantations for use in combat."
     type: "consumable"
+    usable: true
+    tags: ["combat_usable", "magic", "healing"]
+    healing: 15
+    consumable: true
+    class_restriction: ["mage", "rogue"]
     effect:
       heal: 15
       class_restriction: ["mage", "rogue"]
@@ -30,6 +47,10 @@ spell_scrolls:
     name: "Arcane Scroll"
     description: "An ancient scroll containing powerful arcane knowledge."
     type: "consumable"
+    usable: true
+    tags: ["magic", "utility"]
+    consumable: true
+    class_restriction: "mage"
     effect:
       reveal_hidden: true
       class_restriction: "mage"
@@ -37,6 +58,10 @@ spell_scrolls:
     name: "Fire Scroll"
     description: "A scroll that releases a devastating burst of fire when read."
     type: "consumable"
+    usable: true
+    tags: ["combat_usable", "magic", "offensive"]
+    consumable: true
+    class_restriction: "mage"
     effect:
       damage: 20
       area_effect: true

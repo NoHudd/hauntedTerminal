@@ -7,6 +7,8 @@ weapons:
     allowed_classes:
       - guardian
     rarity: common
+    tags: ["shields", "defensive"]
+    allowed_zones: ["safe", "core", "fortified"]
 
   byte_blaster:
     name: "Byte Blaster"
@@ -16,6 +18,8 @@ weapons:
     allowed_classes:
       - weaver
     rarity: common
+    tags: ["hacking_tools", "offensive"]
+    allowed_zones: ["dangerous", "corrupted", "volatile"]
 
   echo_staff:
     name: "Echo Staff"
@@ -25,3 +29,5 @@ weapons:
     allowed_classes:
       - shaman
     rarity: common
+    tags: ["staves", "mystical"]
+    allowed_zones: ["natural", "mystical", "ancient"]

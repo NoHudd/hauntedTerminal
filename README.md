@@ -1,27 +1,28 @@
 # Haunted Filesystem Experience (HFSE)
 
-A text-based adventure game that helps users learn command-line skills in an RPG-like environment.
+A sophisticated terminal user interface adventure game that teaches command-line skills through immersive RPG gameplay.
 
 ## Description
 
-Haunted Filesystem is a terminal-based adventure game where players explore a "haunted" filesystem while learning command-line commands. As a sysadmin spirit, your task is to navigate through the corrupted system, collect items, solve puzzles, and ultimately defeat the Daemon Overlord that has corrupted the filesystem.
+Haunted Filesystem is an advanced terminal-based adventure game where players explore a "haunted" filesystem while learning command-line commands. As a sysadmin spirit, your task is to navigate through the corrupted system, collect items, solve puzzles, and ultimately defeat the Daemon Overlord that has corrupted the filesystem.
 
-The game uses real command-line-like commands such as `cd`, `ls`, and `cat` to navigate and interact with the game world, making it both fun and educational.
+The game features a full terminal user interface (TUI) with dedicated panels for inventory, stats, and real-time combat, while maintaining authentic command-line interaction patterns that make it both engaging and educational.
 
 ## Features
 
-- Text-based adventure with rich terminal visuals
-- Command-line-like interface (`cd`, `ls`, `cat`, etc.)
-- Turn-based combat system
-- Inventory management
-- Puzzles and exploration
-- Dynamic world powered by YAML configuration
+- **Full Terminal User Interface**: Rich TUI with dedicated panels and real-time updates
+- **Authentic Command-Line Interface**: Uses real Unix commands (`cd`, `ls`, `cat`, etc.)
+- **Event-Driven Combat System**: Real-time combat with script-style weapon usage (`./protocol_shield`)
+- **Dynamic Class System**: Choose from Guardian, Weaver, or Shaman classes with unique abilities
+- **Advanced Architecture**: Event-driven design with proper error handling and metrics
+- **Immersive World**: Dynamic world powered by YAML configuration
+- **Performance Monitoring**: Built-in metrics and dashboard system
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.7 or higher
+- Python 3.8 or higher
 - pip (Python package installer)
 
 ### Installation
@@ -52,40 +53,69 @@ python main.py
 
 ## Game Commands
 
+### Navigation & Exploration
 - `help` - Display available commands
-- `ls` - List files and directories
-- `cd [directory]` - Change to specified directory
+- `ls` - List files (items), processes (NPCs), and corrupted entities (enemies)
+- `cd [directory]` - Change to specified directory/room
 - `cat [file]` - Read the contents of a file
 - `map` - Show available locations
-- `inventory` / `inv` - Show collected items
+
+### Inventory & Items
+- `inventory` / `inv` - Show collected items in the sidebar panel
 - `take [item]` - Add an item to your inventory
 - `drop [item]` - Remove an item from your inventory
-- `use [item]` - Use an item from your inventory
+- `use [item]` - Use consumables (potions, scrolls, etc.)
+- `equip [weapon]` - Equip weapons for combat
 - `examine [item]` - Examine an item in detail
-- `talk [npc]` - Talk to an NPC
-- `attack [enemy]` - Attack an enemy
-- `look` - Look around the current location
 
-## Customizing the Game
+### Combat & Interaction
+- `talk [npc]` - Interact with NPCs
+- `attack [enemy]` - Initiate combat with an enemy
+- `./[weapon_name]` - Use equipped weapon during combat (e.g., `./protocol_shield`)
 
-The game is designed to be easily customizable through YAML files:
+## Character Classes
 
-- `data/rooms/` - Define rooms/locations
-- `data/items/` - Define items and their properties
-- `data/enemies/` - Define enemies and combat statistics
-- `data/npcs/` - Define non-player characters and their dialogues
+Choose from three distinct classes, each with unique strengths:
 
-Each entity is defined in its own YAML file, making it easy to add, modify, or remove content without changing the core game code.
+- **Guardian**: High health (120 HP), defensive playstyle, excels in safe zones
+- **Weaver**: High damage (15 DMG), aggressive playstyle, thrives in dangerous areas  
+- **Shaman**: Balanced stats (100 HP), utility-focused, specializes in mystical zones
+
+## Game Architecture
+
+### Data-Driven Design
+The game uses a modular, data-driven architecture powered by YAML configuration:
+
+- `data/rooms/` - Room definitions with exits, items, NPCs, and enemies
+- `data/items/` - Item properties, class restrictions, combat effects  
+- `data/enemies/` - Enemy stats, drops, and boss mechanics
+- `data/npcs/` - NPC dialogues and interactions
+- `data/classes.yaml` - Character class definitions and abilities
+- `data/attacks.yml` - Combat attacks and special abilities
+
+### Technical Features
+- **Event-Driven Architecture**: Decoupled game engine and UI communication
+- **Textual Framework**: Modern Python TUI with reactive widgets
+- **Error Handling**: Robust error recovery and standardized logging
+- **Performance Monitoring**: Built-in metrics collection and dashboard
+- **Modular Design**: Clean separation of concerns across all systems
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Dependencies
+
+- **[Textual](https://github.com/Textualize/textual)** - Modern Python TUI framework
+- **[Rich](https://github.com/Textualize/rich)** - Terminal formatting and markup
+- **[PyYAML](https://pyyaml.org/)** - YAML data loading and parsing
+- **[tqdm](https://github.com/tqdm/tqdm)** - Progress bars and loading indicators
+
 ## Acknowledgments
 
 - Inspired by classic text adventures and educational games
-- Uses [Rich](https://github.com/Textualize/rich) for terminal formatting
-- Uses [PyYAML](https://pyyaml.org/) for data loading
+- Built with modern Python TUI technologies for enhanced user experience
+- Designed to make command-line learning engaging and interactive
 
 ## Game Overview
 

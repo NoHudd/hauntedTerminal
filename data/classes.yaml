@@ -8,6 +8,9 @@ classes:
     starter_abilities:
       - system_shield
       - core_recovery
+    preferred_zones: ["safe", "fortified", "core"]
+    power_scaling: "defensive"  # balanced, aggressive, defensive
+    loot_preference: ["shields", "armor", "healing"]
 
   weaver:
     name: "Weaver"
@@ -18,6 +21,9 @@ classes:
     starter_abilities:
       - code_injection
       - exploit_vulnerability
+    preferred_zones: ["corrupted", "volatile", "dangerous"]
+    power_scaling: "aggressive"
+    loot_preference: ["exploits", "hacking_tools", "offensive"]
 
   shaman:
     name: "Shaman"
@@ -27,4 +33,7 @@ classes:
     starter_weapon: "echo_staff"
     starter_abilities:
       - data_stitch
-      - ghost_sense 
+      - ghost_sense
+    preferred_zones: ["mystical", "ancient", "natural"]
+    power_scaling: "balanced"
+    loot_preference: ["staves", "totems", "restoration"] 

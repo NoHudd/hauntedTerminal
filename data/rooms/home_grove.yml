@@ -13,7 +13,11 @@ items:
   - health_potion_large
   - natural_tonic
   - healing_touch
+  - protocol_shield
 enemies: []
 npcs:
   - home_guardian.sys
-hidden: false 
+hidden: false
+zone: "safe"
+zone_level: 1
+class_affinity: "neutral" 

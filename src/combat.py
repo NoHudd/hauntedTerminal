@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import os
 import yaml
 import random
 from utils.debug_tools import debug_log
+from src.events import event_bus, EventType
 
 class CombatSystem:
     """Handles all combat-related functionality with a unified approach."""
@@ -41,6 +41,8 @@ class CombatSystem:
             attacks = ["arcane_bolt", "fireball", "frost_nova"]
         elif player_class == "celtic":
             attacks = ["nature_strike", "ancient_fury", "healing_strike"]
+        elif player_class == "guardian":
+            attacks = ["strike", "power_strike", "shield_bash"]  # Guardian uses fighter attacks
         else:
             attacks = ["strike"]  # Default attack for unknown class
             
@@ -149,7 +151,7 @@ class CombatSystem:
                 debug_log(f"Setting cooldown for '{attack_id}': {cooldown} turns for player {player_id}")
             
             healing_amount = attack_data.get('healing', 0)
-        enemy_damage_reduction = attack_data.get('enemy_damage_reduction', 0)
+            enemy_damage_reduction = attack_data.get('enemy_damage_reduction', 0)
         
         debug_log(f"Attack '{attack_id}' results: damage={damage}, healing_amount={healing_amount}, enemy_damage_reduction={enemy_damage_reduction}")
         
@@ -250,6 +252,350 @@ class CombatSystem:
             
         debug_log(f"Returning {len(available_attacks_data)} available attacks for player {player_id} (Name: {player.name})")
         return available_attacks_data
+
+class CombatSession:
+    """Manages an active combat session using event-driven approach."""
+    
+    def __init__(self, player, enemy_id, enemy_data, ui):
+        """Initialize a combat session."""
+        self.player = player
+        self.enemy_id = enemy_id
+        self.enemy_data = enemy_data
+        self.ui = ui
+        self.enemy_health = enemy_data.get("health", 50)
+        self.enemy_max_health = self.enemy_health
+        self.enemy_damage = enemy_data.get("damage", 10)
+        self.is_boss = enemy_data.get("is_boss", False)
+        self.is_active = True
+        self.awaiting_action = False
+        
+        debug_log(f"CombatSession created: Player vs {enemy_id} (Health: {self.enemy_health})")
+        
+        # Subscribe to combat events
+        event_bus.subscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
+    
+    def start(self):
+        """Start the combat session."""
+        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        debug_log(f"Starting combat with {enemy_name}")
+        
+        self.ui.update_output(f"[bold red]Combat initiated with {enemy_name}![/bold red]")
+        if "dialogue" in self.enemy_data:
+            self.ui.update_output(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}")
+        
+        # Emit combat started event
+        event_bus.emit_event(
+            EventType.COMBAT_STARTED,
+            {"session": self, "player": self.player, "enemy": self.enemy_data},
+            "CombatSession"
+        )
+        
+        self._show_combat_status()
+        self._request_player_action()
+    
+    def _show_combat_status(self):
+        """Display current combat status."""
+        player_health_bar = self._create_health_bar(self.player.health, self.player.max_health, "green")
+        enemy_health_bar = self._create_health_bar(self.enemy_health, self.enemy_max_health, "red")
+        
+        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        
+        self.ui.update_output(f"\n[bold]Your Health:[/bold] {self.player.health}/{self.player.max_health}")
+        self.ui.update_output(player_health_bar)
+        self.ui.update_output(f"[bold red]{enemy_name}'s Health:[/bold red] {self.enemy_health}")
+        self.ui.update_output(enemy_health_bar)
+    
+    def _create_health_bar(self, current, maximum, color):
+        """Create ASCII health bar."""
+        if maximum <= 0:
+            return "[gray]▒▒▒▒▒▒▒▒▒▒[/gray]"
+        
+        bar_length = 20
+        filled = int((current / maximum) * bar_length)
+        empty = bar_length - filled
+        bar = "█" * filled + "▒" * empty
+        return f"[{color}]{bar}[/{color}]"
+    
+    def _request_player_action(self):
+        """Request action from player via UI."""
+        if not self.is_active:
+            return
+            
+        self.awaiting_action = True
+        
+        # Get available attacks and usable items for validation
+        available_attacks = combat_system.get_available_attacks(self.player, self.player.spells)
+        
+        usable_items = []
+        for item_id, item_data in self.player.inventory.items():
+            if item_data.get("usable") and "combat_usable" in item_data.get("tags", []):
+                usable_items.append((item_id, item_data))
+        
+        # Store available actions for validation
+        self.available_attacks = {attack_id: attack_data for attack_id, attack_data in available_attacks.items() if not attack_data.get("on_cooldown", False)}
+        self.available_items = {item_id: item_data for item_id, item_data in usable_items}
+        
+        # Show available actions in a concise format
+        self.ui.update_output(f"\n[bold red]⚔️ Your turn![/bold red] Type [cyan]'ls'[/cyan] to see all actions or use:")
+        
+        # Show quick reference
+        quick_actions = []
+        attack_names = list(self.available_attacks.keys())[:2]  # Show first 2 attacks
+        for attack_id in attack_names:
+            quick_actions.append(f"[cyan]./{attack_id}[/cyan]")
+        
+        if usable_items:
+            item_name = usable_items[0][0]
+            quick_actions.append(f"[yellow]use {item_name}[/yellow]")
+        
+        quick_actions.append("[magenta]flee[/magenta]")
+        
+        self.ui.update_output(" | ".join(quick_actions))
+    
+    def _show_detailed_actions(self):
+        """Show detailed list of available actions."""
+        if not self.is_active:
+            return
+            
+        # Get available attacks
+        available_attacks = combat_system.get_available_attacks(self.player, self.player.spells)
+        base_damage = self.player.calculate_damage()
+        
+        self.ui.update_output("\n[bold]Available Executables:[/bold]")
+        
+        for attack_id, attack_data in available_attacks.items():
+            attack_name = attack_data.get("name", attack_id)
+            bonus_damage = attack_data.get("bonus_damage", 0)
+            on_cooldown = attack_data.get("on_cooldown", False)
+            
+            script_name = f"./{attack_id}"
+            total_damage = base_damage + bonus_damage
+            
+            if on_cooldown:
+                cooldown_remaining = attack_data.get('cooldown_remaining', 0)
+                self.ui.update_output(f"[gray]-rwx------ {script_name}  (cooldown: {cooldown_remaining} turns)[/gray]")
+            else:
+                damage_info = f"({total_damage} dmg)" if bonus_damage > 0 else f"({base_damage} dmg)"
+                self.ui.update_output(f"[cyan]-rwxr-xr-x {script_name}[/cyan]  {damage_info}")
+        
+        # Show usable items
+        usable_items = []
+        for item_id, item_data in self.player.inventory.items():
+            if item_data.get("usable") and "combat_usable" in item_data.get("tags", []):
+                usable_items.append((item_id, item_data))
+        
+        if usable_items:
+            self.ui.update_output("\n[bold]Usable Items:[/bold]")
+            for item_id, item_data in usable_items:
+                item_name = item_data.get("name", item_id)
+                self.ui.update_output(f"[yellow]{item_name}[/yellow] - use with: [cyan]use {item_id}[/cyan]")
+        
+        # Show commands
+        self.ui.update_output(f"\n[bold]Commands:[/bold] [cyan]./attack_name[/cyan], [yellow]use item[/yellow], [magenta]flee[/magenta]")
+        
+        # Continue waiting for action
+        self.awaiting_action = True
+    
+    def _on_combat_action(self, event):
+        """Handle combat action selection."""
+        if not self.awaiting_action or not self.is_active:
+            return
+            
+        command = event.data.get('choice', '').strip()
+        
+        if not command:
+            self.ui.update_output("[yellow]No command entered. Try again.[/yellow]")
+            self._request_player_action()
+            return
+        
+        self.awaiting_action = False
+        self._parse_combat_command(command)
+    
+    def _parse_combat_command(self, command):
+        """Parse and execute combat commands."""
+        parts = command.lower().split()
+        
+        if not parts:
+            self.ui.update_output("[yellow]No command entered.[/yellow]")
+            self._request_player_action()
+            return
+        
+        cmd = parts[0]
+        
+        # Handle script execution (./ prefix)
+        if cmd.startswith('./'):
+            attack_name = cmd[2:]  # Remove './' prefix
+            if attack_name in self.available_attacks:
+                self._process_player_action("attack", attack_name)
+            else:
+                self.ui.update_output(f"[red]bash: {cmd}: command not found[/red]")
+                self._request_player_action()
+        
+        # Handle use command
+        elif cmd == "use" and len(parts) > 1:
+            item_name = parts[1]
+            if item_name in self.available_items:
+                self._process_player_action("item", item_name)
+            elif item_name in self.player.inventory:
+                # Check if item is usable in combat
+                item_data = self.player.inventory[item_name]
+                if "combat_usable" in item_data.get("tags", []):
+                    self._process_player_action("item", item_name)
+                else:
+                    self.ui.update_output(f"[yellow]{item_name} cannot be used in combat.[/yellow]")
+                    self._request_player_action()
+            else:
+                self.ui.update_output(f"[red]Item '{item_name}' not found in inventory.[/red]")
+                self._request_player_action()
+        
+        # Handle flee command
+        elif cmd == "flee":
+            self._process_player_action("flee", None)
+        
+        # Handle ls command (show available actions)
+        elif cmd == "ls":
+            self._show_detailed_actions()
+        
+        # Handle direct attack names (without ./ prefix)
+        elif cmd in self.available_attacks:
+            self._process_player_action("attack", cmd)
+        
+        else:
+            self.ui.update_output(f"[red]bash: {command}: command not found[/red]")
+            self.ui.update_output("[dim]Type 'ls' to see available commands[/dim]")
+            self._request_player_action()
+    
+    def _process_player_action(self, action_type, action_value):
+        """Process the selected player action."""
+        if action_type == "flee":
+            if self.is_boss:
+                self.ui.update_output("[bold yellow]You cannot flee from a boss battle![/bold yellow]")
+                self._request_player_action()
+                return
+            else:
+                self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
+                self._end_combat(fled=True)
+                return
+        
+        elif action_type == "item":
+            # Handle item usage in combat
+            item_data = self.player.inventory.get(action_value)
+            if not item_data:
+                self.ui.update_output(f"[red]Item '{action_value}' not found in inventory.[/red]")
+                self._request_player_action()
+                return
+            
+            # Process item effects
+            self.ui.update_output(f"[yellow]Using {item_data.get('name', action_value)}...[/yellow]")
+            
+            # Handle healing items
+            if "healing" in item_data:
+                heal_amount = item_data["healing"]
+                old_health = self.player.health
+                self.player.heal(heal_amount)
+                actual_heal = self.player.health - old_health
+                self.ui.update_output(f"[green]You healed {actual_heal} HP![/green]")
+            
+            # Handle damage boost items
+            if "damage_boost" in item_data:
+                boost = item_data["damage_boost"]
+                self.ui.update_output(f"[green]Your damage increased by {boost}![/green]")
+                # Temporary damage boost could be implemented here
+            
+            # Handle consumable items (remove after use)
+            if item_data.get("consumable", False):
+                self.player.remove_from_inventory(action_value)
+                self.ui.update_output(f"[dim]Used up {item_data.get('name', action_value)}[/dim]")
+            
+            # Show item description/effect
+            if "effect_message" in item_data:
+                self.ui.update_output(f"[italic]{item_data['effect_message']}[/italic]")
+        
+        elif action_type == "attack":
+            attack_result = combat_system.perform_attack(self.player, action_value)
+            self.ui.update_output(f"[green]{attack_result['message']}[/green]")
+            
+            if attack_result["success"]:
+                self.enemy_health -= attack_result["damage"]
+                if attack_result["healing_amount"] > 0:
+                    self.player.heal(attack_result["healing_amount"])
+        
+        # Check if enemy is defeated
+        if self.enemy_health <= 0:
+            self._end_combat(victory=True)
+            return
+        
+        # Enemy's turn
+        self._enemy_turn()
+        
+        # Check if player is defeated
+        if not self.player.is_alive():
+            self._end_combat(defeat=True)
+            return
+        
+        # Continue combat
+        combat_system.update_cooldowns(self.player)
+        self.player.update_status_effects()
+        
+        # Update UI with new health values
+        self._update_ui_panels()
+        
+        self._show_combat_status()
+        self._request_player_action()
+    
+    def _enemy_turn(self):
+        """Process enemy's turn."""
+        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        self.ui.update_output(f"\n[bold red]{enemy_name} attacks you![/bold red]")
+        
+        damage = self.enemy_damage
+        self.player.take_damage(damage)
+        self.ui.update_output(f"You took {damage} damage.")
+        
+        # Update UI with new player health
+        self._update_ui_panels()
+    
+    def _update_ui_panels(self):
+        """Update UI panels during combat."""
+        # Emit events to update UI panels
+        from src.events import event_bus, EventType
+        
+        # Update player stats to refresh combat panel
+        event_bus.emit_event(
+            EventType.PLAYER_STATS_CHANGED,
+            {"player": self.player},
+            "CombatSession"
+        )
+    
+    def _end_combat(self, victory=False, defeat=False, fled=False):
+        """End the combat session."""
+        self.is_active = False
+        self.awaiting_action = False
+        
+        # Unsubscribe from events
+        event_bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
+        
+        if victory:
+            enemy_name = self.enemy_data.get("name", self.enemy_id)
+            self.ui.update_output(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
+        elif defeat:
+            self.ui.update_output("\n[bold red]You have been defeated.[/bold red]")
+        
+        # Reset cooldowns
+        combat_system.reset_cooldowns(self.player)
+        
+        # Emit combat ended event
+        event_bus.emit_event(
+            EventType.COMBAT_ENDED,
+            {
+                "session": self,
+                "victory": victory,
+                "defeat": defeat,
+                "fled": fled,
+                "enemy_id": self.enemy_id
+            },
+            "CombatSession"
+        )
 
 # Create a singleton instance that can be imported elsewhere
 combat_system = CombatSystem() 

@@ -28,8 +28,19 @@ class Player:
         # Load class info dynamically
         self.load_class_attributes()
 
-        # Player ID for cooldowns
-        self.player_id = id(self)
+        # Player ID for cooldowns - use a more stable identifier
+        import uuid
+        self.player_id = str(uuid.uuid4())
+        
+        # Tutorial tracking
+        self.tutorial_state = {
+            "first_look": False,
+            "first_ls": False,
+            "found_weapon": False,
+            "took_weapon": False,
+            "equipped_weapon": False,
+            "completed": False
+        }
 
     def load_class_attributes(self):
         """Load stats, starter weapon, abilities from external class data."""
@@ -47,13 +58,13 @@ class Player:
 
         debug_log(f"Player class set to {self.player_class} with {self.health} HP and {self.total_damage} base damage.")
 
-        # Load starter weapon
-        starter_weapon_id = class_info.get("starter_weapon")
-        if starter_weapon_id:
-            weapon_info = load_weapon_data(starter_weapon_id)
-            if weapon_info:
-                self.add_to_inventory(starter_weapon_id, weapon_info)
-                self.equip_weapon(starter_weapon_id)
+        # Load starter weapon - DISABLED to force players to learn 'take' command
+        # starter_weapon_id = class_info.get("starter_weapon")
+        # if starter_weapon_id:
+        #     weapon_info = load_weapon_data(starter_weapon_id)
+        #     if weapon_info:
+        #         self.add_to_inventory(starter_weapon_id, weapon_info)
+        #         self.equip_weapon(starter_weapon_id)
 
         # Load starter abilities
         self.starter_abilities = class_info.get("starter_abilities", [])
@@ -213,84 +224,6 @@ class Player:
             
         return total
         
-    def get_combat_action(self, combat_system, ui):
-        """
-        Display available combat actions (attacks and items) and get the player's choice.
-        """
-        import readchar
-
-        # Get available attacks from the combat system
-        available_attacks = combat_system.get_available_attacks(self, self.spells)
-        
-        # Get usable items from inventory
-        usable_items = []
-        for item_id, item_data in self.inventory.items():
-            if item_data.get("usable") and "combat_usable" in item_data.get("tags", []):
-                usable_items.append((item_id, item_data))
-
-        # Display options to the player via the UI
-        ui.update_output("\n[bold]Choose your action:[/bold]")
-        
-        action_keys = {}
-        key_idx = 1
-        
-        # Display attacks
-        base_damage = self.calculate_damage()
-        ui.update_output(f"[bold]Base Attack Damage:[/bold] {base_damage}")
-        for attack_id, attack_data in available_attacks.items():
-            attack_name = attack_data.get("name", attack_id)
-            bonus_damage = attack_data.get("bonus_damage", 0)
-            cooldown = attack_data.get("cooldown", 0)
-            on_cooldown = attack_data.get("on_cooldown", False)
-            
-            description = attack_data.get("description", "")
-            healing = attack_data.get("healing", 0)
-            
-            total_damage = base_damage + bonus_damage
-            
-            effect_desc = []
-            if bonus_damage > 0:
-                effect_desc.append(f"{total_damage} dmg")
-            else:
-                effect_desc.append(f"{base_damage} dmg")
-            if healing > 0:
-                effect_desc.append(f"Heal {healing} HP")
-            if cooldown > 0:
-                effect_desc.append(f"CD: {cooldown}")
-
-            effects = ", ".join(effect_desc)
-            
-            if on_cooldown:
-                ui.update_output(f"{key_idx}: [gray]{attack_name} ({effects}) - On Cooldown ({attack_data.get('cooldown_remaining', 0)} turns)[/gray]")
-            else:
-                ui.update_output(f"{key_idx}: [cyan]{attack_name}[/cyan] - {description} ({effects})")
-                action_keys[str(key_idx)] = attack_id
-            key_idx += 1
-            
-        # Display items
-        if usable_items:
-            ui.update_output("\n[bold]Items:[/bold]")
-            for item_id, item_data in usable_items:
-                item_name = item_data.get("name", item_id)
-                ui.update_output(f"{key_idx}: [yellow]{item_name}[/yellow] - {item_data.get('description', '')}")
-                action_keys[str(key_idx)] = item_id
-                key_idx += 1
-        
-        # Add a flee option
-        flee_key = 'f'
-        ui.update_output(f"{flee_key}: [bold magenta]Flee Combat[/bold magenta]")
-        action_keys[flee_key] = "flee"
-
-        # Get player input
-        choice = None
-        while choice not in action_keys:
-            ui.update_input_panel("Your choice: ", cursor_visible=True)
-            choice = readchar.readkey()
-            ui.update_input_panel(f"Your choice: {choice}", cursor_visible=False)
-            if choice not in action_keys:
-                ui.update_output("[red]Invalid choice.[/red]")
-        
-        return action_keys[choice]
         
     # def update_cooldowns(self): # Fully removed as it's handled by CombatSystem
     #     """Reduce all ability cooldowns by 1."""
@@ -342,6 +275,12 @@ class Player:
         player.spells = data.get("spells", [])
         player.inventory = data["inventory"]
         player.equipped_weapon = data["equipped_weapon"]
+        # Restore player_id if it exists, otherwise keep the generated one
+        if "player_id" in data:
+            player.player_id = data["player_id"]
+        # Restore tutorial state if it exists
+        if "tutorial_state" in data:
+            player.tutorial_state = data["tutorial_state"]
         return player
     
     def to_dict(self):
@@ -357,5 +296,7 @@ class Player:
             "spells": self.spells,
             "inventory": self.inventory,
             "equipped_weapon": self.equipped_weapon,
-            "current_room": self.current_room
+            "current_room": self.current_room,
+            "player_id": self.player_id,
+            "tutorial_state": self.tutorial_state
         }
