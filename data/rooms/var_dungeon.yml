@@ -16,4 +16,7 @@ enemies:
 npcs: []
 locked: true
 key_required: lib_key
-hidden: false 
+hidden: false
+zone: "dangerous"
+zone_level: 3
+class_affinity: "weaver" 

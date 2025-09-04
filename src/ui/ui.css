@@ -1,0 +1,51 @@
+#app-grid {
+    layout: grid;
+    grid-columns: 3fr 1fr; /* Already 75%/25% ratio */
+    grid-rows: 1fr;
+    height: 100%;
+}
+
+#output-panel {
+    border: solid blue;
+    padding: 1 2;
+    height: 100%;
+}
+
+#sidebar {
+    layout: grid;
+    grid-rows: 1fr 1fr 1fr; /* Inventory, Stats, and Exits panels */
+    height: 100%;
+}
+
+#inventory-panel {
+    border: solid yellow;
+    padding: 1 2;
+}
+
+#stats-panel {
+    border: solid green;
+    padding: 1 2;
+}
+
+#exits-panel {
+    border: solid blue;
+    padding: 1 2;
+}
+
+
+#header {
+    background: #000080; /* Dark blue */
+    color: white;
+    text-align: center;
+}
+
+Footer {
+    background: #000080; /* Dark blue */
+    color: white;
+}
+
+#input-field {
+    border: solid cyan;
+    height: 3;
+    padding: 0 1;
+}

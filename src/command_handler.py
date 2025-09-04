@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import os
 import random
-import readchar
-from rich.panel import Panel
+import logging
 from rich.text import Text
-from src.combat import combat_system
+from src.combat import combat_system, CombatSession
+from src.events import event_bus, EventType
+from src.game_states import GameState
 from utils.debug_tools import debug_log
+
+logger = logging.getLogger(__name__)
 
 class CommandHandler:
     """Handles processing of player commands"""
@@ -16,6 +19,7 @@ class CommandHandler:
         self.player = player
         self.world = world
         self.ui = ui
+        self.current_combat_session = None
         
         # Command dispatcher dictionary for easy command handling
         self.commands = {
@@ -29,21 +33,40 @@ class CommandHandler:
             "take": self.take_item,
             "drop": self.drop_item,
             "use": self.use_item,
+            "equip": self.equip_weapon,
             "examine": self.examine_item,
             "talk": self.talk_to_npc,
             "attack": self.attack_enemy,
-            "look": self.look_around,
-            "stats": self.show_player_stats,
             "quit": self.quit_game,
             "exit": self.quit_game
         }
         
         # Specify which commands require arguments
         self.commands_with_args = {
-            "cd", "cat", "take", "drop", "use", "examine", "talk", "attack"
+            "cd", "cat", "take", "drop", "use", "equip", "examine", "talk", "attack"
         }
         
         debug_log(f"Registered {len(self.commands)} commands")
+    
+    def show_tutorial_hint(self, hint_type, item_name=None):
+        """Show contextual tutorial hints based on player progress."""
+        if self.player.tutorial_state.get("completed", False):
+            return  # Tutorial already completed
+        
+        # Get the actual weapon name for dynamic hints
+        weapon_name = item_name if item_name else "rusty_sword"  # fallback
+            
+        hints = {
+            "welcome": "[bold cyan]Welcome to the Haunted Filesystem![/bold cyan]\nYou are a sysadmin spirit exploring a corrupted system. Type [yellow]'help'[/yellow] to see available commands, or [yellow]'ls'[/yellow] to examine your surroundings.",
+            "first_look": "[yellow]Tip:[/yellow] Use [cyan]'ls'[/cyan] to list files and entities in your current directory. This will help you find items to pick up!",
+            "found_weapon": f"[yellow]Tutorial:[/yellow] You found a weapon! Use [cyan]'take {weapon_name}'[/cyan] to pick it up.",
+            "took_weapon": f"[green]Great![/green] You picked up your first item. Now use [cyan]'equip {weapon_name}'[/cyan] to equip it as your weapon.",
+            "equipped_weapon": "[green]Excellent![/green] You've equipped your first weapon. You can now use [cyan]'attack [enemy]'[/cyan] in combat, or execute weapons like scripts (e.g., [cyan]'./protocol_shield'[/cyan]) during battle. Type [cyan]'inventory'[/cyan] to see all your items.",
+            "completed": "[bold green]Tutorial Complete![/bold green] You've learned the basics. Explore the filesystem, defeat corrupted entities, and restore the system!"
+        }
+        
+        if hint_type in hints:
+            self.ui.update_output(f"[dim]{hints[hint_type]}[/dim]")
     
     def create_health_bar(self, current_health, max_health, color="white"):
         """Create an ASCII health bar with the specified color."""
@@ -63,6 +86,11 @@ class CommandHandler:
         
         if not cmd_parts:
             debug_log("Empty command received")
+            return
+        
+        # Handle combat commands specially
+        if self.current_combat_session and self.current_combat_session.awaiting_action:
+            self._handle_combat_command(command.strip())
             return
         
         cmd = cmd_parts[0].lower()
@@ -97,14 +125,14 @@ class CommandHandler:
         - [cyan]inventory/inv[/cyan]: Show collected items
         - [cyan]take [item][/cyan]: Add an item to your inventory
         - [cyan]drop [item][/cyan]: Remove an item from your inventory
-        - [cyan]use [item][/cyan]: Use an item from your inventory
+        - [cyan]use [item][/cyan]: Use consumables (potions, scrolls)
+        - [cyan]equip [weapon][/cyan]: Equip a weapon for combat
         - [cyan]examine [item][/cyan]: Examine an item in detail
         - [cyan]talk [npc][/cyan]: Talk to an NPC
         - [cyan]attack [enemy][/cyan]: Attack an enemy
-        - [cyan]look[/cyan]: Look around the current location
-        - [cyan]stats[/cyan]: Display your character's stats
         """
-        self.ui.update_output(Panel(help_text, title="Help"))
+        help_content = f"[bold]Help[/bold]\n\n{help_text}"
+        self.ui.update_output(help_content)
     
     def display_location(self):
         """Display information about the current location"""
@@ -126,11 +154,10 @@ class CommandHandler:
         exits = self.world.get_exits(room_id)
         exits_str = "Exits: " + ", ".join(exits) if exits else "No visible exits."
         
-        # Create panel content
-        panel_content = f"{description}\n\n{exits_str}"
-        panel = Panel(panel_content, title=title)
+        # Create content with title
+        location_content = f"[bold]{title}[/bold]\n\n{description}\n\n{exits_str}"
         
-        self.ui.update_output(panel)
+        self.ui.update_output(location_content)
     
     def get_formatted_item_description(self, item):
         """Format item description to show what it does in parentheses"""
@@ -193,8 +220,13 @@ class CommandHandler:
         output = Text()
         has_content = False
         
+        # Tutorial: first ls
+        if not self.player.tutorial_state.get("first_ls", False):
+            self.player.tutorial_state["first_ls"] = True
+        
         # Show files (items)
         items = self.world.get_items_in_room(room_id) or []
+        weapon_found = False
         if items:
             output.append("Files:\n", style="bold green")
             for item_id in items:
@@ -202,6 +234,11 @@ class CommandHandler:
                 description = self.get_formatted_item_description(item)
                 output.append(f"  {item_id}", style="green")
                 output.append(f" - {description}\n")
+                
+                # Tutorial: found weapon
+                if not self.player.tutorial_state.get("found_weapon", False) and item and item.get("type") == "weapon":
+                    weapon_found = True
+                    
             has_content = True
         
         # Show NPCs
@@ -245,6 +282,23 @@ class CommandHandler:
             output.append("No files, processes, or entities found.")
 
         self.ui.update_output(output)
+        
+        # Tutorial: first time using ls (equivalent to old "first_look")
+        if not self.player.tutorial_state.get("first_look", False):
+            self.player.tutorial_state["first_look"] = True
+            self.show_tutorial_hint("first_look")
+        
+        # Tutorial: show weapon hint after ls reveals weapon
+        if weapon_found:
+            self.player.tutorial_state["found_weapon"] = True
+            # Find the actual weapon item to show in tutorial
+            weapon_item_id = None
+            for item_id in items:
+                item = self.world.get_item(item_id)
+                if item and item.get("type") == "weapon":
+                    weapon_item_id = item_id
+                    break
+            self.show_tutorial_hint("found_weapon", weapon_item_id)
     
     def change_directory(self, directory):
         """Change to a different directory (room)"""
@@ -304,6 +358,19 @@ class CommandHandler:
         self.ui.update_output(f"Changed to [bold]{directory}[/bold]")
         debug_log(f"Successfully moved player to {directory}")
         
+        # Emit room changed event
+        event_bus.emit_event(
+            EventType.PLAYER_MOVED,
+            {"player": self.player, "from_room": current_room, "to_room": directory},
+            "CommandHandler"
+        )
+        
+        event_bus.emit_event(
+            EventType.ROOM_ENTERED,
+            {"room": directory, "player": self.player, "world": self.world},
+            "CommandHandler"
+        )
+        
         # Display the new location
         self.display_location()
         
@@ -326,7 +393,8 @@ class CommandHandler:
             item = self.world.get_item(filename)
             if item:
                 content = item.get("content", "This file appears to be empty or corrupted.")
-                self.ui.update_output(Panel(content, title=f"[bold]{filename}[/bold]"))
+                file_content = f"[bold]{filename}[/bold]\n\n{content}"
+                self.ui.update_output(file_content)
                 
                 # Execute any special effects defined for this item
                 if "on_read" in item:
@@ -338,7 +406,8 @@ class CommandHandler:
             item = self.player.get_item_from_inventory(filename)
             if item:
                 content = item.get("content", "This file appears to be empty or corrupted.")
-                self.ui.update_output(Panel(content, title=f"[bold]{filename}[/bold]"))
+                file_content = f"[bold]{filename}[/bold]\n\n{content}"
+                self.ui.update_output(file_content)
                 
                 # Execute any special effects defined for this item
                 if "on_read" in item:
@@ -384,10 +453,28 @@ class CommandHandler:
             self.world.remove_item_from_room(item_id)
             self.ui.update_output(f"Added [green]{item_id}[/green] to your inventory.")
             
+            # Emit inventory changed event
+            event_bus.emit_event(
+                EventType.ITEM_TAKEN,
+                {"item_id": item_id, "item": item, "player": self.player, "room": current_room},
+                "CommandHandler"
+            )
+            
+            event_bus.emit_event(
+                EventType.PLAYER_INVENTORY_CHANGED,
+                {"player": self.player},
+                "CommandHandler"
+            )
+            
             # Execute any special effects defined for taking this item
             if "on_take" in item:
                 debug_log(f"Executing on_take effect for {item_id}")
                 self.execute_effect(item["on_take"])
+            
+            # Tutorial: took weapon
+            if not self.player.tutorial_state.get("took_weapon", False) and item.get("type") == "weapon":
+                self.player.tutorial_state["took_weapon"] = True
+                self.show_tutorial_hint("took_weapon", item_id)
         else:
             debug_log(f"Failed to add {item_id} to inventory")
             self.ui.update_output(f"[bold red]Could not add {item_id} to inventory.[/bold red]")
@@ -444,9 +531,15 @@ class CommandHandler:
         item_type = item.get("type")
         debug_log(f"Using item {item_id} of type {item_type}")
         
-        # Check if item is usable or is a weapon (weapons should always be usable)
+        # Check if item is a weapon (weapons should be equipped, not used)
         is_weapon = item_type == "weapon" or "weapon" in str(item_type) if item_type else False
-        if not (item.get("usable", False) or is_weapon):
+        if is_weapon:
+            debug_log(f"Item {item_id} is a weapon, should be equipped instead of used")
+            self.ui.update_output(f"[bold yellow]{item_id} is a weapon. Use 'equip {item_id}' to equip it.[/bold yellow]")
+            return
+            
+        # Check if item is usable
+        if not item.get("usable", False):
             debug_log(f"Item {item_id} is not usable")
             self.ui.update_output(f"[bold red]You cannot use {item_id}.[/bold red]")
             return
@@ -464,9 +557,6 @@ class CommandHandler:
         if item_type == "key":
             debug_log(f"Handling key item: {item_id}")
             self._handle_key_item(item_id, item)
-        elif is_weapon:
-            debug_log(f"Handling weapon item: {item_id}")
-            self._handle_weapon_item(item_id, item)
         elif item_type == "lore":
             debug_log(f"Handling lore item: {item_id}")
             self._handle_lore_item(item_id, item)
@@ -546,6 +636,15 @@ class CommandHandler:
             self.ui.update_output(f"[red]Your total damage decreased by {abs(damage_change)} (from {old_damage} to {new_damage}).[/red]")
         else:
             self.ui.update_output(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
+        
+        # Tutorial: equipped weapon
+        if not self.player.tutorial_state.get("equipped_weapon", False):
+            self.player.tutorial_state["equipped_weapon"] = True
+            self.show_tutorial_hint("equipped_weapon")
+            # Mark tutorial as completed after equipping first weapon
+            if not self.player.tutorial_state.get("completed", False):
+                self.player.tutorial_state["completed"] = True
+                self.show_tutorial_hint("completed")
     
     def _handle_lore_item(self, item_id, item):
         """Handle reading a lore item"""
@@ -732,24 +831,6 @@ class CommandHandler:
         # Start combat
         self.combat(enemy_id, enemy)
     
-    def look_around(self):
-        """Look around the current room for details"""
-        current_room = self.player.current_room
-        room = self.world.get_room(current_room)
-        
-        if not room:
-            self.ui.update_output(Panel("[bold red]Error: Invalid room![/bold red]", title="Error"))
-            return
-        
-        # Get detailed description if available
-        detailed_desc = room.get("detailed_description")
-        if detailed_desc:
-            self.ui.update_output(Panel(f"[italic]{detailed_desc}[/italic]", title="Room Description"))
-        else:
-            self.ui.update_output(Panel(f"[italic]{room.get('description', 'No description available.')}[/italic]", title="Room Description"))
-        
-        # List items, NPCs, and enemies in the room
-        self.list_directory()
     
     def show_inventory(self):
         """Display the player's inventory"""
@@ -795,87 +876,119 @@ class CommandHandler:
                 output.append(f"  - {room_id}\n", style="blue")
         self.ui.update_output(output)
 
-    def show_player_stats(self):
-        """Display the player's current stats."""
-        stats_text = self.player.get_stats_display()
-        self.ui.update_output(Panel(stats_text, title="Player Stats"))
 
     def combat(self, enemy_id, enemy):
-        """Handle combat with an enemy."""
-        enemy_name = enemy.get("name", enemy_id)
-        enemy_health = enemy.get("health", 50)
-        enemy_max_health = enemy_health  # Store original max health for health bar
-        enemy_damage = enemy.get("damage", 10)
-        is_boss = enemy.get("is_boss", False)
-
-        self.ui.update_output(f"[bold red]Combat initiated with {enemy_name}![/bold red]")
-        if "dialogue" in enemy:
-            self.ui.update_output(f"[bold red]{enemy_name}:[/bold red] {enemy['dialogue']}")
-
-        combat_ongoing = True
-        while combat_ongoing and enemy_health > 0 and self.player.is_alive():
-            # Display combat status with ASCII health bars
-            player_health_bar = self.create_health_bar(self.player.health, self.player.max_health, "green")
-            enemy_health_bar = self.create_health_bar(enemy_health, enemy_max_health, "red")
+        """Handle combat with an enemy using event-driven approach."""
+        # Create and start a new combat session
+        self.current_combat_session = CombatSession(self.player, enemy_id, enemy, self.ui)
+        self.current_combat_session.start()
+        
+        # Subscribe to combat events
+        event_bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+    
+    def _on_combat_ended(self, event):
+        """Handle combat ended event."""
+        if event.data.get("session") != self.current_combat_session:
+            return  # Not our combat session
             
-            self.ui.update_output(f"\n[bold]Your Health:[/bold] {self.player.health}/{self.player.max_health}")
-            self.ui.update_output(player_health_bar)
-            self.ui.update_output(f"[bold red]{enemy_name}'s Health:[/bold red] {enemy_health}")
-            self.ui.update_output(enemy_health_bar)
-
-            # Player's turn
-            action_id = self.player.get_combat_action(combat_system, self.ui)
-
-            if action_id == "flee":
-                if is_boss:
-                    self.ui.update_output("[bold yellow]You cannot flee from a boss battle![/bold yellow]")
-                else:
-                    self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
-                    combat_ongoing = False
-                    continue
-            
-            elif self.player.has_item(action_id):
-                self.use_item(action_id)
-            
-            elif action_id: # It's an attack
-                attack_result = combat_system.perform_attack(self.player, action_id)
-                self.ui.update_output(f"[green]{attack_result['message']}[/green]")
-                
-                if attack_result["success"]:
-                    enemy_health -= attack_result["damage"]
-                    if attack_result["healing_amount"] > 0:
-                        self.player.heal(attack_result["healing_amount"])
-            
-            else: # No action was taken
-                pass
-
-            # Check if enemy is defeated after player's turn
-            if enemy_health <= 0:
-                break
-
-            # Enemy's turn
-            if combat_ongoing:
-                self.ui.update_output(f"\n[bold red]{enemy_name} attacks you![/bold red]")
-                player_damage_taken = enemy_damage
-                self.player.take_damage(player_damage_taken)
-                self.ui.update_output(f"You took {player_damage_taken} damage.")
-
-            # Update cooldowns and status effects at the end of the round
-            combat_system.update_cooldowns(self.player)
-            self.player.update_status_effects()
-
-        # --- End of combat loop ---
-
-        if not self.player.is_alive():
-            self.ui.update_output("\n[bold red]You have been defeated.[/bold red]")
-            # Handle player death (e.g., game over screen)
-        elif enemy_health <= 0:
-            self.ui.update_output(f"\n[bold green]You have defeated {enemy_name}![/bold green]")
+        victory = event.data.get("victory", False)
+        defeat = event.data.get("defeat", False)
+        fled = event.data.get("fled", False)
+        enemy_id = event.data.get("enemy_id")
+        
+        # Unsubscribe from combat events
+        event_bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+        
+        if victory and enemy_id:
+            # Remove the enemy from the room
+            event_bus.emit_event(
+                EventType.ENEMY_DEFEATED, 
+                {"enemy_id": enemy_id, "player": self.player}, 
+                "CommandHandler"
+            )
             self.world.remove_enemy_from_room(enemy_id)
-            # Grant rewards, etc.
-
-        # Reset all cooldowns after combat ends
-        combat_system.reset_cooldowns(self.player)
+        
+        if defeat:
+            # Handle player death (e.g., game over screen)
+            debug_log("Player defeated in combat")
+        
+        # Clear current combat session
+        self.current_combat_session = None
+    
+    def equip_weapon(self, weapon_id):
+        """Equip a weapon from inventory."""
+        if not weapon_id:
+            debug_log("equip command called with no weapon specified")
+            self.ui.update_output("[bold red]No weapon specified. Use 'equip [weapon]'[/bold red]")
+            return
+        
+        debug_log(f"Player attempting to equip weapon: {weapon_id}")
+        
+        if not self.player.has_item(weapon_id):
+            debug_log(f"Player doesn't have weapon {weapon_id} in inventory")
+            self.ui.update_output(f"[bold red]You don't have {weapon_id} in your inventory.[/bold red]")
+            return
+        
+        # Get weapon data
+        weapon = self.player.get_item_from_inventory(weapon_id)
+        weapon_type = weapon.get("type")
+        
+        # Check if it's actually a weapon
+        is_weapon = weapon_type == "weapon" or "weapon" in str(weapon_type) if weapon_type else False
+        if not is_weapon:
+            debug_log(f"Item {weapon_id} is not a weapon")
+            self.ui.update_output(f"[bold red]{weapon_id} is not a weapon.[/bold red]")
+            return
+            
+        # Check class restrictions
+        if not self.player.can_use_item(weapon):
+            class_restriction = weapon.get("class_restriction", "")
+            if isinstance(class_restriction, list):
+                class_restriction = " or ".join(class_restriction)
+            debug_log(f"Weapon {weapon_id} has class restriction: {class_restriction}, player is: {self.player.player_class}")
+            self.ui.update_output(f"[bold red]This weapon can only be used by {class_restriction} class.[/bold red]")
+            return
+        
+        # Get old weapon info before equipping the new one
+        old_weapon_id = self.player.equipped_weapon
+        old_damage = self.player.calculate_damage()
+        
+        # Equip the weapon
+        success = self.player.equip_weapon(weapon_id)
+        if success:
+            weapon_name = weapon.get("name", weapon_id)
+            self.ui.update_output(f"You have equipped [green]{weapon_name}[/green].")
+            
+            # Display the weapon's effects and new total damage
+            new_damage = self.player.calculate_damage()
+            damage_change = new_damage - old_damage
+            
+            if damage_change > 0:
+                self.ui.update_output(f"[green]Your total damage increased by {damage_change} (from {old_damage} to {new_damage}).[/green]")
+            elif damage_change < 0:
+                self.ui.update_output(f"[red]Your total damage decreased by {abs(damage_change)} (from {old_damage} to {new_damage}).[/red]")
+            else:
+                self.ui.update_output(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
+            
+            # Update tutorial progress
+            if not self.player.tutorial_state.get("equipped_weapon", False):
+                self.player.tutorial_state["equipped_weapon"] = True
+                self.show_tutorial_hint("equipped_weapon")
+                
+        else:
+            debug_log(f"Failed to equip weapon {weapon_id}")
+            self.ui.update_output(f"[bold red]Failed to equip {weapon_id}.[/bold red]")
+    
+    def _handle_combat_command(self, command):
+        """Handle commands during combat."""
+        debug_log(f"Handling combat command: {command}")
+        
+        # Emit combat action selected event
+        event_bus.emit_event(
+            EventType.COMBAT_ACTION_SELECTED,
+            {"choice": command},
+            "CommandHandler"
+        )
 
     def check_for_enemies(self):
         """Check for enemies in the current room and initiate combat if necessary."""

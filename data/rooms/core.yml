@@ -10,4 +10,7 @@ enemies:
   - daemon_overlord.sys
 locked: true
 key_required: master.key
-hidden: false 
+hidden: false
+zone: "core"
+zone_level: 5
+class_affinity: "guardian" 
