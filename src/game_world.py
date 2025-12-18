@@ -596,17 +596,27 @@ class GameWorld:
         if zone == "safe":
             target_items = max(target_items, len(zone_rooms) + 2)  # Guarantee extras for safe zones
         
+        # Filter out home_grove from random placement (it gets starter items)
+        zone_rooms_filtered = [r for r in zone_rooms if r != "home_grove"]
+        if not zone_rooms_filtered:
+            debug_log(f"No rooms available for placement in {zone} zone after filtering home_grove")
+            return 0
+
         items_placed = 0
         for _ in range(target_items):
-            # Select random item based on rarity weights
-            item_id, item_data = self._select_weighted_item(suitable_items, rarity_weights)
-            
+            # Select random room from zone
+            room_id = random.choice(zone_rooms_filtered)
+
+            # Get allowed rarities for this specific room
+            room_data = self.rooms.get(room_id, {})
+            allowed_rarities = self._get_allowed_rarities_for_room(room_id, room_data)
+
+            # Select random item based on rarity weights and allowed rarities
+            item_id, item_data = self._select_weighted_item(suitable_items, rarity_weights, allowed_rarities)
+
             if not item_id:
                 break
-                
-            # Select random room from zone
-            room_id = random.choice(zone_rooms)
-            
+
             # Place the item
             if self._place_item_in_room(item_id, item_data, room_id):
                 items_placed += 1
@@ -614,7 +624,7 @@ class GameWorld:
                 item_type = item_data.get("type", "")
                 if item_type not in ["consumable", "enhancement"]:
                     suitable_items = [(id, data) for id, data in suitable_items if id != item_id]
-        
+
         return items_placed
     
     def _get_suitable_items_for_zone(self, zone, player_class, loot_preferences):
@@ -675,11 +685,11 @@ class GameWorld:
                 return True
         return False
     
-    def _select_weighted_item(self, suitable_items, rarity_weights):
-        """Select an item based on rarity weights."""
+    def _select_weighted_item(self, suitable_items, rarity_weights, allowed_rarities=None):
+        """Select an item based on rarity weights and optional rarity filter."""
         if not suitable_items:
             return None, None
-            
+
         # Organize by rarity
         items_by_rarity = {}
         for item_id, item_data in suitable_items:
@@ -687,24 +697,94 @@ class GameWorld:
             if rarity not in items_by_rarity:
                 items_by_rarity[rarity] = []
             items_by_rarity[rarity].append((item_id, item_data))
-        
+
         # Select rarity based on weights
         available_rarities = [r for r in rarity_weights.keys() if r in items_by_rarity]
+
+        # Apply rarity filter if provided
+        if allowed_rarities:
+            available_rarities = [r for r in available_rarities if r in allowed_rarities]
+
         if not available_rarities:
             return None, None
-            
+
         weights = [rarity_weights[r] for r in available_rarities]
         selected_rarity = random.choices(available_rarities, weights=weights, k=1)[0]
-        
+
         # Select random item from rarity
         return random.choice(items_by_rarity[selected_rarity])
-    
-    def _place_item_in_room(self, item_id, item_data, room_id):
+
+    def _count_items_in_room(self, room_id: str) -> int:
+        """Count how many items are currently in a room."""
+        return sum(1 for item_id, loc in self.item_locations.items() if loc == room_id)
+
+    def _get_allowed_rarities_for_room(self, room_id: str, room_data: dict) -> list:
+        """Determine which item rarities are allowed in a room based on characteristics."""
+        # Get room characteristics
+        enemies = room_data.get('enemies', [])
+        enemy_count = len(enemies)
+        zone = room_data.get('zone', 'neutral')
+        is_boss_room = any('boss' in str(e).lower() or 'overlord' in str(e).lower() for e in enemies)
+
+        # Determine allowed rarities
+        if is_boss_room:
+            # Boss rooms: All rarities including legendary
+            return ['common', 'uncommon', 'rare', 'epic', 'legendary']
+        elif enemy_count >= 2:
+            # 2-3 enemy rooms: Epic and rare (and lower)
+            return ['common', 'uncommon', 'rare', 'epic']
+        elif enemy_count == 1:
+            # 1 enemy rooms: Common only
+            return ['common']
+        elif zone == 'safe':
+            # Safe zones: Uncommon (and common)
+            return ['common', 'uncommon']
+        else:
+            # Default: Common and uncommon
+            return ['common', 'uncommon']
+
+    def place_starter_items(self, player_class: str) -> None:
+        """Place class-appropriate starter items in home_grove after character creation."""
+        # Class-specific starter weapons
+        starter_weapons = {
+            "guardian": "protocol_shield",  # Common weapon for Guardian
+            "weaver": "basic_exploit",      # Common weapon for Weaver
+            "shaman": "minor_hex",          # Common weapon for Shaman
+        }
+
+        # Get class-appropriate starter weapon
+        starter_weapon = starter_weapons.get(player_class.lower())
+        if starter_weapon and starter_weapon in self.items:
+            weapon_data = self.items[starter_weapon]
+            self._place_item_in_room(starter_weapon, weapon_data, "home_grove", max_items_per_room=2)
+            debug_log(f"Placed {starter_weapon} in home_grove for {player_class}")
+
+        # Place a random health consumable (common rarity)
+        consumables = [
+            item_id for item_id, data in self.items.items()
+            if data.get('type') == 'consumable'
+            and data.get('rarity') == 'common'
+            and 'health' in data.get('effect', {}).keys()
+        ]
+
+        if consumables:
+            health_item = random.choice(consumables)
+            health_data = self.items[health_item]
+            self._place_item_in_room(health_item, health_data, "home_grove", max_items_per_room=2)
+            debug_log(f"Placed {health_item} in home_grove as starter consumable")
+
+    def _place_item_in_room(self, item_id, item_data, room_id, max_items_per_room=3):
         """Place a specific item in a specific room."""
         # Check if room is locked
         if self.room_states.get(room_id, {}).get("locked", False):
             return False
-        
+
+        # Check per-room item limit
+        current_room_items = self._count_items_in_room(room_id)
+        if current_room_items >= max_items_per_room:
+            debug_log(f"Room {room_id} already has {current_room_items} items (limit: {max_items_per_room}), skipping {item_id}")
+            return False
+
         # Check if this item is already placed (to prevent overriding fixed items)
         if item_id in self.item_locations:
             debug_log(f"Item {item_id} already placed in {self.item_locations[item_id]}, skipping dynamic placement")

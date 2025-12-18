@@ -55,23 +55,30 @@ class ImprovedGameEngine:
     def __init__(self, ui: Optional[UIProtocol] = None):
         """Initialize the game engine."""
         logger.info("Initializing ImprovedGameEngine")
-        
-        # Core state
+
+        # Non-reloadable state
+        self.save_dir = "saves"
+        self.ui = ui or TextualGameUI()
+
+        # Setup
+        self._setup_directories()
+        self._setup_event_subscriptions()
+
+        # Initialize reloadable game components
+        self._initialize_game_components()
+
+    def _initialize_game_components(self):
+        """Initialize/reinitialize game components (reloadable)."""
+        logger.info("Initializing game components")
+
+        # Reset game state
         self.player: Optional[Player] = None
         self.world: Optional[GameWorld] = None
         self.cmd_handler: Optional[CommandHandler] = None
         self.current_room = DEFAULT_ROOM
         self.game_state = DEFAULT_GAME_STATE
-        self.save_dir = "saves"
         self.pending_player_name = ""
-        
-        # UI system
-        self.ui = ui or TextualGameUI()
-        
-        # Setup
-        self._setup_directories()
-        self._setup_event_subscriptions()
-        
+
         # Load game data
         try:
             self._load_game_data()
@@ -97,7 +104,20 @@ class ImprovedGameEngine:
         event_bus.subscribe(EventType.COMBAT_STARTED, self._on_combat_started)
         event_bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
         event_bus.subscribe(EventType.GAME_OVER, self._on_game_over)
-    
+        event_bus.subscribe(EventType.GAME_RESTART_REQUESTED, self._on_restart_requested)
+
+    def restart_game(self):
+        """Restart game state without closing UI - reloads all game data."""
+        logger.info("Restarting game")
+
+        # Reinitialize all game components (player, world, data)
+        self._initialize_game_components()
+
+        # Emit event to UI to reset display
+        event_bus.emit_event(EventType.GAME_OVER, {"message": "Game restarted. Welcome back!"}, "GameEngine")
+
+        logger.info("Game restart complete")
+
     def _load_game_data(self):
         """Load all game data from YAML files."""
         logger.info("Loading game data")
@@ -262,16 +282,24 @@ class ImprovedGameEngine:
         """Handle combat ended event."""
         logger.info("Combat ended, switching back to PLAYING state")
         self.game_state = GameState.PLAYING
-        
+
         # Notify UI of state change
         event_bus.emit_event(
             EventType.UI_STATE_CHANGED,
             {"new_state": self.game_state},
             "ImprovedGameEngine"
         )
-        
+
         # Update UI panels after combat
         self._update_ui_panels()
+
+        # Emit ROOM_ENTERED to refresh exits panel and restore full UI state
+        if self.world and self.player:
+            event_bus.emit_event(
+                EventType.ROOM_ENTERED,
+                {"world": self.world, "player": self.player},
+                "ImprovedGameEngine"
+            )
     
     def _on_game_over(self, event):
         """Handle game over event and restart game based on player choice."""
@@ -291,7 +319,12 @@ class ImprovedGameEngine:
         elif action == "restart_from_save":
             logger.info("Player chose to restart from save - loading most recent save")
             self._restart_from_save()
-    
+
+    def _on_restart_requested(self, event):
+        """Handle game restart request from UI (F5 key)."""
+        logger.info("Game restart requested from UI")
+        self.restart_game()
+
     def _restart_new_game(self):
         """Restart the game with a fresh state."""
         try:
@@ -678,7 +711,12 @@ where fragments of your former self still linger...[/italic]
             
             # Show welcome tutorial
             self.cmd_handler.show_tutorial_hint("welcome")
-            
+
+            # Place class-appropriate starter items in home_grove
+            if self.world:
+                self.world.place_starter_items(player_class)
+                logger.info(f"Placed starter items for {player_class} in home_grove")
+
             event_bus.emit_event(
                 EventType.PLAYER_CREATED,
                 {"player": self.player},
