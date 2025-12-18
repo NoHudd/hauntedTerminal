@@ -323,3 +323,23 @@ Footer {
 .game-state-menu #output-panel {
     border: solid $primary;
 }
+
+/* =============================================================================
+   DEV TOOLS: Log Viewer Modal
+   ============================================================================= */
+
+LogViewerScreen {
+    align: center middle;
+}
+
+LogViewerScreen > RichLog {
+    width: 90%;
+    height: 80%;
+    border: solid yellow;
+    background: $surface;
+    padding: 1;
+}
+
+LogViewerScreen > RichLog:focus {
+    border: solid yellow;
+}

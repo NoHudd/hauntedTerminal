@@ -22,6 +22,7 @@ class EventType(Enum):
     GAME_OVER = auto()
     GAME_SAVED = auto()
     GAME_LOADED = auto()
+    GAME_RESTART_REQUESTED = auto()
     
     # Player Events  
     PLAYER_CREATED = auto()
