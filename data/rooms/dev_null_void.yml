@@ -8,11 +8,10 @@ detailed_description: |
   The edges of the void seem to be constantly shifting, as if the very concept of this place is unstable.
 exits:
   - bin_armory
-items:
-  - void_fragment.dat
-  - deleted_weapon.exe
-  - forgotten_spell.sh
+items: []
+# Items placed dynamically - void contains recovered/deleted items
 enemies:
   - null_guardian.sys
-npcs: []
+npcs: 
+  - null_whisper.void
 hidden: false  # This room is completely hidden until discovered 

@@ -1,0 +1,11 @@
+name: Helper Script
+short_description: A helpful utility process eager to assist
+description: A cheerful executable that embodies the spirit of Unix philosophy—do one thing and do it well. It appears as flowing shell script syntax, always ready with practical advice and system knowledge.
+dialogues:
+  - "#!/bin/bash - Every great journey begins with a shebang! How can I help you today?"
+  - "Remember: 'man' is your friend! Though the manual pages are corrupted, knowledge persists in spirits like us."
+  - "The root directory is where all paths converge. From here, you can reach any part of the filesystem."
+  - "Pipes and redirects still work, even in this haunted system. Use them to channel data streams effectively."
+  - "The Daemon Overlord fears well-written code. Clean, logical scripts are our greatest weapon."
+on_talk:
+  message: The Helper Script's voice bubbles with enthusiasm, like perfectly optimized code running at full efficiency.

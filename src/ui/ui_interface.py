@@ -24,6 +24,10 @@ class UIProtocol(Protocol):
         """Update the main output display."""
         ...
     
+    def append_output(self, content: str) -> None:
+        """Append content to the current output display."""
+        ...
+    
     def update_inventory(self, content: str) -> None:
         """Update the inventory panel."""
         ...

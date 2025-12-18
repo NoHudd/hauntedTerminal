@@ -32,6 +32,100 @@
     padding: 1 2;
 }
 
+/* Combat-specific styling */
+#combat-panel {
+    border: solid red;
+    padding: 1 2;
+    background: $background 10%;
+}
+
+/* Combat mode - all panels red except inventory */
+.combat-active #exits-panel {
+    border: solid red;
+    border-title-style: bold;
+    background: $error 5%;
+}
+
+.combat-active #stats-panel {
+    border: solid red;
+    border-title-style: bold;
+    background: $error 5%;
+}
+
+.combat-active #output-panel {
+    border: solid red;
+    background: $error 5%;
+}
+
+/* Inventory stays yellow in combat */
+.combat-active #inventory-panel {
+    border: solid yellow;
+    background: $warning 5%;
+}
+
+.combat-health-bar {
+    transition: width 500ms;
+    background: $success;
+}
+
+.combat-health-bar-danger {
+    background: $error;
+}
+
+.combat-health-bar-warning {
+    background: $warning;
+}
+
+.combat-action-button {
+    border: solid cyan;
+    background: $primary 20%;
+    padding: 0 1;
+    margin: 0 1;
+    min-width: 12;
+}
+
+.combat-action-button:focus {
+    border: solid white;
+    background: $accent 30%;
+    text-style: bold;
+}
+
+.combat-action-button-disabled {
+    border: solid $surface;
+    background: $surface 10%;
+    color: $surface;
+}
+
+.combat-log-player {
+    color: $success;
+    text-style: bold;
+}
+
+.combat-log-enemy {
+    color: $error;
+    text-style: bold;
+}
+
+.combat-log-system {
+    color: $warning;
+    text-style: italic;
+}
+
+.damage-number {
+    color: $error;
+    text-style: bold;
+}
+
+.heal-number {
+    color: $success;
+    text-style: bold;
+}
+
+.critical-hit {
+    background: $error;
+    color: white;
+    text-style: bold reverse;
+}
 
 #header {
     background: #000080; /* Dark blue */
@@ -48,4 +142,184 @@ Footer {
     border: solid cyan;
     height: 3;
     padding: 0 1;
+}
+
+/* Combat input styling */
+.combat-active #input-field {
+    border: solid red;
+    background: $error 10%;
+}
+
+/* Enhanced combat panel styling */
+#enhanced-combat-panel {
+    border: solid red;
+    padding: 1;
+    display: none;
+    background: $background;
+    border-subtitle-style: bold;
+}
+
+.combat-active #enhanced-combat-panel {
+    display: block;
+}
+
+#combat-health-display {
+    padding: 1;
+    border: solid green;
+    height: 6;
+    border-title-style: bold;
+}
+
+#combat-actions-container {
+    padding: 1;
+    height: 8;
+    overflow: auto;
+    border: solid cyan;
+    border-title-style: bold;
+}
+
+#combat-log-display {
+    padding: 1;
+    border: solid blue;
+    height: 6;
+    overflow: auto;
+    border-title-style: bold;
+}
+
+#combat-effects-overlay {
+    height: 10;
+    text-align: center;
+    background: transparent;
+}
+
+/* Combat widget specific styles */
+.animated-health-bar {
+    height: 3;
+    border: solid white;
+    padding: 1;
+    background: $background;
+}
+
+.combat-log-entry {
+    margin-bottom: 1;
+    padding: 0 1;
+}
+
+.floating-damage {
+    text-align: center;
+    color: $error;
+    text-style: bold;
+    background: $error 20%;
+    padding: 0 1;
+}
+
+.floating-heal {
+    text-align: center;
+    color: $success;
+    text-style: bold;
+    background: $success 20%;
+    padding: 0 1;
+}
+
+/* Enhanced room theming */
+.room-home {
+    background: $primary 5%;
+}
+
+.room-home #output-panel {
+    border: solid $primary;
+    background: $primary 3%;
+}
+
+.room-dangerous {
+    background: $error 5%;
+}
+
+.room-dangerous #output-panel {
+    border: solid $error;
+    background: $error 3%;
+}
+
+.room-safe {
+    background: $success 5%;
+}
+
+.room-safe #output-panel {
+    border: solid $success;
+    background: $success 3%;
+}
+
+/* Status effect styling */
+.status-poisoned {
+    background: #4a2c2a;
+    border: solid #8b5a2b;
+}
+
+.status-blessed {
+    background: #2a4a3c;
+    border: solid #5a8b6b;
+}
+
+.status-cursed {
+    background: #3c2a4a;
+    border: solid #6b5a8b;
+}
+
+/* Rarity-based item styling */
+.rarity-common {
+    color: white;
+}
+
+.rarity-uncommon {
+    color: green;
+    text-style: italic;
+}
+
+.rarity-rare {
+    color: blue;
+    text-style: bold;
+}
+
+.rarity-epic {
+    color: magenta;
+    text-style: bold;
+}
+
+.rarity-legendary {
+    color: yellow;
+    text-style: bold reverse;
+}
+
+/* Enhanced input field states */
+#input-field:focus {
+    border: solid $accent;
+    background: $accent 10%;
+}
+
+.combat-active #input-field:focus {
+    border: solid $error;
+    background: $error 15%;
+}
+
+/* Panel enhancement animations */
+#sidebar {
+}
+
+.panel-update {
+    background: $accent 15%;
+}
+
+/* Dynamic border styling for game states */
+.game-state-exploring #output-panel {
+    border: solid cyan;
+    border-title-style: italic;
+}
+
+.game-state-in-combat #output-panel {
+    border: solid $error;
+    border-title-style: bold;
+}
+
+.game-state-menu #output-panel {
+    border: solid $primary;
 }
