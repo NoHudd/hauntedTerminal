@@ -200,6 +200,22 @@ class CombatSystem:
         debug_log(f"Resetting all cooldowns for player {player_id} (Name: {player.name})")
         self.active_cooldowns[player_id] = {}
 
+    def reduce_cooldowns_by_one(self, player_id):
+        """Reduce all active cooldowns by 1 turn (for sequential combat)."""
+        if player_id not in self.active_cooldowns:
+            return
+
+        reduced = []
+        for attack_id in list(self.active_cooldowns[player_id].keys()):
+            if self.active_cooldowns[player_id][attack_id] > 0:
+                old_cd = self.active_cooldowns[player_id][attack_id]
+                self.active_cooldowns[player_id][attack_id] -= 1
+                new_cd = self.active_cooldowns[player_id][attack_id]
+                reduced.append(f"{attack_id}: {old_cd}->{new_cd}")
+
+        if reduced:
+            debug_log(f"Reduced cooldowns for sequential combat: {', '.join(reduced)}")
+
     def get_available_attacks(self, player, learned_spells=None):
         """Get available attacks for a player, including learned spells."""
         player_id = player.player_id
@@ -255,22 +271,33 @@ class CombatSystem:
 
 class CombatSession:
     """Manages an active combat session using event-driven approach."""
-    
-    def __init__(self, player, enemy_id, enemy_data, ui):
-        """Initialize a combat session."""
+
+    def __init__(self, player, enemies_queue, ui):
+        """
+        Initialize combat session with enemy queue.
+
+        Args:
+            player: Player object
+            enemies_queue: List of (enemy_id, enemy_data) tuples
+            ui: UI instance
+        """
         self.player = player
-        self.enemy_id = enemy_id
-        self.enemy_data = enemy_data
+        self.enemies_queue = enemies_queue  # List of (enemy_id, enemy_data)
+        self.current_enemy_index = 0
         self.ui = ui
-        self.enemy_health = enemy_data.get("health", 50)
-        self.enemy_max_health = self.enemy_health
-        self.enemy_damage = enemy_data.get("damage", 10)
-        self.is_boss = enemy_data.get("is_boss", False)
         self.is_active = True
         self.awaiting_action = False
-        
-        debug_log(f"CombatSession created: Player vs {enemy_id} (Health: {self.enemy_health})")
-        
+
+        # Initialize with first enemy
+        if enemies_queue:
+            self.enemy_id, self.enemy_data = enemies_queue[0]
+            self.enemy_health = self.enemy_data.get("health", 50)
+            self.enemy_max_health = self.enemy_health
+            self.enemy_damage = self.enemy_data.get("damage", 10)
+            self.is_boss = self.enemy_data.get("is_boss", False)
+
+        debug_log(f"CombatSession created with {len(enemies_queue)} enemies in queue")
+
         # Subscribe to combat events
         event_bus.subscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
     
@@ -295,7 +322,55 @@ class CombatSession:
         
         self._show_combat_status()
         self._request_player_action()
-    
+
+    def _engage_next_enemy(self):
+        """
+        Transition to next enemy in queue.
+        Returns True if there's a next enemy, False if queue exhausted.
+        """
+        self.current_enemy_index += 1
+
+        if self.current_enemy_index >= len(self.enemies_queue):
+            debug_log("No more enemies in queue - combat chain complete")
+            return False
+
+        # Get next enemy
+        self.enemy_id, self.enemy_data = self.enemies_queue[self.current_enemy_index]
+        self.enemy_health = self.enemy_data.get("health", 50)
+        self.enemy_max_health = self.enemy_health
+        self.enemy_damage = self.enemy_data.get("damage", 10)
+        self.is_boss = self.enemy_data.get("is_boss", False)
+
+        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        debug_log(f"Engaging next enemy: {enemy_name} ({self.current_enemy_index + 1}/{len(self.enemies_queue)})")
+
+        # Reduce cooldowns by 1 for sequential combat
+        combat_system.reduce_cooldowns_by_one(self.player.player_id)
+        self.ui.update_output(f"[bold yellow]⚡ Cooldowns reduced by 1 turn![/bold yellow]")
+
+        # Show prominent transition message
+        transition_msg = f"""
+[bold red]═══════════════════════════════════════[/bold red]
+[bold yellow]⚠️  NEXT ENEMY ENGAGING  ⚠️[/bold yellow]
+
+[bold red]{enemy_name}[/bold red] attacks before you can recover!
+[bold red]═══════════════════════════════════════[/bold red]
+"""
+        self.ui.update_output(transition_msg)
+
+        # Show enemy dialogue if available
+        if "dialogue" in self.enemy_data:
+            self.ui.update_output(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}")
+
+        # Reset combat UI flag for new enemy
+        self._combat_initialized = False
+
+        # Show status and request action
+        self._show_combat_status()
+        self._request_player_action()
+
+        return True
+
     def _show_combat_status(self):
         """Display current combat status."""
         player_health_bar = self._create_health_bar(self.player.health, self.player.max_health, "green")
@@ -507,7 +582,12 @@ class CombatSession:
                 self._request_player_action()
                 return
             else:
-                self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
+                # End sequential combat mode when fleeing
+                if combat_system.in_sequential_combat:
+                    combat_system.end_sequential_combat(self.player.player_id)
+                    self.ui.update_output("[bold magenta]You fled from the sequential encounter![/bold magenta]")
+                else:
+                    self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
                 self._end_combat(fled=True)
                 return
         
@@ -599,8 +679,25 @@ class CombatSession:
         
         # Check if enemy is defeated
         if self.enemy_health <= 0:
-            self._end_combat(victory=True)
-            return
+            enemy_name = self.enemy_data.get("name", self.enemy_id)
+            self.ui.update_output(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
+
+            # Emit enemy defeated event (for loot, achievements, etc)
+            event_bus.emit_event(
+                EventType.ENEMY_DEFEATED,
+                {"enemy_id": self.enemy_id, "player": self.player},
+                "CombatSession"
+            )
+
+            # Check if more enemies in queue
+            if self._engage_next_enemy():
+                # Next enemy engaged, continue combat
+                return
+            else:
+                # All enemies defeated - end combat
+                self.ui.update_output(f"\n[bold green]✓ Area secured - all hostile entities eliminated![/bold green]")
+                self._end_combat(victory=True)
+                return
         
         # Enemy's turn
         self._enemy_turn()
@@ -662,19 +759,16 @@ class CombatSession:
         """End the combat session."""
         self.is_active = False
         self.awaiting_action = False
-        
+
         # Unsubscribe from events
         event_bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
-        
-        if victory:
-            enemy_name = self.enemy_data.get("name", self.enemy_id)
-            self.ui.update_output(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
-        elif defeat:
+
+        if defeat:
             self.ui.update_output("\n[bold red]You have been defeated.[/bold red]")
-        
-        # Reset cooldowns
+
+        # Reset cooldowns after combat ends (normal or fled)
         combat_system.reset_cooldowns(self.player)
-        
+
         # Emit combat ended event
         event_bus.emit_event(
             EventType.COMBAT_ENDED,

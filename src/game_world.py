@@ -41,7 +41,10 @@ class GameWorld:
         
         # Track how many of each item have been spawned (for max_spawn)
         self.item_spawn_counts = {}
-        
+
+        # Track items that have been permanently removed (won't respawn from room data)
+        self.removed_items = set()
+
         # Load class data for world generation
         self.class_data = self._load_class_data()
         
@@ -61,7 +64,8 @@ class GameWorld:
             "npc_locations": self.npc_locations,
             "fled_enemies": self.fled_enemies,
             "room_states": self.room_states,
-            "item_spawn_counts": self.item_spawn_counts
+            "item_spawn_counts": self.item_spawn_counts,
+            "removed_items": list(self.removed_items)  # Convert set to list for JSON serialization
         }
         debug_log(f"[Instance {self.instance_id}] Saving world state with {len(self.item_locations)} items")
         return state
@@ -71,13 +75,14 @@ class GameWorld:
         if not state:
             debug_log(f"[Instance {self.instance_id}] No world state to restore, using fresh initialization")
             return
-            
+
         self.item_locations = state.get("item_locations", {})
         self.enemy_locations = state.get("enemy_locations", {})
         self.npc_locations = state.get("npc_locations", {})
         self.fled_enemies = state.get("fled_enemies", {})
         self.room_states = state.get("room_states", {})
         self.item_spawn_counts = state.get("item_spawn_counts", {})
+        self.removed_items = set(state.get("removed_items", []))  # Convert list back to set
         
         debug_log(f"[Instance {self.instance_id}] Restored world state with {len(self.item_locations)} items, {len(self.enemy_locations)} enemies, {len(self.npc_locations)} NPCs")
 
@@ -852,11 +857,11 @@ class GameWorld:
         debug_log(f"[Instance {self.instance_id}] Getting items in room {room_id}")
         debug_log(f"[Instance {self.instance_id}] Total items in item_locations: {len(self.item_locations)}")
         debug_log(f"[Instance {self.instance_id}] Full item_locations: {self.item_locations}")
-        
+
         # Get all items from the item_locations dictionary
         items_from_locations = [item_id for item_id, location in self.item_locations.items() if location == room_id]
         debug_log(f"Items from locations for {room_id}: {items_from_locations}")
-        
+
         # As a backup, check the room data directly (some items might not be in the tracking dict)
         room_data = self.get_room(room_id)
         if room_data and "items" in room_data:
@@ -864,11 +869,20 @@ class GameWorld:
             debug_log(f"Items from room data for {room_id}: {items_in_room_data}")
             # Combine both sources, ensuring no duplicates
             combined_items = list(set(items_from_locations + items_in_room_data))
-            debug_log(f"Found {len(combined_items)} items in room {room_id}: {combined_items}")
-            return combined_items
-        
-        debug_log(f"Found {len(items_from_locations)} items in room {room_id}: {items_from_locations}")
-        return items_from_locations
+
+            # Filter out permanently removed items
+            filtered_items = [item_id for item_id in combined_items if item_id not in self.removed_items]
+            if len(filtered_items) != len(combined_items):
+                removed_count = len(combined_items) - len(filtered_items)
+                debug_log(f"Filtered out {removed_count} permanently removed items from room {room_id}")
+
+            debug_log(f"Found {len(filtered_items)} items in room {room_id}: {filtered_items}")
+            return filtered_items
+
+        # Filter removed items from locations-only list as well
+        filtered_items = [item_id for item_id in items_from_locations if item_id not in self.removed_items]
+        debug_log(f"Found {len(filtered_items)} items in room {room_id}: {filtered_items}")
+        return filtered_items
     
     def get_enemies_in_room(self, room_id):
         """Get all enemies in a room"""
@@ -942,7 +956,11 @@ class GameWorld:
             room = self.item_locations[item_id]
             del self.item_locations[item_id]
             debug_log(f"Removed item {item_id} from room {room}")
-            
+
+            # Mark item as permanently removed (won't respawn from room YAML)
+            self.removed_items.add(item_id)
+            debug_log(f"Marked item {item_id} as permanently removed")
+
             # Emit event for other systems
             item_data = self.get_item(item_id)
             event_bus.emit_event(
@@ -963,7 +981,12 @@ class GameWorld:
         """Add an item to a room (when dropped)"""
         self.item_locations[item_id] = room_id
         debug_log(f"Added item {item_id} to room {room_id}")
-        
+
+        # If item was previously removed, allow it to be picked up again
+        if item_id in self.removed_items:
+            self.removed_items.remove(item_id)
+            debug_log(f"Removed {item_id} from permanently removed list (item was dropped)")
+
         # Emit event for other systems
         item_data = self.get_item(item_id)
         event_bus.emit_event(
@@ -1105,26 +1128,6 @@ class GameWorld:
         debug_log(f"Move allowed: {from_room} to {to_room}")
         return True, None
     
-    def get_state(self):
-        """Get the current state of the world (for saving)"""
-        debug_log("Getting world state for saving")
-        return {
-            "item_locations": self.item_locations,
-            "enemy_locations": self.enemy_locations,
-            "npc_locations": self.npc_locations,
-            "room_states": self.room_states,
-            "item_spawn_counts": self.item_spawn_counts
-        }
-    
-    def set_state(self, state_data):
-        """Set the state of the world (for loading)"""
-        debug_log("Setting world state from save data")
-        self.item_locations = state_data.get("item_locations", {})
-        self.enemy_locations = state_data.get("enemy_locations", {})
-        self.npc_locations = state_data.get("npc_locations", {})
-        self.room_states = state_data.get("room_states", {})
-        self.item_spawn_counts = state_data.get("item_spawn_counts", {})
-        debug_log(f"Loaded: {len(self.item_locations)} items, {len(self.enemy_locations)} enemies, {len(self.npc_locations)} NPCs")
     
     def discover_room(self, room_id):
         """Make a hidden room visible
