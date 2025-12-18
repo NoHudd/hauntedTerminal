@@ -1,55 +1,62 @@
 #!/usr/bin/env python3
 """
 Development configuration for HFSE game
-Simplified configuration that loads .env file
+Simplified configuration that imports from settings.py
 """
 
 import os
-from pathlib import Path
 
-def load_env_file():
-    """
-    Load environment variables from .env file in the project root.
-    This only sets values that aren't already set in the environment.
-    """
-    env_path = Path(__file__).parent.parent / '.env'
-    if not env_path.exists():
-        return
-        
-    with open(env_path, 'r') as f:
-        for line in f:
-            line = line.strip()
-            # Skip empty lines and comments
-            if not line or line.startswith('#'):
-                continue
-                
-            # Parse KEY=VALUE format
-            if '=' in line:
-                key, value = line.split('=', 1)
-                key = key.strip()
-                value = value.strip()
-                
-                # Only set if not already in environment
-                if key not in os.environ:
-                    # Remove quotes if present
-                    if value.startswith('"') and value.endswith('"'):
-                        value = value[1:-1]
-                    elif value.startswith("'") and value.endswith("'"):
-                        value = value[1:-1]
-                    
-                    os.environ[key] = value
+# Import all settings from the settings module
+try:
+    from config.settings import (
+        DEV_MODE,
+        DEBUG_MODE,
+        DEBUG_COMMAND,
+        DEBUG_ITEM,
+        DEBUG_COMBAT,
+        DEBUG_ROOM,
+        DEBUG_PLAYER,
+        DEBUG_WORLD,
+        SKIP_INTRO,
+        DISABLE_ANIMATIONS,
+        DEBUG_LOG_FILE
+    )
+except ImportError:
+    # Fallback to defaults if settings.py doesn't exist
+    print("Warning: config/settings.py not found. Using default settings.")
+    print("Copy config/settings.example.py to config/settings.py to customize.")
 
-# Load the .env file before setting any variables
-load_env_file()
+    DEV_MODE = True
+    DEBUG_MODE = True
+    DEBUG_COMMAND = True
+    DEBUG_ITEM = True
+    DEBUG_COMBAT = True
+    DEBUG_ROOM = True
+    DEBUG_PLAYER = True
+    DEBUG_WORLD = True
+    SKIP_INTRO = True
+    DISABLE_ANIMATIONS = True
+    DEBUG_LOG_FILE = "debug.log"
 
-# Main configuration flags used by the system
-DEV_MODE = os.environ.get("HFSE_DEV_MODE", "False").lower() in ["true", "1", "yes"]
-DEBUG_MODE = os.environ.get("HFSE_DEBUG", "False").lower() in ["true", "1", "yes"]
+# Export all for backward compatibility
+__all__ = [
+    'DEV_MODE',
+    'DEBUG_MODE',
+    'DEBUG_COMMAND',
+    'DEBUG_ITEM',
+    'DEBUG_COMBAT',
+    'DEBUG_ROOM',
+    'DEBUG_PLAYER',
+    'DEBUG_WORLD',
+    'SKIP_INTRO',
+    'DISABLE_ANIMATIONS',
+    'DEBUG_LOG_FILE'
+]
 
 # Print active development settings if in dev mode
 if DEV_MODE and DEBUG_MODE:
     print("=== DEVELOPMENT MODE ACTIVE ===")
     print(f"DEBUG_MODE: {DEBUG_MODE}")
-    print(f"SKIP_INTRO: {os.environ.get('HFSE_SKIP_INTRO', 'false')}")
-    print(f"DISABLE_ANIMATIONS: {os.environ.get('HFSE_DISABLE_ANIMATIONS', 'false')}")
-    print("===============================") 
+    print(f"SKIP_INTRO: {SKIP_INTRO}")
+    print(f"DISABLE_ANIMATIONS: {DISABLE_ANIMATIONS}")
+    print("===============================")

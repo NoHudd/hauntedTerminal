@@ -29,7 +29,6 @@ from src.data_loader import load_room_data, load_enemy_data
 
 # Import debug tools
 from utils.debug_tools import debug_log
-from utils.error_handler import safe_execute, log_and_reraise
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +79,6 @@ class ImprovedGameEngine:
             logger.error(f"Failed to load game data: {e}")
             raise DataLoadError(f"Could not initialize game data: {e}")
     
-    @log_and_reraise("setup directories", GameEngineError)
     def _setup_directories(self):
         """Ensure required directories exist."""
         os.makedirs(self.save_dir, exist_ok=True)
@@ -100,7 +98,6 @@ class ImprovedGameEngine:
         event_bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
         event_bus.subscribe(EventType.GAME_OVER, self._on_game_over)
     
-    @log_and_reraise("load game data", DataLoadError)
     def _load_game_data(self):
         """Load all game data from YAML files."""
         logger.info("Loading game data")
