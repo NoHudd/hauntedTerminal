@@ -4,26 +4,26 @@ import time
 import inspect
 import sys
 from datetime import datetime
-from config.dev_config import DEBUG_MODE  # Updated import path
+from config.dev_config import (
+    DEBUG_MODE,
+    DEBUG_LOG_FILE,
+    DEBUG_COMMAND,
+    DEBUG_ITEM,
+    DEBUG_COMBAT,
+    DEBUG_ROOM,
+    DEBUG_PLAYER,
+    DEBUG_WORLD
+)
 
-# Debug log file location
-DEBUG_LOG_FILE = os.environ.get("HFSE_DEBUG_LOG", "debug.log")
+# Debug categories loaded from config
 DEBUG_CATEGORIES = {
-    "command": True,        # Command processing
-    "item": True,           # Item interactions
-    "combat": True,         # Combat events
-    "room": True,           # Room navigation
-    "player": True,         # Player state changes
-    "world": True,          # World state changes
+    "command": DEBUG_COMMAND,
+    "item": DEBUG_ITEM,
+    "combat": DEBUG_COMBAT,
+    "room": DEBUG_ROOM,
+    "player": DEBUG_PLAYER,
+    "world": DEBUG_WORLD,
 }
-
-# Allow enabling specific debug categories via environment variables
-for category in DEBUG_CATEGORIES.keys():
-    env_var = f"HFSE_DEBUG_{category.upper()}"
-    if os.environ.get(env_var, "").lower() in ["true", "1", "yes"]:
-        DEBUG_CATEGORIES[category] = True
-    elif os.environ.get(env_var, "").lower() in ["false", "0", "no"]:
-        DEBUG_CATEGORIES[category] = False
 
 def debug_log(message, category="system"):
     """
