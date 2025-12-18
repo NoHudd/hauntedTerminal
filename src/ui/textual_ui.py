@@ -21,6 +21,7 @@ from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError, UISt
 from src.events import event_bus, EventType
 from src.game_states import GameState, UIState
 from utils.typewriter import TypewriterPresets, create_typewriter_output_func
+from config.dev_config import SKIP_INTRO
 
 import logging
 import os
@@ -99,8 +100,11 @@ class TextualGameUI(App):
             
             self.ui_state = UIState.READY
             self._update_all_panels_to_defaults()
-            self._display_title_screen()
-            
+
+            # Display title screen unless SKIP_INTRO is enabled
+            if not SKIP_INTRO:
+                self._display_title_screen()
+
             # Focus input field
             self.query_one("#input-field").focus()
             

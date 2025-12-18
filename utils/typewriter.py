@@ -10,9 +10,7 @@ import time
 import asyncio
 import os
 from typing import Optional, Callable
-
-# Get animation setting from environment
-DISABLE_ANIMATIONS = os.environ.get("HFSE_DISABLE_ANIMATIONS", "False").lower() in ["true", "1", "yes"]
+from config.dev_config import DISABLE_ANIMATIONS
 
 class TypewriterEffect:
     """Handles typewriter-style text display with animation controls."""

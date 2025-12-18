@@ -1,9 +1,12 @@
 # Configuration and utilities
-/config/
+saves/
 
 # Environment variables and settings
 .env
 *.env
+
+# User-specific development settings
+config/settings.py
 
 # Debug logs
 *.log
