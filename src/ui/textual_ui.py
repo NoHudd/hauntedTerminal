@@ -21,6 +21,7 @@ from rich.text import Text
 from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError, UIStateError
 from src.events import event_bus, EventType
 from src.game_states import GameState, UIState
+from src.state_manager import state_manager
 from utils.typewriter import TypewriterPresets, create_typewriter_output_func
 from config.dev_config import SKIP_INTRO
 
@@ -259,7 +260,7 @@ class TextualGameUI(App):
             # Unbind combat hotkeys
             self._unbind_combat_hotkeys()
 
-        self.call_later(0.2, clear_combat_data)
+        self.set_timer(0.2, clear_combat_data)
 
         logger.debug("Combat ended handling complete")
 
@@ -586,8 +587,8 @@ Brave sysadmin {player_name}, your session has been terminated.
             if any(word in updated_content.lower() for word in ["hp", "health", "battle", "⚔️", "🛡️"]):
                 logger.debug("Combat content STILL present after refresh, forcing clear")
                 exits_panel.update("Exits will appear here")
-        
-        self.call_later(0.1, delayed_panel_refresh)
+
+        self.set_timer(0.1, delayed_panel_refresh)
         
         logger.debug("Combat UI hidden, panels updated")
         
@@ -911,15 +912,15 @@ Brave sysadmin {player_name}, your session has been terminated.
             # Flash the border red briefly for damage
             if actor == "enemy":  # Enemy damaged player
                 self.add_class("panel-update")
-                self.call_later(0.3, lambda: self.remove_class("panel-update"))
-            
+                self.set_timer(0.3, lambda: self.remove_class("panel-update"))
+
             # Don't append to output during combat - the combat log handles this
             # Visual feedback is enough (border flash)
-            
+
         elif effect_type == "heal":
             # Flash green for healing
             self.add_class("status-blessed")
-            self.call_later(0.5, lambda: self.remove_class("status-blessed"))
+            self.set_timer(0.5, lambda: self.remove_class("status-blessed"))
             
             # Don't append to output during combat - the combat log handles this
             # Visual feedback is enough (border flash)
@@ -994,7 +995,7 @@ Brave sysadmin {player_name}, your session has been terminated.
                     panel.remove_class("panel-update")
                 except:
                     pass
-            self.call_later(0.5, remove_update_class)
+            self.set_timer(0.5, remove_update_class)
 
     def _update_stats_panel(self):
         """Update the stats panel with current player data."""

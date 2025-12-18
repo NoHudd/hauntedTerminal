@@ -51,6 +51,29 @@ Start the game by running:
 python main.py
 ```
 
+### Development Setup (For Contributors)
+
+If you're contributing to development, you'll want to configure your development environment:
+
+1. Copy the settings template:
+   ```bash
+   cp config/settings.example.py config/settings.py
+   ```
+
+2. Edit `config/settings.py` to customize your development environment:
+   - Set `SKIP_INTRO = True` to skip the intro monologue
+   - Set `DISABLE_ANIMATIONS = True` to disable typewriter effects
+   - Enable/disable debug logging categories as needed
+
+3. The `config/settings.py` file is gitignored, so your personal settings won't be committed.
+
+### Development Tools (Dev Mode)
+
+When running in development mode, you have access to additional tools:
+
+- **Live Log Viewer** - Press `L` to view debug logs in real-time. Press `L` or `ESC` to close.
+- **Game Restart** - Press `F5` to restart the game and reload all data without closing the UI.
+
 ## Game Commands
 
 ### Navigation & Exploration

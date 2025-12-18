@@ -54,6 +54,7 @@ class EventType(Enum):
     COMBAT_STARTED = auto()
     COMBAT_ACTION_SELECTED = auto()
     COMBAT_ACTION_RESULT = auto()
+    COMBAT_VICTORY_CHECK = auto()  # Emitted when enemy defeated, before ending combat
     COMBAT_ENDED = auto()
 
 @dataclass

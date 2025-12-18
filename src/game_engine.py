@@ -26,6 +26,7 @@ from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError
 from src.events import event_bus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
 from src.data_loader import load_room_data, load_enemy_data
+from src.state_manager import state_manager
 
 # Import debug tools
 from utils.debug_tools import debug_log
@@ -76,7 +77,7 @@ class ImprovedGameEngine:
         self.world: Optional[GameWorld] = None
         self.cmd_handler: Optional[CommandHandler] = None
         self.current_room = DEFAULT_ROOM
-        self.game_state = DEFAULT_GAME_STATE
+        state_manager.set_state(DEFAULT_GAME_STATE, emit_event=False)
         self.pending_player_name = ""
 
         # Load game data
@@ -216,9 +217,9 @@ class ImprovedGameEngine:
     def _on_command_entered(self, event):
         """Handle command entered from UI."""
         command = event.data.get('command', '')
-        game_state = event.data.get('game_state', self.game_state)
-        
-        logger.debug(f"Command entered: '{command}' (UI state: {game_state}, Engine state: {self.game_state})")
+        game_state = event.data.get('game_state', state_manager.current_state)
+
+        logger.debug(f"Command entered: '{command}' (UI state: {game_state}, Engine state: {state_manager.current_state})")
         
         try:
             if game_state == GameState.PLAYING and self.cmd_handler:
@@ -244,7 +245,7 @@ class ImprovedGameEngine:
     def _on_ui_ready(self, event):
         """Handle UI ready event."""
         logger.info("UI is ready, starting main menu")
-        self.game_state = GameState.MENU
+        state_manager.set_state(GameState.MENU)
     
     def _on_ui_error(self, event):
         """Handle UI error event."""
@@ -268,27 +269,15 @@ class ImprovedGameEngine:
     
     def _on_combat_started(self, event):
         """Handle combat started event."""
-        logger.info("Combat started, switching to IN_COMBAT state")
-        self.game_state = GameState.IN_COMBAT
-        
-        # Notify UI of state change
-        event_bus.emit_event(
-            EventType.UI_STATE_CHANGED,
-            {"new_state": self.game_state},
-            "ImprovedGameEngine"
-        )
+        logger.info("Combat started, entering combat state")
+        state_manager.enter_combat()
     
     def _on_combat_ended(self, event):
         """Handle combat ended event."""
-        logger.info("Combat ended, switching back to PLAYING state")
-        self.game_state = GameState.PLAYING
+        logger.info("Combat ended, exiting combat state")
 
-        # Notify UI of state change
-        event_bus.emit_event(
-            EventType.UI_STATE_CHANGED,
-            {"new_state": self.game_state},
-            "ImprovedGameEngine"
-        )
+        # Use StateManager to exit combat
+        state_manager.exit_combat()
 
         # Update UI panels after combat
         self._update_ui_panels()
@@ -329,10 +318,10 @@ class ImprovedGameEngine:
         """Restart the game with a fresh state."""
         try:
             logger.info("Restarting with new game")
-            
+
             # Reset game state
-            self.game_state = GameState.STARTING
-            
+            state_manager.set_state(GameState.STARTING, emit_event=False)
+
             # Clear event history
             event_bus.clear_history()
             
@@ -346,10 +335,10 @@ class ImprovedGameEngine:
             
             # Create new command handler with fresh references
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
-            
+
             # Restart the game loop
-            self.game_state = GameState.PLAYING
-            
+            state_manager.set_state(GameState.PLAYING)
+
             # Update UI
             self._update_ui_panels()
             
@@ -486,11 +475,11 @@ class ImprovedGameEngine:
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
             
             self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
-            
+
             # Start the game loop
-            self.game_state = GameState.PLAYING
-            logger.debug(f"Game state set to {self.game_state}")
-            
+            state_manager.set_state(GameState.PLAYING)
+            logger.debug(f"Game state set to {state_manager.current_state}")
+
             # Emit game started event to update UI
             event_bus.emit_event(
                 EventType.GAME_STARTED,
@@ -573,21 +562,14 @@ Spirits attuned to the wild harmony of code and nature. The Shaman class balance
 
 [bold white]Enter your choice (1, 2, or 3):[/bold white]
             """
-            
+
             self.ui.update_output(class_info)
-            self.game_state = GameState.WAITING_FOR_CLASS
-            
-            # Notify UI of state change
-            event_bus.emit_event(
-                EventType.UI_STATE_CHANGED, 
-                {"new_state": self.game_state}, 
-                "ImprovedGameEngine"
-            )
-            
+            state_manager.set_state(GameState.WAITING_FOR_CLASS)
+
         except Exception as e:
             logger.error(f"Error showing class selection: {e}")
             self.ui.update_output(f"Error showing class selection: {e}")
-            self.game_state = GameState.MENU
+            state_manager.set_state(GameState.MENU)
     
     def _show_tutorial_introduction(self):
         """Show the tutorial introduction with ECHO asking for the player's name."""
@@ -624,19 +606,12 @@ to this haunted filesystem.[/italic]
 [bold yellow]ECHO asks for your name:[/bold yellow]"""
 
             self.ui.update_output(tutorial_intro)
-            self.game_state = GameState.TUTORIAL_NAME_INPUT
-            
-            # Notify UI of state change
-            event_bus.emit_event(
-                EventType.UI_STATE_CHANGED,
-                {"new_state": self.game_state},
-                "ImprovedGameEngine"
-            )
-            
+            state_manager.set_state(GameState.TUTORIAL_NAME_INPUT)
+
         except Exception as e:
             logger.error(f"Error showing tutorial introduction: {e}")
             self.ui.update_output(f"Error showing tutorial introduction: {e}")
-            self.game_state = GameState.MENU
+            state_manager.set_state(GameState.MENU)
     
     def _handle_tutorial_name_input(self, name: str):
         """Handle name input during tutorial."""
@@ -669,7 +644,7 @@ where fragments of your former self still linger...[/italic]
             self.start_game()
         else:
             self.ui.update_output("Error creating player. Returning to main menu.")
-            self.game_state = GameState.MENU
+            state_manager.set_state(GameState.MENU)
     
     def initialize_special_items(self, player_class: str):
         """Create and place special enhancement items based on player class."""
@@ -735,8 +710,8 @@ where fragments of your former self still linger...[/italic]
     def start_game(self):
         """Start the main game."""
         try:
-            self.game_state = GameState.PLAYING
-            
+            state_manager.set_state(GameState.PLAYING)
+
             event_bus.emit_event(
                 EventType.GAME_STARTED,
                 {"player": self.player, "world": self.world},
@@ -762,14 +737,14 @@ where fragments of your former self still linger...[/italic]
     def end_game(self):
         """End the current game."""
         try:
-            self.game_state = GameState.GAME_OVER
-            
+            state_manager.set_state(GameState.GAME_OVER)
+
             event_bus.emit_event(
                 EventType.GAME_OVER,
                 {"player": self.player},
                 "ImprovedGameEngine"
             )
-            
+
             logger.info("Game ended")
             
         except Exception as e:
@@ -816,11 +791,18 @@ where fragments of your former self still linger...[/italic]
 
 def main():
     """The main entry point for the improved game."""
-    # Setup logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    # Setup logging - only to file, not to console (to avoid UI interference)
+    from config.dev_config import DEBUG_LOG_FILE
+
+    # Remove any existing handlers
+    root_logger = logging.getLogger()
+    root_logger.handlers = []
+
+    # Add file handler only
+    file_handler = logging.FileHandler(DEBUG_LOG_FILE)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    root_logger.addHandler(file_handler)
+    root_logger.setLevel(logging.INFO)
     
     try:
         engine = ImprovedGameEngine()

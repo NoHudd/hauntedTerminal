@@ -6,6 +6,7 @@ from rich.text import Text
 from src.combat import combat_system, CombatSession
 from src.events import event_bus, EventType
 from src.game_states import GameState
+from src.state_manager import state_manager
 from utils.debug_tools import debug_log
 from utils.typewriter import TypewriterPresets, create_typewriter_output_func
 
@@ -24,6 +25,9 @@ class CommandHandler:
         self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
         self._in_game_over_mode = False  # Track if we're in game over screen mode
         self._in_quit_confirmation = False  # Track if we're confirming quit
+
+        # Subscribe to enemy defeated event to remove enemies from room
+        event_bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         
         # Room aliases for easier navigation (filesystem paths -> full room IDs)
         self.room_aliases = {
@@ -259,6 +263,16 @@ class CommandHandler:
             "proc_secrets": "💡 Try using 'ps' command in the Mount Forest to discover process secrets."
         }
         return hints.get(room_id, "This area might be discoverable through exploration.")
+
+    def _show_error(self, message: str, log_message: str = None):
+        """Display error to UI and log it for debugging."""
+        # Show to player
+        self.ui.update_output(message)
+
+        # Log for debugging (remove color codes from log)
+        import re
+        clean_message = re.sub(r'\[.*?\]', '', log_message or message)
+        logger.error(f"Command error: {clean_message}")
 
     def _get_room_status_indicator(self, room_id):
         """Get status indicator for a room in the map."""
@@ -745,7 +759,7 @@ You can type just the beginning of an item name:
             
             # Provide helpful hints based on the room
             hint_message = self._get_hidden_room_hint(directory)
-            self.ui.update_output(f"[bold red]That path doesn't appear to exist.[/bold red]")
+            self._show_error(f"[bold red]That path doesn't appear to exist.[/bold red]")
             if hint_message:
                 self.ui.update_output(f"[dim yellow]{hint_message}[/dim yellow]")
             return
@@ -778,8 +792,8 @@ You can type just the beginning of an item name:
         
         if not can_move:
             debug_log(f"Movement denied: {reason}")
-            self.ui.update_output(f"[bold red]{reason}[/bold red]")
-            
+            self._show_error(f"[bold red]{reason}[/bold red]")
+
             # Provide helpful hints for locked rooms
             if "locked" in reason.lower():
                 room_state = self.world.get_room_state(directory)
@@ -821,7 +835,7 @@ You can type just the beginning of an item name:
     def read_file(self, filename):
         """Read the contents of a file (item)"""
         if not filename:
-            self.ui.update_output("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
+            self._show_error("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
             return
         
         # Check if file is in the current room
@@ -840,7 +854,7 @@ You can type just the beginning of an item name:
                 if "on_read" in item:
                     self.execute_effect(item["on_read"])
             else:
-                self.ui.update_output(f"[bold red]Error: Could not read {filename}[/bold red]")
+                self._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         elif self.player.has_item(filename):
             # Item is in the player's inventory
             item = self.player.get_item_from_inventory(filename)
@@ -848,63 +862,63 @@ You can type just the beginning of an item name:
                 content = item.get("content", "This file appears to be empty or corrupted.")
                 file_content = f"[bold]{filename}[/bold]\n\n{content}"
                 self.ui.update_output(file_content)
-                
+
                 # Execute any special effects defined for this item
                 if "on_read" in item:
                     self.execute_effect(item["on_read"])
             else:
-                self.ui.update_output(f"[bold red]Error: Could not read {filename}[/bold red]")
+                self._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         else:
-            self.ui.update_output(f"[bold red]Cannot find {filename} in this directory or your inventory.[/bold red]")
+            self._show_error(f"[bold red]Cannot find {filename} in this directory or your inventory.[/bold red]")
     
     def take_item(self, item_id):
         """Pick up an item and add it to inventory"""
         if not item_id:
             debug_log("take command called with no item specified")
-            self.ui.update_output("[bold red]No item specified. Use 'take [item]'[/bold red]")
+            self._show_error("[bold red]No item specified. Use 'take [item]'[/bold red]")
             return
-        
+
         current_room = self.player.current_room
-        
+
         # Check for enemies first - block item taking if enemies present
         has_enemies, enemy_output = self._check_enemies_blocking_exploration(current_room)
         if has_enemies:
             self.ui.update_output(enemy_output)
             return
-        
+
         # Try to resolve shortcuts and partial matches
         actual_item_id = self._resolve_item_shortcut(item_id, "room")
         if not actual_item_id:
             debug_log(f"Item {item_id} not found in room after shortcut resolution")
-            self.ui.update_output(f"[bold red]Cannot find {item_id} in this directory.[/bold red]")
+            self._show_error(f"[bold red]Cannot find {item_id} in this directory.[/bold red]")
             return
-        
+
         debug_log(f"Player attempting to take item: {actual_item_id} (from input: {item_id})")
         items_in_room = self.world.get_items_in_room(current_room)
-        
+
         if actual_item_id not in items_in_room:
             debug_log(f"Item {actual_item_id} not found in room {current_room}")
-            self.ui.update_output(f"[bold red]Cannot find {item_id} in this directory.[/bold red]")
+            self._show_error(f"[bold red]Cannot find {item_id} in this directory.[/bold red]")
             return
-        
+
         # Get item data
         item = self.world.get_item(actual_item_id)
         if not item:
             debug_log(f"Error: Item data not found for {actual_item_id}")
-            self.ui.update_output(f"[bold red]Error: Item data not found for {item_id}[/bold red]")
+            self._show_error(f"[bold red]Error: Item data not found for {item_id}[/bold red]")
             return
-        
+
         # Check if item is takeable
         if not item.get("takeable", True):
             debug_log(f"Item {actual_item_id} is not takeable")
-            self.ui.update_output(f"[bold red]You cannot take {item_id}.[/bold red]")
+            self._show_error(f"[bold red]You cannot take {item_id}.[/bold red]")
             return
-        
+
         # Check class restrictions
         if not self.player.can_use_item(item):
             class_restriction = self._get_class_restriction_text(item)
             debug_log(f"Item {actual_item_id} is class-restricted, player class {self.player.player_class} not allowed")
-            self.ui.update_output(f"[bold red]Only {class_restriction} spirits can wield {item_id}. Your essence is incompatible.[/bold red]")
+            self._show_error(f"[bold red]Only {class_restriction} spirits can wield {item_id}. Your essence is incompatible.[/bold red]")
             return
         
         # Add to inventory and remove from room
@@ -945,24 +959,24 @@ You can type just the beginning of an item name:
                 self.show_tutorial_hint("took_weapon", actual_item_id)
         else:
             debug_log(f"Failed to add {actual_item_id} to inventory")
-            self.ui.update_output(f"[bold red]Could not add {item_id} to inventory.[/bold red]")
+            self._show_error(f"[bold red]Could not add {item_id} to inventory.[/bold red]")
     
     def drop_item(self, item_id):
         """Drop an item from inventory into the current room"""
         if not item_id:
-            self.ui.update_output("[bold red]No item specified. Use 'drop [item]'[/bold red]")
+            self._show_error("[bold red]No item specified. Use 'drop [item]'[/bold red]")
             return
-        
+
         if not self.player.has_item(item_id):
-            self.ui.update_output(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
+            self._show_error(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
             return
-        
+
         # Get item data
         item = self.player.get_item_from_inventory(item_id)
-        
+
         # Check if item is droppable
         if item.get("droppable", True) == False:
-            self.ui.update_output(f"[bold red]You cannot drop {item_id}. It's too important.[/bold red]")
+            self._show_error(f"[bold red]You cannot drop {item_id}. It's too important.[/bold red]")
             return
         
         # Remove from inventory and add to room
@@ -976,27 +990,27 @@ You can type just the beginning of an item name:
             if "on_drop" in item:
                 self.execute_effect(item["on_drop"])
         else:
-            self.ui.update_output(f"[bold red]Could not drop {item_id}.[/bold red]")
+            self._show_error(f"[bold red]Could not drop {item_id}.[/bold red]")
     
     def use_item(self, item_id):
         """Use an item from inventory"""
         if not item_id:
             debug_log("use command called with no item specified")
-            self.ui.update_output("[bold red]No item specified. Use 'use [item]'[/bold red]")
+            self._show_error("[bold red]No item specified. Use 'use [item]'[/bold red]")
             return
-        
+
         # Try to resolve shortcuts and partial matches for inventory items
         actual_item_id = self._resolve_item_shortcut(item_id, "inventory")
         if not actual_item_id:
             debug_log(f"Item {item_id} not found in inventory after shortcut resolution")
-            self.ui.update_output(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
+            self._show_error(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
             return
-        
+
         debug_log(f"Player attempting to use item: {actual_item_id} (from input: {item_id})")
-        
+
         if not self.player.has_item(actual_item_id):
             debug_log(f"Player doesn't have item {actual_item_id} in inventory")
-            self.ui.update_output(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
+            self._show_error(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
             return
         
         # Get item data
@@ -1016,14 +1030,14 @@ You can type just the beginning of an item name:
         # Check if item is usable
         if not item.get("usable", False):
             debug_log(f"Item {actual_item_id} is not usable")
-            self.ui.update_output(f"[bold red]You cannot use {item_id}.[/bold red]")
+            self._show_error(f"[bold red]You cannot use {item_id}.[/bold red]")
             return
-            
+
         # Check class restrictions
         if not self.player.can_use_item(item):
             class_restriction = self._get_class_restriction_text(item)
             debug_log(f"Item {actual_item_id} has class restriction: {class_restriction}, player is: {self.player.player_class}")
-            self.ui.update_output(f"[bold red]This item can only be used by {class_restriction} class.[/bold red]")
+            self._show_error(f"[bold red]This item can only be used by {class_restriction} class.[/bold red]")
             return
         
         # Process item based on its type
@@ -1085,7 +1099,7 @@ You can type just the beginning of an item name:
         """Handle equipping a weapon"""
         # Check if player can equip this weapon
         if not self.player.can_use_item(item):
-            self.ui.update_output(f"[bold red]You cannot equip {item_id}.[/bold red]")
+            self._show_error(f"[bold red]You cannot equip {item_id}.[/bold red]")
             return
         
         # Get old weapon info before equipping the new one
@@ -1197,14 +1211,14 @@ You can type just the beginning of an item name:
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
                 self.ui.update_output(Panel(f"[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]", title="Status Effect"))
         else:
-            self.ui.update_output(Panel(f"[red]You don't have the ability to learn this spell.[/red]", title="Error"))
+            self._show_error(f"[red]You don't have the ability to learn this spell.[/red]")
             
     def examine_item(self, item_id):
         """Examine an item in detail"""
         if not item_id:
-            self.ui.update_output(Panel("[bold red]No item specified. Use 'examine [item]'[/bold red]", title="Error"))
+            self._show_error("[bold red]No item specified. Use 'examine [item]'[/bold red]")
             return
-        
+
         # Check if item is in inventory
         if self.player.has_item(item_id):
             item = self.player.get_item_from_inventory(item_id)
@@ -1213,12 +1227,12 @@ You can type just the beginning of an item name:
             # Check if item is in the current room
             current_room = self.player.current_room
             items_in_room = self.world.get_items_in_room(current_room)
-            
+
             if item_id in items_in_room:
                 item = self.world.get_item(item_id)
                 source = "room"
             else:
-                self.ui.update_output(Panel(f"[bold red]Cannot find {item_id} in this directory or your inventory.[/bold red]", title="Error"))
+                self._show_error(f"[bold red]Cannot find {item_id} in this directory or your inventory.[/bold red]")
                 return
         
         # Import rarity system
@@ -1287,20 +1301,20 @@ You can type just the beginning of an item name:
     def talk_to_npc(self, npc_id):
         """Talk to an NPC in the current room"""
         if not npc_id:
-            self.ui.update_output(Panel("[bold red]No NPC specified. Use 'talk [npc]'[/bold red]", title="Error"))
+            self._show_error("[bold red]No NPC specified. Use 'talk [npc]'[/bold red]")
             return
-        
+
         current_room = self.player.current_room
         npcs_in_room = self.world.get_npcs_in_room(current_room)
-        
+
         if npc_id not in npcs_in_room:
-            self.ui.update_output(Panel(f"[bold red]Cannot find {npc_id} in this directory.[/bold red]", title="Error"))
+            self._show_error(f"[bold red]Cannot find {npc_id} in this directory.[/bold red]")
             return
-        
+
         # Get NPC data
         npc = self.world.get_npc(npc_id)
         if not npc:
-            self.ui.update_output(Panel(f"[bold red]Error: NPC data not found for {npc_id}[/bold red]", title="Error"))
+            self._show_error(f"[bold red]Error: NPC data not found for {npc_id}[/bold red]")
             return
         
         # Get dialogue options
@@ -1338,20 +1352,20 @@ You can type just the beginning of an item name:
     def attack_enemy(self, enemy_id):
         """Attack an enemy in the current room"""
         if not enemy_id:
-            self.ui.update_output(Panel("[bold red]No enemy specified. Use 'attack [enemy]'[/bold red]", title="Error"))
+            self._show_error("[bold red]No enemy specified. Use 'attack [enemy]'[/bold red]")
             return
-        
+
         current_room = self.player.current_room
         enemies_in_room = self.world.get_enemies_in_room(current_room)
-        
+
         if enemy_id not in enemies_in_room:
-            self.ui.update_output(Panel(f"[bold red]Cannot find {enemy_id} in this directory.[/bold red]", title="Error"))
+            self._show_error(f"[bold red]Cannot find {enemy_id} in this directory.[/bold red]")
             return
-        
+
         # Get enemy data with class-based scaling
         enemy = self.world.get_enemy(enemy_id, self.player.player_class)
         if not enemy:
-            self.ui.update_output(Panel(f"[bold red]Error: Enemy data not found for {enemy_id}[/bold red]", title="Error"))
+            self._show_error(f"[bold red]Error: Enemy data not found for {enemy_id}[/bold red]")
             return
         
         # Start combat
@@ -1637,85 +1651,83 @@ You can type just the beginning of an item name:
         
         self.ui.update_output(output)
 
-    def combat(self, enemy_id, enemy):
-        """Handle combat with an enemy using event-driven approach."""
-        # Create and start a new combat session
-        self.current_combat_session = CombatSession(self.player, enemy_id, enemy, self.ui)
+    def start_combat(self, enemies_queue):
+        """
+        Start combat with queue of enemies.
+
+        Args:
+            enemies_queue: List of (enemy_id, enemy_data) tuples
+        """
+        debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
+
+        # Create combat session with enemy queue
+        self.current_combat_session = CombatSession(self.player, enemies_queue, self.ui)
         self.current_combat_session.start()
-        
-        # Subscribe to combat events
+
+        # Subscribe to combat ended event (no more COMBAT_VICTORY_CHECK)
         event_bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-    
+
     def _on_combat_ended(self, event):
-        """Handle combat ended event."""
+        """Handle combat ended event - cleanup and state management."""
         if event.data.get("session") != self.current_combat_session:
             return  # Not our combat session
-            
+
         victory = event.data.get("victory", False)
         defeat = event.data.get("defeat", False)
         fled = event.data.get("fled", False)
         enemy_id = event.data.get("enemy_id")
-        
+
         # Unsubscribe from combat events
         event_bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-        
-        if victory and enemy_id:
-            # Remove the enemy from the room
-            event_bus.emit_event(
-                EventType.ENEMY_DEFEATED, 
-                {"enemy_id": enemy_id, "player": self.player}, 
-                "CommandHandler"
-            )
-            self.world.remove_enemy_from_room(enemy_id)
-            
-            # Check for remaining enemies after victory
-            remaining_enemies = self.world.get_enemies_in_room(self.player.current_room)
-            if remaining_enemies:
-                debug_log(f"Remaining enemies in room after victory: {remaining_enemies}")
-                self.ui.update_output(f"\n[bold yellow]⚠️  Additional hostile entities detected! ⚠️[/bold yellow]")
-                # Clear combat session first, then start new combat
-                self.current_combat_session = None
-                # Small delay before next combat to let victory message show
-                self.check_for_enemies()
-            else:
-                debug_log("All enemies defeated in room")
-                self.ui.update_output(f"\n[bold green]✓ Area secured - all hostile entities eliminated![/bold green]")
-        
+
+        # Clear combat session
+        self.current_combat_session = None
+
         if defeat:
             # Handle player death with game over screen
             debug_log("Player defeated in combat - showing game over screen")
             self._show_game_over_screen()
-        
+            return
+
         if fled and enemy_id:
-            # Mark enemy as fled instead of removing it completely
+            # Mark enemy as fled
             fled_from_room = self.player.current_room
             self.world.mark_enemy_as_fled(enemy_id, fled_from_room)
-            
+
             # Force player back to previous room when fleeing
             if self.player.previous_room:
                 debug_log(f"Player fled from {fled_from_room} back to {self.player.previous_room}")
                 self.ui.update_output(f"[bold magenta]You were forced back to {self.player.previous_room}![/bold magenta]")
-                
+
                 # Move player to previous room
                 self.player.move_to(self.player.previous_room)
-                
+
                 # Emit room changed event for UI updates
                 event_bus.emit_event(
                     EventType.ROOM_CHANGED,
                     {"player": self.player, "from_room": fled_from_room, "to_room": self.player.current_room},
                     "CommandHandler"
                 )
-                
+
                 # Show new room info
                 self.pwd()
                 self.ls()
             else:
                 debug_log("Player fled but no previous room available")
                 self.ui.update_output("[yellow]You fled but couldn't find your way back...[/yellow]")
-        
-        # Clear current combat session
-        self.current_combat_session = None
-    
+
+    def _on_enemy_defeated(self, event):
+        """Handle enemy defeated event - remove enemy from room."""
+        enemy_id = event.data.get("enemy_id")
+        if not enemy_id:
+            debug_log("ERROR: No enemy_id in ENEMY_DEFEATED event")
+            return
+
+        # Remove the defeated enemy from the current room
+        current_room = self.player.current_room
+        debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
+        self.world.remove_enemy_from_room(enemy_id)
+
     def equip_weapon(self, weapon_id):
         """Equip a weapon from inventory."""
         if not weapon_id:
@@ -1773,7 +1785,14 @@ You can type just the beginning of an item name:
             if not self.player.tutorial_state.get("equipped_weapon", False):
                 self.player.tutorial_state["equipped_weapon"] = True
                 self.show_tutorial_hint("equipped_weapon")
-                
+
+            # Emit event to update UI stats panel
+            event_bus.emit_event(
+                EventType.PLAYER_STATS_CHANGED,
+                {"player": self.player},
+                "CommandHandler"
+            )
+
         else:
             debug_log(f"Failed to equip weapon {weapon_id}")
             self.ui.update_output(f"[bold red]Failed to equip {weapon_id}.[/bold red]")
@@ -1790,34 +1809,48 @@ You can type just the beginning of an item name:
         )
 
     def check_for_enemies(self):
-        """Check for enemies in the current room and initiate combat if necessary."""
+        """Check for enemies in the current room and start combat if found."""
         current_room = self.player.current_room
         debug_log(f"Checking for enemies in room: {current_room}")
-        
+
         # Don't start new combat if already in combat
         if self.current_combat_session and self.current_combat_session.awaiting_action:
             debug_log("Already in combat, skipping enemy check")
             return
-            
-        enemies = self.world.get_enemies_in_room(current_room)
-        debug_log(f"Enemies found in {current_room}: {enemies}")
-        
-        if enemies:
-            enemy_id = enemies[0]  # For now, fight the first enemy
-            debug_log(f"Attempting to get enemy data for: {enemy_id}")
-            enemy = self.world.get_enemy(enemy_id, self.player.player_class)
-            debug_log(f"Enemy data retrieved: {enemy is not None}")
-            
-            if enemy:
-                enemy_name = enemy.get('name', enemy_id)
-                enemy_description = enemy.get('description', 'A menacing presence')
-                debug_log(f"Starting combat with {enemy_name} ({enemy_id})")
-                
-                # Enhanced enemy detection notice
-                detection_message = f"""
+
+        enemy_ids = self.world.get_enemies_in_room(current_room)
+        debug_log(f"Enemy IDs found in {current_room}: {enemy_ids}")
+
+        if not enemy_ids or len(enemy_ids) == 0:
+            debug_log(f"No enemies found in room {current_room}")
+            return
+
+        # Build enemy queue for sequential combat
+        enemies_queue = []
+        for enemy_id in enemy_ids:
+            enemy_data = self.world.get_enemy(enemy_id, self.player.player_class)
+            if enemy_data:
+                enemies_queue.append((enemy_id, enemy_data))
+                debug_log(f"Added enemy to queue: {enemy_id}")
+            else:
+                debug_log(f"ERROR: Enemy {enemy_id} data not found, skipping")
+
+        if not enemies_queue:
+            debug_log(f"ERROR: No valid enemy data found for room {current_room}")
+            self.ui.update_output(f"[bold red]System error: Cannot load enemy data[/bold red]")
+            return
+
+        # Show detection message for first enemy
+        first_enemy_id, first_enemy_data = enemies_queue[0]
+        enemy_name = first_enemy_data.get('name', first_enemy_id)
+        enemy_description = first_enemy_data.get('description', 'A menacing presence')
+
+        enemy_count_msg = f" ({len(enemies_queue)} hostiles detected!)" if len(enemies_queue) > 1 else ""
+
+        detection_message = f"""
 [bold red]⚠️  HOSTILE ENTITY DETECTED  ⚠️[/bold red]
 
-[red]System Alert:[/red] A corrupted process has manifested in this sector!
+[red]System Alert:[/red] A corrupted process has manifested in this sector!{enemy_count_msg}
 
 [bold yellow]Entity:[/bold yellow] [bold red]{enemy_name}[/bold red]
 [bold yellow]Status:[/bold yellow] {enemy_description}
@@ -1825,13 +1858,10 @@ You can type just the beginning of an item name:
 [bold red]BATTLE INITIATED![/bold red]
 [dim]Prepare your commands - this corruption must be purged![/dim]
 """
-                self.ui.update_output(detection_message)
-                self.combat(enemy_id, enemy)
-            else:
-                debug_log(f"ERROR: Enemy data not found for {enemy_id}")
-                self.ui.update_output(f"[bold red]System error: Cannot load enemy data for {enemy_id}[/bold red]")
-        else:
-            debug_log(f"No enemies found in room {current_room}")
+        self.ui.update_output(detection_message)
+
+        debug_log(f"Starting combat with {len(enemies_queue)} enemies in queue")
+        self.start_combat(enemies_queue)
 
     def execute_effect(self, effect):
         """Execute a special effect from an item or event."""
@@ -2028,7 +2058,8 @@ And you, spirit, are free.
             "A ghostly whisper suggests trying a different approach.",
             "The Helper Script would advise using standard commands instead."
         ]
-        self.ui.update_output(f"[italic]{random.choice(responses)}[/italic]")
+        selected_response = random.choice(responses)
+        self._show_error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
         self.ui.update_output("[yellow]Hint: Try using standard commands like 'ls', 'cd', 'cat', or type 'help'.[/yellow]")
 
     def _resolve_item_shortcut(self, item_input, location="room"):
