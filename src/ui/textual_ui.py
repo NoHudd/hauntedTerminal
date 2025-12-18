@@ -12,9 +12,10 @@ Author: Claude Code Enhancement
 """
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Static, Input
+from textual.widgets import Header, Footer, Static, Input, RichLog
 from textual.containers import Container, VerticalScroll, Horizontal
 from textual.reactive import var
+from textual.screen import ModalScreen
 from rich.text import Text
 
 from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError, UIStateError
@@ -37,16 +38,8 @@ class TextualGameUI(App):
     
     CSS_PATH = os.path.join(os.path.dirname(__file__), "ui.css")
     BINDINGS = [
-        ("d", "toggle_dark", "Toggle dark mode"),
-        ("1", "combat_hotkey_1", "Combat Hotkey 1"),
-        ("2", "combat_hotkey_2", "Combat Hotkey 2"),
-        ("3", "combat_hotkey_3", "Combat Hotkey 3"),
-        ("4", "combat_hotkey_4", "Combat Hotkey 4"),
-        ("5", "combat_hotkey_5", "Combat Hotkey 5"),
-        ("6", "combat_hotkey_6", "Combat Hotkey 6"),
-        ("7", "combat_hotkey_7", "Combat Hotkey 7"),
-        ("8", "combat_hotkey_8", "Combat Hotkey 8"),
-        ("9", "combat_hotkey_9", "Combat Hotkey 9"),
+        ("l", "toggle_log_viewer", "Show/Hide Logs"),
+        ("f5", "restart_game", "Restart Game"),
     ]
 
     # =====================================
@@ -54,21 +47,23 @@ class TextualGameUI(App):
     # =====================================
     
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ui_state = UIState.INITIALIZING
-        self._setup_event_subscriptions()
-        
-        # Game state tracking
+        # Initialize state BEFORE calling super().__init__()
         self._current_game_state = GameState.MENU
         self._player_data = None
         self._world_data = None
         self._combat_session = None
         self._combat_log = []  # Store recent combat actions
+        self._bound_combat_keys = []  # Track bound combat keys
+
+        super().__init__(*args, **kwargs)
+        self.ui_state = UIState.INITIALIZING
+        self._setup_event_subscriptions()
         
     def _setup_event_subscriptions(self):
         """Subscribe to relevant game events."""
         event_bus.subscribe(EventType.GAME_STARTED, self._on_game_started)
         event_bus.subscribe(EventType.GAME_OVER, self._on_game_over)
+        event_bus.subscribe(EventType.PLAYER_CREATED, self._on_player_created)
         event_bus.subscribe(EventType.PLAYER_STATS_CHANGED, self._on_player_stats_changed)
         event_bus.subscribe(EventType.PLAYER_INVENTORY_CHANGED, self._on_player_inventory_changed)
         event_bus.subscribe(EventType.ROOM_ENTERED, self._on_room_entered)
@@ -122,6 +117,7 @@ class TextualGameUI(App):
             # Unsubscribe from all events
             event_bus.unsubscribe(EventType.GAME_STARTED, self._on_game_started)
             event_bus.unsubscribe(EventType.GAME_OVER, self._on_game_over)
+            event_bus.unsubscribe(EventType.PLAYER_CREATED, self._on_player_created)
             event_bus.unsubscribe(EventType.PLAYER_STATS_CHANGED, self._on_player_stats_changed)
             event_bus.unsubscribe(EventType.PLAYER_INVENTORY_CHANGED, self._on_player_inventory_changed)
             event_bus.unsubscribe(EventType.ROOM_ENTERED, self._on_room_entered)
@@ -163,11 +159,18 @@ class TextualGameUI(App):
             self._player_data = event.data['player']
         if 'world' in event.data:
             self._world_data = event.data['world']
+        self._update_stats_panel()
 
     def _on_game_over(self, event):
         """Handle game over event."""
         self._current_game_state = GameState.GAME_OVER
         self.display_game_over()
+
+    def _on_player_created(self, event):
+        """Handle player created event."""
+        if 'player' in event.data:
+            self._player_data = event.data['player']
+            self._update_stats_panel()
 
     def _on_player_stats_changed(self, event):
         """Handle player stats changed event."""
@@ -208,7 +211,10 @@ class TextualGameUI(App):
         """Handle combat started event with enhanced styling."""
         self._current_game_state = GameState.IN_COMBAT
         self._combat_session = event.data.get('session')
-        
+
+        # Bind combat hotkeys dynamically
+        self._bind_combat_hotkeys()
+
         # Apply combat game state styling
         self._apply_game_state_styling("in_combat")
         self._show_combat_ui()
@@ -238,20 +244,23 @@ class TextualGameUI(App):
     def _on_combat_ended(self, event):
         """Handle combat ended event with styling reset."""
         logger.debug("Combat ended event received")
-        
-        # Reset to exploring game state styling and hide combat UI first  
+
+        # Reset to exploring game state styling and hide combat UI first
         self._apply_game_state_styling("exploring")
         self._hide_combat_ui()
-        
+
         # Delay clearing combat data to allow for UI refresh
         def clear_combat_data():
             logger.debug("Clearing combat data after UI refresh")
             self._current_game_state = GameState.PLAYING
             self._combat_session = None
             self._combat_log.clear()
-        
+
+            # Unbind combat hotkeys
+            self._unbind_combat_hotkeys()
+
         self.call_later(0.2, clear_combat_data)
-        
+
         logger.debug("Combat ended handling complete")
 
     # =====================================
@@ -276,7 +285,81 @@ class TextualGameUI(App):
     def on_key(self, event):
         """Handle key press events."""
         if event.key == "escape":
-            self.exit()
+            # Emit quit command to use existing confirmation flow
+            event_bus.emit_event(
+                EventType.COMMAND_ENTERED,
+                {"command": "quit", "game_state": self._current_game_state},
+                "TextualGameUI"
+            )
+
+    # =====================================
+    # DEV TOOLS ACTIONS
+    # =====================================
+
+    def action_toggle_log_viewer(self) -> None:
+        """Toggle the log viewer modal."""
+        # Check if log viewer is already shown
+        if any(isinstance(screen, LogViewerScreen) for screen in self.screen_stack):
+            self.pop_screen()
+        else:
+            self.push_screen(LogViewerScreen())
+
+    def action_restart_game(self) -> None:
+        """Restart game state without closing UI."""
+        # Show restart message
+        self.output_content = "[yellow]Restarting game...[/yellow]"
+        # Emit restart request event to game engine
+        event_bus.emit_event(EventType.GAME_RESTART_REQUESTED, {}, "TextualGameUI")
+
+    def _bind_combat_hotkeys(self):
+        """Dynamically bind combat hotkeys with actual attack names."""
+        # Unbind any existing combat keys first
+        self._unbind_combat_hotkeys()
+
+        if not self._player_data:
+            return
+
+        try:
+            from src.combat import combat_system
+
+            # Get available attacks
+            available_attacks = combat_system.get_available_attacks(
+                self._player_data,
+                getattr(self._player_data, 'spells', [])
+            )
+
+            # Filter out attacks on cooldown
+            available_list = [
+                (attack_id, attack_data)
+                for attack_id, attack_data in available_attacks.items()
+                if not attack_data.get('on_cooldown', False)
+            ]
+
+            # Bind keys dynamically
+            for i, (attack_id, attack_data) in enumerate(available_list, 1):
+                if i > 9:
+                    break
+
+                key = str(i)
+                action = f"combat_hotkey_{i}"
+                attack_name = attack_data.get('name', attack_id)
+
+                # Bind the key
+                self.bind(key, action, description=attack_name, show=True)
+                self._bound_combat_keys.append(key)
+
+        except Exception as e:
+            logger.error(f"Error binding combat hotkeys: {e}")
+
+    def _unbind_combat_hotkeys(self):
+        """Remove all dynamically bound combat hotkeys."""
+        for key in self._bound_combat_keys:
+            try:
+                self.unbind(key)
+            except Exception as e:
+                logger.debug(f"Error unbinding key {key}: {e}")
+
+        self._bound_combat_keys.clear()
 
     # =====================================
     # HOTKEY ACTIONS
@@ -1066,3 +1149,82 @@ Succeed, and the filesystem breathes again.
         # Run typewriter effect in background thread
         story_thread = threading.Thread(target=display_story_with_typewriter, daemon=True)
         story_thread.start()
+
+# =============================================================================
+# DEV TOOLS: Log Viewer Modal
+# =============================================================================
+
+class LogViewerScreen(ModalScreen):
+    """Modal overlay for viewing debug logs in real-time."""
+
+    BINDINGS = [
+        ("escape", "dismiss", "Close"),
+        ("l", "dismiss", "Close"),
+    ]
+
+    def __init__(self):
+        super().__init__()
+        self._log_position = 0
+        self._refresh_timer = None
+
+    def compose(self) -> ComposeResult:
+        """Create log viewer UI."""
+        yield RichLog(highlight=True, markup=False, id="log-display", max_lines=500)
+
+    def on_mount(self) -> None:
+        """Initialize log viewer when mounted."""
+        from config.dev_config import DEBUG_LOG_FILE
+
+        self.log_file = DEBUG_LOG_FILE
+        log_widget = self.query_one("#log-display", RichLog)
+
+        # Load last 100 lines from log file
+        try:
+            if os.path.exists(self.log_file):
+                with open(self.log_file, 'r') as f:
+                    lines = f.readlines()
+                    # Get last 100 lines
+                    recent_lines = lines[-100:] if len(lines) > 100 else lines
+                    for line in recent_lines:
+                        log_widget.write(line.rstrip())
+
+                    # Track file position
+                    f.seek(0, 2)  # Seek to end
+                    self._log_position = f.tell()
+            else:
+                log_widget.write("[yellow]Debug log file not found. Logs will appear here when generated.[/yellow]")
+        except Exception as e:
+            log_widget.write(f"[red]Error loading log file: {e}[/red]")
+
+        # Set up auto-refresh every 500ms
+        self._refresh_timer = self.set_interval(0.5, self._refresh_log)
+
+    def _refresh_log(self) -> None:
+        """Refresh log content with new lines."""
+        try:
+            if not os.path.exists(self.log_file):
+                return
+
+            log_widget = self.query_one("#log-display", RichLog)
+
+            with open(self.log_file, 'r') as f:
+                # Seek to last read position
+                f.seek(self._log_position)
+                new_lines = f.readlines()
+
+                # Append new lines
+                for line in new_lines:
+                    log_widget.write(line.rstrip())
+
+                # Update position
+                self._log_position = f.tell()
+
+        except Exception as e:
+            # Silently ignore errors during refresh
+            pass
+
+    def action_dismiss(self) -> None:
+        """Close the log viewer."""
+        if self._refresh_timer:
+            self._refresh_timer.stop()
+        self.app.pop_screen()
