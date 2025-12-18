@@ -10,10 +10,8 @@ exits:
   - home_grove
   - opt_mage_tower
   - srv_warrior_tomb
-items:
-  - forest_map.txt
-  - corrupted_memory.dat
-  - health_potion_small
+items: []
+# Items placed dynamically by class-based system
 enemies:
   - mount_daemon.exe
 npcs:

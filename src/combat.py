@@ -279,9 +279,12 @@ class CombatSession:
         enemy_name = self.enemy_data.get("name", self.enemy_id)
         debug_log(f"Starting combat with {enemy_name}")
         
-        self.ui.update_output(f"[bold red]Combat initiated with {enemy_name}![/bold red]")
+        # Build initial combat display
+        combat_intro = f"[bold red]⚔️  Combat initiated with {enemy_name}![/bold red]"
         if "dialogue" in self.enemy_data:
-            self.ui.update_output(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}")
+            combat_intro += f"\n[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}"
+        
+        self.ui.update_output(combat_intro)
         
         # Emit combat started event
         event_bus.emit_event(
@@ -300,10 +303,22 @@ class CombatSession:
         
         enemy_name = self.enemy_data.get("name", self.enemy_id)
         
-        self.ui.update_output(f"\n[bold]Your Health:[/bold] {self.player.health}/{self.player.max_health}")
-        self.ui.update_output(player_health_bar)
-        self.ui.update_output(f"[bold red]{enemy_name}'s Health:[/bold red] {self.enemy_health}")
-        self.ui.update_output(enemy_health_bar)
+        # Build the status display as a single block
+        status_block = f"""
+[bold]Your Health:[/bold] {self.player.health}/{self.player.max_health}
+{player_health_bar}
+[bold red]{enemy_name}'s Health:[/bold red] {self.enemy_health}
+{enemy_health_bar}"""
+        
+        # Check if this is initial combat display or ongoing
+        if not hasattr(self, '_combat_initialized'):
+            # First time showing combat status - use update_output to start fresh
+            self.ui.update_output(status_block)
+            self._combat_initialized = True
+        else:
+            # Ongoing combat - append status updates
+            self.ui.append_output("\n" + "─" * 50)  # Separator line
+            self.ui.append_output(status_block)
     
     def _create_health_bar(self, current, maximum, color):
         """Create ASCII health bar."""
@@ -328,7 +343,14 @@ class CombatSession:
         
         usable_items = []
         for item_id, item_data in self.player.inventory.items():
-            if item_data.get("usable") and "combat_usable" in item_data.get("tags", []):
+            # Check both old and new combat usability systems
+            is_combat_usable = (
+                item_data.get("usable") and (
+                    "combat_usable" in item_data.get("tags", []) or  # Old system
+                    item_data.get("usable_in_combat", False)          # New system
+                )
+            )
+            if is_combat_usable:
                 usable_items.append((item_id, item_data))
         
         # Store available actions for validation
@@ -381,7 +403,14 @@ class CombatSession:
         # Show usable items
         usable_items = []
         for item_id, item_data in self.player.inventory.items():
-            if item_data.get("usable") and "combat_usable" in item_data.get("tags", []):
+            # Check both old and new combat usability systems
+            is_combat_usable = (
+                item_data.get("usable") and (
+                    "combat_usable" in item_data.get("tags", []) or  # Old system
+                    item_data.get("usable_in_combat", False)          # New system
+                )
+            )
+            if is_combat_usable:
                 usable_items.append((item_id, item_data))
         
         if usable_items:
@@ -439,7 +468,12 @@ class CombatSession:
             elif item_name in self.player.inventory:
                 # Check if item is usable in combat
                 item_data = self.player.inventory[item_name]
-                if "combat_usable" in item_data.get("tags", []):
+                # Check both old and new combat usability systems
+                is_combat_usable = (
+                    "combat_usable" in item_data.get("tags", []) or  # Old system
+                    item_data.get("usable_in_combat", False)          # New system
+                )
+                if is_combat_usable:
                     self._process_player_action("item", item_name)
                 else:
                     self.ui.update_output(f"[yellow]{item_name} cannot be used in combat.[/yellow]")
@@ -486,15 +520,26 @@ class CombatSession:
                 return
             
             # Process item effects
-            self.ui.update_output(f"[yellow]Using {item_data.get('name', action_value)}...[/yellow]")
+            self.ui.append_output(f"[yellow]📦 Using {item_data.get('name', action_value)}...[/yellow]")
             
-            # Handle healing items
+            # Handle healing items - support both old and new formats
+            heal_amount = 0
             if "healing" in item_data:
+                # Old format: direct healing field
                 heal_amount = item_data["healing"]
+            elif "on_use" in item_data and "heal" in item_data["on_use"]:
+                # New format: on_use.heal field
+                heal_amount = item_data["on_use"]["heal"]
+            
+            if heal_amount > 0:
                 old_health = self.player.health
                 self.player.heal(heal_amount)
                 actual_heal = self.player.health - old_health
-                self.ui.update_output(f"[green]You healed {actual_heal} HP![/green]")
+                self.ui.append_output(f"[green]✨ You healed {actual_heal} HP![/green]")
+                
+                # Show on_use message if available
+                if "on_use" in item_data and "message" in item_data["on_use"]:
+                    self.ui.append_output(f"[italic]{item_data['on_use']['message']}[/italic]")
             
             # Handle damage boost items
             if "damage_boost" in item_data:
@@ -502,18 +547,50 @@ class CombatSession:
                 self.ui.update_output(f"[green]Your damage increased by {boost}![/green]")
                 # Temporary damage boost could be implemented here
             
-            # Handle consumable items (remove after use)
-            if item_data.get("consumable", False):
+            # Handle consumable items (remove after use) - support both formats
+            should_consume = (
+                item_data.get("consumable", False) or           # Old format
+                item_data.get("consumed_on_use", False)         # New format
+            )
+            if should_consume:
                 self.player.remove_from_inventory(action_value)
                 self.ui.update_output(f"[dim]Used up {item_data.get('name', action_value)}[/dim]")
             
             # Show item description/effect
             if "effect_message" in item_data:
                 self.ui.update_output(f"[italic]{item_data['effect_message']}[/italic]")
+            
+            # Emit combat action result event for item usage
+            event_bus.emit_event(
+                EventType.COMBAT_ACTION_RESULT,
+                {
+                    "actor": "player",
+                    "action": "item",
+                    "item_name": action_value,
+                    "message": f"Used {item_data.get('name', action_value)}",
+                    "damage": 0,
+                    "success": True
+                },
+                "CombatSession"
+            )
         
         elif action_type == "attack":
             attack_result = combat_system.perform_attack(self.player, action_value)
-            self.ui.update_output(f"[green]{attack_result['message']}[/green]")
+            self.ui.append_output(f"[green]⚔️ {attack_result['message']}[/green]")
+            
+            # Emit combat action result event
+            event_bus.emit_event(
+                EventType.COMBAT_ACTION_RESULT,
+                {
+                    "actor": "player",
+                    "action": "attack",
+                    "attack_name": action_value,
+                    "message": attack_result['message'],
+                    "damage": attack_result.get("damage", 0),
+                    "success": attack_result.get("success", False)
+                },
+                "CombatSession"
+            )
             
             if attack_result["success"]:
                 self.enemy_health -= attack_result["damage"]
@@ -546,11 +623,25 @@ class CombatSession:
     def _enemy_turn(self):
         """Process enemy's turn."""
         enemy_name = self.enemy_data.get("name", self.enemy_id)
-        self.ui.update_output(f"\n[bold red]{enemy_name} attacks you![/bold red]")
+        self.ui.append_output(f"[bold red]🗡️ {enemy_name} attacks you![/bold red]")
         
         damage = self.enemy_damage
         self.player.take_damage(damage)
-        self.ui.update_output(f"You took {damage} damage.")
+        self.ui.append_output(f"[red]💔 You took {damage} damage![/red]")
+        
+        # Emit combat action result event for enemy action
+        event_bus.emit_event(
+            EventType.COMBAT_ACTION_RESULT,
+            {
+                "actor": "enemy",
+                "action": "attack",
+                "attack_name": "basic_attack",
+                "message": f"{enemy_name} deals {damage} damage to you!",
+                "damage": damage,
+                "success": True
+            },
+            "CombatSession"
+        )
         
         # Update UI with new player health
         self._update_ui_panels()

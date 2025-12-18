@@ -7,11 +7,11 @@ detailed_description: |
 exits:
   - root
   - usr_lib_arcane
-items:
-  - rusty_sword
-  - chmod_scroll.sh
+items: []
+# Items will be placed dynamically based on player class
 enemies:
   - corrupt_process.bin
   - zombie_daemon.exe
-npcs: []
+npcs: 
+  - armory_keeper.bin
 hidden: false 

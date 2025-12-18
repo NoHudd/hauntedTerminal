@@ -1,6 +1,5 @@
 # Configuration and utilities
 /config/
-/utils/
 
 # Environment variables and settings
 .env
