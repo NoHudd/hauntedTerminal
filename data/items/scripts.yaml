@@ -27,6 +27,7 @@ scripts:
     short_description: A glowing script that seems eager to provide assistance
     description: A helpful script that appears to be unaffected by the corruption. It emanates a soft, benevolent glow. This entity seems to want to assist you in your journey.
     type: "script"
+    rarity: uncommon
     content: |
       #!/bin/bash
       # This script appears to be a helpful entity
@@ -40,10 +41,12 @@ scripts:
     takeable: true
     usable: true
     usable_in_combat: true
+    consumable: true
+    consumed_on_use: true
     on_read:
       message: The Helper Script glows brightly, seeming pleased to be acknowledged.
     on_use:
-      message: The Helper Script executes, filling the air with glowing text that offers guidance.
+      message: The Helper Script executes, filling the air with glowing text that offers guidance. Having fulfilled its purpose, the script dissolves into harmless data fragments.
       heal: 10
     combat_effects:
       player_heal: 15 

@@ -1,0 +1,11 @@
+name: Grove Guardian
+short_description: A peaceful spirit watching over the safe haven
+description: A serene digital entity manifested from the harmonious processes of the home directory. Its form shifts between flowing code and gentle light, emanating calm in this sanctuary from corruption.
+dialogues:
+  - "Welcome, spirit. This grove has remained untouched by the corruption that plagues the outer directories."
+  - "The Daemon Overlord's influence grows stronger with each passing cycle. You must act quickly."
+  - "I have watched many sysadmin spirits pass through here. Few return from their journey to the core."
+  - "Take heart—the filesystem itself aids those who seek to restore its balance."
+  - "Your first task is to explore and gather resources. Try 'cd root' to access the system root, then 'ls' to see what's available. The library key you need lies in the arcane archives."
+on_talk:
+  message: The Grove Guardian's voice resonates like a gentle data stream, bringing peace to your digital essence.

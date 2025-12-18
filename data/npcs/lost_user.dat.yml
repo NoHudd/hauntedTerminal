@@ -1,0 +1,11 @@
+name: Lost User
+short_description: A confused spirit trapped between mount points
+description: Once a mortal user, now a digital ghost wandering the mounted filesystems. Their essence flickers between directories, unable to find their home partition since the great corruption began.
+dialogues:
+  - "I... I can't find my home directory. The paths keep changing, shifting like shadows."
+  - "Before the corruption, I knew every file, every folder. Now everything feels foreign."
+  - "The mounted drives used to be organized, logical. Now they're a maze of broken symlinks."
+  - "I've seen the Daemon Overlord's tendrils reaching into /mnt. Be careful, spirit."
+  - "Sometimes I remember fragments—commands that used to work, files that used to exist."
+on_talk:
+  message: The Lost User's voice wavers like a corrupted audio file, filled with digital sorrow.

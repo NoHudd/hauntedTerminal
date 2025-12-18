@@ -3,13 +3,22 @@ import random
 import yaml
 import os
 from utils.debug_tools import debug_log
+from src.events import event_bus, EventType
 
 class GameWorld:
     """Manages the game world, including rooms, items, enemies, and NPCs"""
     
-    def __init__(self, rooms, items, enemies, npcs):
-        """Initialize with data loaded from YAML files"""
-        debug_log("Initializing GameWorld")
+    def __init__(self, rooms, items, enemies, npcs, initialize_state=True):
+        """Initialize with data loaded from YAML files
+        
+        Args:
+            rooms, items, enemies, npcs: Game data from YAML files
+            initialize_state: Whether to initialize world state from room data (default True)
+                             Set to False when loading from save to prevent overwriting loaded state
+        """
+        import uuid
+        self.instance_id = str(uuid.uuid4())[:8]
+        debug_log(f"Initializing GameWorld instance {self.instance_id} (initialize_state={initialize_state})")
         self.rooms = rooms
         self.items = items
         self.enemies = enemies
@@ -24,6 +33,9 @@ class GameWorld:
         # Track which NPCs are in which rooms
         self.npc_locations = {}
         
+        # Track enemies that were fled from (room_id -> [enemy_ids])
+        self.fled_enemies = {}
+        
         # Room states (e.g., locked doors)
         self.room_states = {}
         
@@ -33,11 +45,85 @@ class GameWorld:
         # Load class data for world generation
         self.class_data = self._load_class_data()
         
-        # Initialize the world state from room data
-        debug_log("Starting world state initialization")
-        self._initialize_world_state()
-        debug_log("World state initialization complete")
+        # Initialize the world state from room data (unless loading from save)
+        if initialize_state:
+            debug_log("Starting world state initialization")
+            self._initialize_world_state()
+            debug_log("World state initialization complete")
+        else:
+            debug_log("Skipping world state initialization (will be loaded from save)")
     
+    def get_state(self):
+        """Get the current world state for saving"""
+        state = {
+            "item_locations": self.item_locations,
+            "enemy_locations": self.enemy_locations,
+            "npc_locations": self.npc_locations,
+            "fled_enemies": self.fled_enemies,
+            "room_states": self.room_states,
+            "item_spawn_counts": self.item_spawn_counts
+        }
+        debug_log(f"[Instance {self.instance_id}] Saving world state with {len(self.item_locations)} items")
+        return state
+    
+    def set_state(self, state):
+        """Restore world state from loaded save data"""
+        if not state:
+            debug_log(f"[Instance {self.instance_id}] No world state to restore, using fresh initialization")
+            return
+            
+        self.item_locations = state.get("item_locations", {})
+        self.enemy_locations = state.get("enemy_locations", {})
+        self.npc_locations = state.get("npc_locations", {})
+        self.fled_enemies = state.get("fled_enemies", {})
+        self.room_states = state.get("room_states", {})
+        self.item_spawn_counts = state.get("item_spawn_counts", {})
+        
+        debug_log(f"[Instance {self.instance_id}] Restored world state with {len(self.item_locations)} items, {len(self.enemy_locations)} enemies, {len(self.npc_locations)} NPCs")
+
+    def scale_enemy_stats(self, enemy_data, player_class):
+        """Scale enemy stats based on player class power scaling"""
+        if not enemy_data or not player_class:
+            return enemy_data
+        
+        # Get class scaling type
+        class_info = self.class_data.get(player_class, {})
+        power_scaling = class_info.get("power_scaling", "balanced")
+        
+        # Create scaled copy to avoid modifying original data
+        scaled_enemy = enemy_data.copy()
+        base_health = enemy_data.get("health", 50)
+        base_damage = enemy_data.get("damage", 10)
+        
+        # Apply scaling based on class type
+        if power_scaling == "aggressive":  # Weaver - make enemies tougher
+            health_multiplier = 1.15  # +15% health
+            damage_multiplier = 1.05  # +5% damage
+            debug_log(f"Scaling enemy for aggressive class: health x{health_multiplier}, damage x{damage_multiplier}")
+            
+        elif power_scaling == "defensive":  # Guardian - make enemies easier
+            health_multiplier = 0.90  # -10% health  
+            damage_multiplier = 0.85  # -15% damage
+            debug_log(f"Scaling enemy for defensive class: health x{health_multiplier}, damage x{damage_multiplier}")
+            
+        else:  # balanced - Shaman gets standard stats
+            health_multiplier = 1.0
+            damage_multiplier = 1.0
+            debug_log(f"No scaling applied for balanced class")
+        
+        # Apply scaling
+        scaled_enemy["health"] = max(1, int(base_health * health_multiplier))
+        scaled_enemy["damage"] = max(1, int(base_damage * damage_multiplier))
+        
+        # Scale attack patterns if they exist
+        if "attack_patterns" in scaled_enemy:
+            for attack in scaled_enemy["attack_patterns"]:
+                if "damage" in attack:
+                    attack["damage"] = max(1, int(attack["damage"] * damage_multiplier))
+        
+        debug_log(f"Enemy scaled: {base_health}HP -> {scaled_enemy['health']}HP, {base_damage}DMG -> {scaled_enemy['damage']}DMG")
+        return scaled_enemy
+
     def _initialize_world_state(self):
         """Initialize item and enemy locations from room data"""
         for room_id, room_data in self.rooms.items():
@@ -133,11 +219,42 @@ class GameWorld:
         """
         debug_log(f"Starting class-based item placement for player_class: {player_class}")
         
+        # Always place the class-specific starter weapon first
+        if player_class and player_class in self.class_data:
+            self._place_starter_weapon(player_class)
+        
         if not player_class or player_class not in self.class_data:
             debug_log(f"Invalid or missing player class, using default placement")
             return self._place_items_default()
             
         return self._place_items_class_based(player_class)
+    
+    def _place_starter_weapon(self, player_class):
+        """Ensure the class-specific starter weapon is available in safe zones."""
+        debug_log(f"Ensuring starter weapon availability for class: {player_class}")
+        
+        class_info = self.class_data[player_class]
+        starter_weapon = class_info.get("starter_weapon")
+        
+        if not starter_weapon:
+            debug_log(f"No starter weapon defined for class {player_class}")
+            return
+            
+        # Check if the weapon item exists in the items collection
+        weapon_found = False
+        for item_id, item_data in self.items.items():
+            if item_id == starter_weapon or (isinstance(item_data, dict) and item_data.get("name", "").lower().replace(" ", "_") == starter_weapon):
+                weapon_found = True
+                # Ensure it can spawn in safe zones like home_grove
+                allowed_zones = item_data.get("allowed_zones", [])
+                if "safe" not in allowed_zones:
+                    allowed_zones.append("safe")
+                    item_data["allowed_zones"] = allowed_zones
+                debug_log(f"Starter weapon {starter_weapon} configured for dynamic placement")
+                break
+                
+        if not weapon_found:
+            debug_log(f"Starter weapon {starter_weapon} not found in items data")
     
     def _place_items_class_based(self, player_class):
         """Place items based on player class preferences and zone affinity."""
@@ -166,7 +283,33 @@ class GameWorld:
             debug_log(f"Placed {items_placed} items in {zone} zone (multiplier: {zone_multiplier})")
         
         debug_log(f"Class-based placement complete: {total_placed} items placed")
+        
+        # Ensure home_grove has at least one health potion for better player experience
+        self._ensure_home_grove_basics()
+        
         return total_placed
+    
+    def _ensure_home_grove_basics(self):
+        """Ensure home_grove has essential consumables for good player experience."""
+        home_grove_items = self.item_locations.get("home_grove", [])
+        
+        # Check if there's already a health potion in home_grove
+        has_health_potion = False
+        for item_id in home_grove_items:
+            item_data = self.items.get(item_id, {})
+            if "healing" in item_data.get("tags", []) or "restoration" in item_data.get("tags", []):
+                has_health_potion = True
+                break
+        
+        # If no health potion, add one
+        if not has_health_potion:
+            health_potions = ["health_potion_minor", "health_potion_major"]
+            for potion_id in health_potions:
+                if potion_id in self.items:
+                    success = self._place_item_in_room(potion_id, self.items[potion_id], "home_grove")
+                    if success:
+                        debug_log(f"Added {potion_id} to home_grove to ensure basic consumables")
+                        break
     
     def _place_items_default(self):
         """Fallback to original placement algorithm."""
@@ -446,8 +589,12 @@ class GameWorld:
             return 0
         
         # Calculate items to place based on zone size and multiplier
-        base_items_per_room = 2
+        base_items_per_room = 3  # Increased from 2 to ensure more variety
         target_items = int(len(zone_rooms) * base_items_per_room * multiplier)
+        
+        # For safe zones, ensure at least one healing item per room
+        if zone == "safe":
+            target_items = max(target_items, len(zone_rooms) + 2)  # Guarantee extras for safe zones
         
         items_placed = 0
         for _ in range(target_items):
@@ -463,8 +610,10 @@ class GameWorld:
             # Place the item
             if self._place_item_in_room(item_id, item_data, room_id):
                 items_placed += 1
-                # Remove from suitable items to prevent duplicates
-                suitable_items = [(id, data) for id, data in suitable_items if id != item_id]
+                # Remove from suitable items only if it's not a consumable (allow multiple consumables)
+                item_type = item_data.get("type", "")
+                if item_type not in ["consumable", "enhancement"]:
+                    suitable_items = [(id, data) for id, data in suitable_items if id != item_id]
         
         return items_placed
     
@@ -481,9 +630,12 @@ class GameWorld:
             if not self._item_suitable_for_class(item_data, player_class):
                 continue
                 
-            # Check loot preferences
+            # Check loot preferences - allow consumables and general items for all classes
+            item_type = item_data.get("type", "").lower()
             if loot_preferences and not self._item_matches_preferences(item_data, loot_preferences):
-                continue
+                # Allow consumables, keys, and lore items regardless of class preferences
+                if item_type not in ["consumable", "key", "lore", "enhancement"]:
+                    continue
                 
             # Check zone restrictions (if any)
             allowed_zones = item_data.get("allowed_zones", [])
@@ -552,6 +704,11 @@ class GameWorld:
         # Check if room is locked
         if self.room_states.get(room_id, {}).get("locked", False):
             return False
+        
+        # Check if this item is already placed (to prevent overriding fixed items)
+        if item_id in self.item_locations:
+            debug_log(f"Item {item_id} already placed in {self.item_locations[item_id]}, skipping dynamic placement")
+            return False
             
         # Place the item
         self.item_locations[item_id] = room_id
@@ -592,6 +749,17 @@ class GameWorld:
             if self.room_states[room_id]["locked"]:
                 self.room_states[room_id]["locked"] = False
                 debug_log(f"Unlocked room {room_id}")
+                
+                # Emit room unlocked event
+                room_data = self.get_room(room_id)
+                event_bus.emit_event(
+                    EventType.ROOM_UNLOCKED,
+                    {
+                        "room": room_id,
+                        "room_name": room_data.get("name", room_id) if room_data else room_id
+                    },
+                    "GameWorld"
+                )
                 return True
             else:
                 debug_log(f"Room {room_id} is already unlocked")
@@ -601,14 +769,19 @@ class GameWorld:
     
     def get_items_in_room(self, room_id):
         """Get all items in a room"""
-        debug_log(f"Getting items in room {room_id}")
+        debug_log(f"[Instance {self.instance_id}] Getting items in room {room_id}")
+        debug_log(f"[Instance {self.instance_id}] Total items in item_locations: {len(self.item_locations)}")
+        debug_log(f"[Instance {self.instance_id}] Full item_locations: {self.item_locations}")
+        
         # Get all items from the item_locations dictionary
         items_from_locations = [item_id for item_id, location in self.item_locations.items() if location == room_id]
+        debug_log(f"Items from locations for {room_id}: {items_from_locations}")
         
         # As a backup, check the room data directly (some items might not be in the tracking dict)
         room_data = self.get_room(room_id)
         if room_data and "items" in room_data:
             items_in_room_data = room_data.get("items", []) or []  # Handle None by returning empty list
+            debug_log(f"Items from room data for {room_id}: {items_in_room_data}")
             # Combine both sources, ensuring no duplicates
             combined_items = list(set(items_from_locations + items_in_room_data))
             debug_log(f"Found {len(combined_items)} items in room {room_id}: {combined_items}")
@@ -660,14 +833,20 @@ class GameWorld:
             debug_log(f"WARNING: Requested non-existent item: {item_id}")
         return item
     
-    def get_enemy(self, enemy_id):
-        """Get enemy data by ID"""
+    def get_enemy(self, enemy_id, player_class=None):
+        """Get enemy data by ID, optionally scaled for player class"""
         enemy = self.enemies.get(enemy_id)
         if enemy is None:
             debug_log(f"WARNING: Requested non-existent enemy: {enemy_id}")
             debug_log(f"Available enemy IDs: {list(self.enemies.keys())}")
-        else:
-            debug_log(f"Retrieved enemy data for {enemy_id}")
+            return enemy
+        
+        debug_log(f"Retrieved enemy data for {enemy_id}")
+        
+        # Apply class-based scaling if player class is provided
+        if player_class:
+            enemy = self.scale_enemy_stats(enemy, player_class)
+            
         return enemy
     
     def get_npc(self, npc_id):
@@ -683,6 +862,19 @@ class GameWorld:
             room = self.item_locations[item_id]
             del self.item_locations[item_id]
             debug_log(f"Removed item {item_id} from room {room}")
+            
+            # Emit event for other systems
+            item_data = self.get_item(item_id)
+            event_bus.emit_event(
+                EventType.ITEM_TAKEN,
+                {
+                    "item_id": item_id,
+                    "room": room,
+                    "item_type": item_data.get("type") if item_data else "unknown",
+                    "rarity": item_data.get("rarity", "common") if item_data else "common"
+                },
+                "GameWorld"
+            )
             return True
         debug_log(f"WARNING: Attempted to remove item {item_id} that is not in any room")
         return False
@@ -691,6 +883,18 @@ class GameWorld:
         """Add an item to a room (when dropped)"""
         self.item_locations[item_id] = room_id
         debug_log(f"Added item {item_id} to room {room_id}")
+        
+        # Emit event for other systems
+        item_data = self.get_item(item_id)
+        event_bus.emit_event(
+            EventType.ITEM_DROPPED,
+            {
+                "item_id": item_id,
+                "room": room_id,
+                "item_type": item_data.get("type") if item_data else "unknown"
+            },
+            "GameWorld"
+        )
     
     def remove_enemy_from_room(self, enemy_id):
         """Remove an enemy from its current room (when defeated)"""
@@ -730,10 +934,58 @@ class GameWorld:
                         room_data["enemies"].remove(e_id)
                         debug_log(f"Removed related enemy {e_id} from room {room_id} data")
             
+            # Emit enemy defeated event
+            enemy_data = self.get_enemy(enemy_id)
+            event_bus.emit_event(
+                EventType.ENEMY_DEFEATED,
+                {
+                    "enemy_id": enemy_id,
+                    "room": room_id,
+                    "enemy_name": enemy_data.get("name", enemy_id) if enemy_data else enemy_id,
+                    "was_boss": enemy_data.get("is_boss", False) if enemy_data else False
+                },
+                "GameWorld"
+            )
+            
+            # Check if all enemies in room are defeated
+            remaining_enemies = self.get_enemies_in_room(room_id)
+            if not remaining_enemies:
+                event_bus.emit_event(
+                    EventType.ALL_ENEMIES_DEFEATED,
+                    {
+                        "room": room_id,
+                        "last_enemy_defeated": enemy_id
+                    },
+                    "GameWorld"
+                )
+            
             return True
             
         debug_log(f"WARNING: Could not find enemy {enemy_id} to remove")
         return False
+    
+    def mark_enemy_as_fled(self, enemy_id, room_id):
+        """Mark an enemy as fled from a room for later respawning."""
+        debug_log(f"Marking enemy {enemy_id} as fled from room {room_id}")
+        if room_id not in self.fled_enemies:
+            self.fled_enemies[room_id] = []
+        if enemy_id not in self.fled_enemies[room_id]:
+            self.fled_enemies[room_id].append(enemy_id)
+        
+        # Remove from current location
+        if enemy_id in self.enemy_locations:
+            del self.enemy_locations[enemy_id]
+    
+    def respawn_fled_enemies(self, room_id):
+        """Respawn enemies that were fled from when player re-enters room."""
+        if room_id in self.fled_enemies and self.fled_enemies[room_id]:
+            debug_log(f"Respawning fled enemies in room {room_id}: {self.fled_enemies[room_id]}")
+            for enemy_id in self.fled_enemies[room_id]:
+                self.enemy_locations[enemy_id] = room_id
+                debug_log(f"Respawned enemy {enemy_id} in room {room_id}")
+            
+            # Clear the fled enemies list for this room
+            self.fled_enemies[room_id] = []
     
     def get_exits(self, room_id):
         """Get available exits from a room"""

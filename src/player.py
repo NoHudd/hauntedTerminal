@@ -10,6 +10,7 @@ class Player:
         self.name = name
         self.player_class = player_class.lower()
         self.current_room = current_room
+        self.previous_room = None  # Track previous room for flee functionality
 
         # Core stats
         self.max_health = 100
@@ -260,6 +261,7 @@ class Player:
     def move_to(self, room_id):
         """Move the player to a different room."""
         debug_log(f"Moving player from {self.current_room} to {room_id}")
+        self.previous_room = self.current_room  # Track previous room
         self.current_room = room_id
         return True
         
@@ -272,6 +274,7 @@ class Player:
         player.total_damage = data.get("total_damage", player.total_damage)
         player.permanent_health_boost = data.get("permanent_health_boost", 0)
         player.permanent_damage_boost = data.get("permanent_damage_boost", 0)
+        player.previous_room = data.get("previous_room", None)  # Load previous room
         player.spells = data.get("spells", [])
         player.inventory = data["inventory"]
         player.equipped_weapon = data["equipped_weapon"]
@@ -297,6 +300,7 @@ class Player:
             "inventory": self.inventory,
             "equipped_weapon": self.equipped_weapon,
             "current_room": self.current_room,
+            "previous_room": self.previous_room,  # Save previous room
             "player_id": self.player_id,
             "tutorial_state": self.tutorial_state
         }

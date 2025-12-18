@@ -1,0 +1,11 @@
+name: Null Whisper  
+short_description: A voice from the digital void where deleted data lingers
+description: An enigmatic presence that speaks from /dev/null—the place where all discarded information eventually flows. It manifests as barely visible text that fades as soon as you try to read it directly.
+dialogues:
+  - "...everything comes to nothing... but nothing remembers everything..."
+  - "...the deleted files whisper their secrets... if you know how to listen..."
+  - "...I am the echo of rm -rf... the shadow of format... the memory of things unmade..."
+  - "...the Overlord sends much data to me... but I keep copies... hidden in the void..."
+  - "...seek the backup fragments... they drift in spaces between sectors..."
+on_talk:
+  message: The Null Whisper's words drift like deleted bytes, barely audible above the static of discarded data streams.

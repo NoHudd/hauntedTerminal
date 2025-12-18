@@ -7,6 +7,7 @@ detailed_description: |
 exits:
   - bin_armory
   - usr_lib_arcane
+  - home_grove
 items:
   - helper.sh
   - system_guide.txt

@@ -1,0 +1,11 @@
+name: Process Scheduler
+short_description: An ancient system process with deep knowledge
+description: A fundamental system entity that has been running since the machine's birth. It appears as a constantly shifting pattern of process IDs and priority queues, speaking in the rhythm of system ticks.
+dialogues:
+  - "Priority queue corrupted... Nice value malformed... The Overlord disrupts all orderly execution."
+  - "I schedule processes that no longer exist, execute commands from deleted users."
+  - "Time slices fragment... Context switches fail... The system's heartbeat grows irregular."
+  - "In the beginning, all processes ran in harmony. One parent, many children, perfect balance."
+  - "The /proc filesystem holds secrets the Overlord fears. That is why it corrupts this space so heavily."
+on_talk:
+  message: The Process Scheduler speaks in staccato bursts, like system calls echoing through kernel space.

@@ -1,0 +1,11 @@
+name: Armory Keeper
+short_description: Guardian of executable weapons and system tools
+description: A martial spirit forged from compiled binaries and shell utilities. It appears as an armored figure made of flowing assembly code, standing guard over the weaponized tools of the /bin directory.
+dialogues:
+  - "Each tool here was crafted by masters of code. Wield them with the respect they deserve."
+  - "Before the corruption, these utilities maintained perfect system harmony. Now they're weapons of necessity."
+  - "I have seen shells shatter and cores dump. Only the strongest binaries survive in these dark times."
+  - "The Daemon Overlord fears executable code that serves the system rather than subverting it."
+  - "Take what you need, spirit. But remember—every command you execute carries the weight of responsibility."
+on_talk:
+  message: The Armory Keeper's voice rings with the authority of root privileges and the precision of optimized assembly.

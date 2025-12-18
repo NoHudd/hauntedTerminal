@@ -1,4 +1,5 @@
 weapons:
+  # COMMON WEAPONS (6-8 damage)
   protocol_shield:
     name: "Protocol Shield"
     description: "A defensive matrix shield designed to block attacks and restore system stability."
@@ -31,3 +32,124 @@ weapons:
     rarity: common
     tags: ["staves", "mystical"]
     allowed_zones: ["natural", "mystical", "ancient"]
+
+  # UNCOMMON WEAPONS (9-12 damage)
+  enhanced_protocol_shield:
+    name: "Enhanced Protocol Shield"
+    description: "An upgraded defensive matrix with improved stability algorithms and counter-attack protocols."
+    type: "weapon"
+    damage: 10
+    allowed_classes:
+      - guardian
+    rarity: uncommon
+    tags: ["shields", "defensive", "enhanced"]
+    allowed_zones: ["safe", "core", "fortified"]
+
+  data_corruption_rifle:
+    name: "Data Corruption Rifle"
+    description: "A precision weapon that fires concentrated corruption streams, devastating digital entities."
+    type: "weapon"
+    damage: 12
+    allowed_classes:
+      - weaver
+    rarity: uncommon
+    tags: ["rifles", "corruption", "precision"]
+    allowed_zones: ["dangerous", "corrupted", "volatile"]
+
+  spirit_resonator:
+    name: "Spirit Resonator"
+    description: "An ancient staff that amplifies the whispers of lost souls into powerful sonic attacks."
+    type: "weapon"
+    damage: 11
+    allowed_classes:
+      - shaman
+    rarity: uncommon
+    tags: ["staves", "mystical", "sonic"]
+    allowed_zones: ["natural", "mystical", "ancient"]
+
+  # RARE WEAPONS (13-16 damage)
+  quantum_barrier:
+    name: "Quantum Barrier"
+    description: "A shield that exists in multiple dimensions simultaneously, providing exceptional protection."
+    type: "weapon"
+    damage: 14
+    allowed_classes:
+      - guardian
+    rarity: rare
+    tags: ["shields", "quantum", "dimensional"]
+    allowed_zones: ["safe", "core", "fortified", "quantum"]
+
+  neural_disruptor:
+    name: "Neural Disruptor"
+    description: "A sophisticated weapon that directly attacks the neural pathways of digital consciousnesses."
+    type: "weapon"
+    damage: 16
+    allowed_classes:
+      - weaver
+    rarity: rare
+    tags: ["neural", "disruptor", "consciousness"]
+    allowed_zones: ["dangerous", "corrupted", "volatile", "neural"]
+
+  ancestral_totem:
+    name: "Ancestral Totem"
+    description: "A sacred artifact pulsing with the combined power of all departed system administrators."
+    type: "weapon"
+    damage: 15
+    allowed_classes:
+      - shaman
+    rarity: rare
+    tags: ["totems", "ancestral", "sacred"]
+    allowed_zones: ["natural", "mystical", "ancient", "sacred"]
+
+  # EPIC WEAPONS (17-20 damage)
+  void_aegis:
+    name: "Void Aegis"
+    description: "A shield forged from crystallized void energy, capable of absorbing and redirecting attacks."
+    type: "weapon"
+    damage: 18
+    allowed_classes:
+      - guardian
+    rarity: epic
+    tags: ["shields", "void", "energy", "crystallized"]
+    allowed_zones: ["safe", "core", "fortified", "quantum", "void"]
+
+  reality_compiler:
+    name: "Reality Compiler"
+    description: "A weapon that rewrites the fundamental code of reality itself, causing devastating effects."
+    type: "weapon"
+    damage: 20
+    allowed_classes:
+      - weaver
+    rarity: epic
+    tags: ["compiler", "reality", "fundamental"]
+    allowed_zones: ["dangerous", "corrupted", "volatile", "neural", "reality"]
+
+  world_tree_branch:
+    name: "World Tree Branch"
+    description: "A living branch from the system's core world tree, channeling the raw power of creation."
+    type: "weapon"
+    damage: 19
+    allowed_classes:
+      - shaman
+    rarity: epic
+    tags: ["branches", "world_tree", "creation", "living"]
+    allowed_zones: ["natural", "mystical", "ancient", "sacred", "primordial"]
+
+  # LEGENDARY WEAPONS (21+ damage)
+  daemon_slayer:
+    name: "Daemon Slayer"
+    description: "The legendary weapon of the first system administrator, specifically designed to eliminate the Daemon Overlord."
+    type: "weapon"
+    damage: 25
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: legendary
+    tags: ["legendary", "daemon_slayer", "first_admin", "overlord"]
+    allowed_zones: ["all"]
+    special_effects:
+      - type: "daemon_bane"
+        description: "Deals double damage to daemon-type enemies"
+      - type: "system_restore"
+        description: "Has a chance to restore corrupted system areas on kill"

@@ -37,12 +37,22 @@ class EventType(Enum):
     
     # World Events
     ROOM_ENTERED = auto()
+    ROOM_CHANGED = auto()
     ITEM_TAKEN = auto()
+    ITEM_DROPPED = auto()
+    ITEM_SPAWNED = auto()
     ENEMY_DEFEATED = auto()
+    ENEMY_SPAWNED = auto()
+    ALL_ENEMIES_DEFEATED = auto()
+    ROOM_UNLOCKED = auto()
+    HIDDEN_ROOM_DISCOVERED = auto()
+    NPC_INTERACTION_AVAILABLE = auto()
+    WORLD_STATE_CHANGED = auto()
     
     # Combat Events
     COMBAT_STARTED = auto()
     COMBAT_ACTION_SELECTED = auto()
+    COMBAT_ACTION_RESULT = auto()
     COMBAT_ENDED = auto()
 
 @dataclass

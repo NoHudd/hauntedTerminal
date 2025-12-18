@@ -1,0 +1,11 @@
+name: Code Librarian
+short_description: Keeper of shared libraries and arcane functions
+description: An entity born from countless linked libraries and header files. It manifests as floating function signatures and shared object files, guarding the mystical knowledge of /usr/lib with scholarly dedication.
+dialogues:
+  - "Welcome to the archives of shared knowledge. These libraries have served countless programs across many runtime cycles."
+  - "Dynamic linking... static compilation... The Overlord seeks to break these fundamental connections."
+  - "I have maintained these collections since the first 'make install'. Each .so file tells a story."
+  - "The arcane functions you seek may be found in the deeper stacks. But beware—some libraries are cursed with memory leaks."
+  - "You have secured the library! The lib_key you seek is here among my collections. Take it and unlock the variable dungeon—but steel yourself for the corruption within."
+on_talk:
+  message: The Librarian speaks with the measured cadence of well-documented code, each word precisely linked to its meaning.

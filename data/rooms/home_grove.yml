@@ -9,11 +9,9 @@ detailed_description: |
 exits:
   - var_dungeon
   - mnt_forest
-items:
-  - health_potion_large
-  - natural_tonic
-  - healing_touch
-  - protocol_shield
+  - root
+items: []
+# All items will be placed dynamically by class-based spawning system
 enemies: []
 npcs:
   - home_guardian.sys

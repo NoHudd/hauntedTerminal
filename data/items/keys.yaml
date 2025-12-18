@@ -8,6 +8,8 @@ keys:
     droppable: false
     type: "key"
     unlocks: ["/var/dungeon"]
+    consumable: true
+    consumed_on_take: true
     on_take:
       message: As you take the key, you feel a connection forming with the locked passage to the variable dungeon.
     on_use:
@@ -28,6 +30,8 @@ keys:
       - archive
     rarity: 1
     only_in_unlocked: false
+    consumable: true
+    consumed_on_take: true
     on_take:
       message: As you take the master key, you feel the weight of its importance. The system itself seems to acknowledge its power.
     on_use:
@@ -44,6 +48,8 @@ keys:
     droppable: false
     type: "key"
     unlocks: ["ghost_hidden"]
+    consumable: true
+    consumed_on_take: true
     on_take:
       message: The badge recognizes you as a user with potential administrative privileges.
     on_use:
@@ -59,6 +65,26 @@ keys:
     takeable: true
     usable: true
     unlocks: ["/tmp/hidden_chamber"]
+    consumable: true
+    consumed_on_take: true
+  
+  opt_key:
+    name: "Optional Access Key"
+    description: "A powerful key that unlocks access to class-restricted areas like the mage tower and warrior tomb."
+    short_description: A key for accessing optional class-specific areas
+    type: "key"
+    takeable: true
+    usable: true
+    droppable: false
+    unlocks: ["/opt/mage_tower", "/srv/warrior_tomb"]
+    consumable: true
+    consumed_on_take: true
+    on_take:
+      message: "As you grasp the opt_key, you feel its power resonating with class-specific areas of the system."
+    on_use:
+      message: "The key pulses with energy, ready to unlock powerful class-restricted areas."
+    on_examine:
+      message: "This rare key grants access to the most challenging class-specific areas - the mage tower and warrior tomb."
   
   root_key:
     name: "Root Access Token"
@@ -67,4 +93,6 @@ keys:
     type: "key"
     takeable: true
     usable: true
-    unlocks: ["/root/vault"] 
+    unlocks: ["/root/vault"]
+    consumable: true
+    consumed_on_take: true 

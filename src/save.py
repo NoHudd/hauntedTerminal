@@ -42,7 +42,7 @@ class SaveManager:
             "player": {
                 "name": player.name,
                 "player_class": player.player_class,
-                "base_damage": player.base_damage,
+                "total_damage": player.total_damage,
                 "health": player.health,
                 "max_health": player.max_health,
                 "permanent_health_boost": player.permanent_health_boost,
@@ -50,6 +50,9 @@ class SaveManager:
                 "inventory": player.inventory,
                 "equipped_weapon": player.equipped_weapon,
                 "current_room": player.current_room,
+                "previous_room": player.previous_room,
+                "player_id": player.player_id,
+                "tutorial_state": player.tutorial_state,
                 "spells": player.spells
             },
             "world": world_state,
@@ -176,5 +179,32 @@ class SaveManager:
         except FileNotFoundError:
             return False
 
+    def get_most_recent_save(self):
+        """
+        Get the most recent save file.
+        
+        Returns:
+            dict: Save info for the most recent save, or None if no saves exist
+        """
+        save_files = self.get_save_files()
+        return save_files[0] if save_files else None
+    
+    def load_most_recent_save(self):
+        """
+        Load the most recent save file.
+        
+        Returns:
+            dict: The loaded save data or None if no saves exist
+        """
+        most_recent = self.get_most_recent_save()
+        if most_recent:
+            return self.load_game(most_recent["filename"])
+        return None
+
 # Create a singleton instance
-save_manager = SaveManager() 
+save_manager = SaveManager()
+
+# Convenience functions for easy access
+def load_most_recent_save():
+    """Load the most recent save file."""
+    return save_manager.load_most_recent_save() 
