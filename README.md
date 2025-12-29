@@ -6,7 +6,7 @@ A narrative-driven text adventure where you play as a Sysadmin Spirit navigating
 ---
 
 <!-- Main Menu Screenshot -->
-![HFSE Main Menu](./main_menu)
+![HFSE Main Menu](./main_menu.svg)
 *The terminal interface of Haunted Filesystem Experience*
 
 ---
