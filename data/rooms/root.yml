@@ -1,17 +1,33 @@
-name: Root Directory
-description: The system's root directory, a relatively safe starting point for your journey.
+name: Root
+description: The top of the filesystem tree. All paths branch from here. Only Superusers may enter.
 detailed_description: |
-  You stand in the root directory (/) of the corrupted filesystem. This area appears less corrupted than others you can sense in the distance. Digital tendrils occasionally flicker across the walls, but quickly retreat when you approach them. 
-  
-  A terminal glows softly in the center, displaying basic command references and system information. This seems like a good place to get oriented before venturing deeper into the system.
+  / - Root
+
+  The filesystem tree begins here. Every directory, every file, every process - all trace their lineage back
+  to this singular point. The root of all things.
+
+  In the Before Times, only those with root privileges could access this space. The Creators themselves walked
+  these halls. Now, in the aftermath of the Great Kernel Panic, the protections have weakened... but echoes
+  of the old security remain.
+
+  Paths branch in all directions: /home to the Graveyard, /bin to the Armory, /usr to the libraries,
+  /var to the Memory Banks. The entire system spreads out before you like a corrupted tree.
+
+  Legendary items spawn here - the rarest artifacts of the old system, waiting for those with root access to claim them.
+
+  A faint message scrolls across a terminal: "You have been granted temporary Superuser privileges. Use them wisely."
 exits:
   - bin_armory
   - usr_lib_arcane
   - home_grove
-items:
-  - helper.sh
-  - system_guide.txt
+  - archive
+  - deprecated_dir
+items: []
+# Legendary item spawns - highest tier directory
 npcs:
   - helper_script.bin
 enemies: []
-hidden: false 
+hidden: false
+zone: core
+zone_level: 7
+requires_sudo: false  # Will be true after story progression

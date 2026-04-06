@@ -15,47 +15,137 @@ import time
 logger = logging.getLogger(__name__)
 
 class EventType(Enum):
-    """Types of events that can be emitted."""
-    
+    """
+    Types of events that can be emitted in the game.
+
+    All events carry serialized view data (dicts) rather than raw backend objects.
+    This ensures clean separation between backend logic and UI presentation.
+    """
+
+    # ========================================
     # Game State Events
+    # ========================================
+
     GAME_STARTED = auto()
+    # Emitted by: game_engine.py
+    # Subscribed by: textual_ui.py
+    # Data: basic game start info
+
     GAME_OVER = auto()
+    # Emitted by: game_engine.py, command_handler.py
+    # Subscribed by: game_engine.py, textual_ui.py
+    # Data: {"message": str, "action": str (optional)}
+
     GAME_SAVED = auto()
-    GAME_LOADED = auto()
+    # Emitted by: save.py, textual_ui.py
+    # Subscribed by: game_engine.py
+    # Data: {"trigger": str, "filename": str (optional)}
+
     GAME_RESTART_REQUESTED = auto()
-    
-    # Player Events  
+    # Emitted by: textual_ui.py
+    # Subscribed by: game_engine.py
+    # Data: {}
+
+    # ========================================
+    # Player Events
+    # ========================================
+
     PLAYER_CREATED = auto()
+    # Emitted by: game_engine.py
+    # Subscribed by: textual_ui.py
+    # Data: StatsView dict
+
     PLAYER_STATS_CHANGED = auto()
+    # Emitted by: game_engine.py, command_handler.py
+    # Subscribed by: textual_ui.py
+    # Data: StatsView dict
+
     PLAYER_INVENTORY_CHANGED = auto()
-    PLAYER_MOVED = auto()
-    
+    # Emitted by: game_engine.py, command_handler.py
+    # Subscribed by: textual_ui.py
+    # Data: InventoryView dict
+
+    # ========================================
     # UI Events
+    # ========================================
+
     COMMAND_ENTERED = auto()
+    # Emitted by: textual_ui.py
+    # Subscribed by: game_engine.py
+    # Data: {"command": str, "game_state": GameState}
+
     UI_ERROR = auto()
+    # Emitted by: textual_ui.py
+    # Subscribed by: game_engine.py
+    # Data: {"error": str}
+
     UI_READY = auto()
+    # Emitted by: textual_ui.py
+    # Subscribed by: game_engine.py
+    # Data: {}
+
     UI_STATE_CHANGED = auto()
-    
+    # Emitted by: state_manager.py
+    # Subscribed by: textual_ui.py
+    # Data: {"new_state": GameState, "old_state": GameState}
+
+    # ========================================
     # World Events
+    # ========================================
+
     ROOM_ENTERED = auto()
+    # Emitted by: game_engine.py, command_handler.py
+    # Subscribed by: command_handler.py, textual_ui.py
+    # Data: {"room": RoomView dict, "player_name": str}
+
     ROOM_CHANGED = auto()
-    ITEM_TAKEN = auto()
-    ITEM_DROPPED = auto()
-    ITEM_SPAWNED = auto()
+    # Emitted by: command_handler.py
+    # Subscribed by: command_handler.py
+    # Data: {"player_name": str, "from_room": str, "to_room": str}
+
     ENEMY_DEFEATED = auto()
-    ENEMY_SPAWNED = auto()
+    # Emitted by: combat.py
+    # Subscribed by: command_handler.py
+    # Data: {"enemy_id": str, "room": str, "player_name": str}
+
     ALL_ENEMIES_DEFEATED = auto()
-    ROOM_UNLOCKED = auto()
-    HIDDEN_ROOM_DISCOVERED = auto()
-    NPC_INTERACTION_AVAILABLE = auto()
-    WORLD_STATE_CHANGED = auto()
-    
+    # Emitted by: game_world.py
+    # Subscribed by: command_handler.py
+    # Data: {"room": str}
+
+    # ========================================
     # Combat Events
+    # ========================================
+
     COMBAT_STARTED = auto()
+    # Emitted by: combat.py
+    # Subscribed by: game_engine.py, textual_ui.py
+    # Data: CombatView dict (includes enemy info, player health, available attacks)
+
     COMBAT_ACTION_SELECTED = auto()
+    # Emitted by: command_handler.py
+    # Subscribed by: combat.py
+    # Data: {"choice": str}
+
     COMBAT_ACTION_RESULT = auto()
-    COMBAT_VICTORY_CHECK = auto()  # Emitted when enemy defeated, before ending combat
+    # Emitted by: combat.py
+    # Subscribed by: textual_ui.py
+    # Data: {"actor": str, "message": str, "damage": int (optional), "healing": int (optional)}
+
+    COMBAT_FRAME_UPDATED = auto()
+    # Emitted by: combat.py (every turn, after player and enemy actions)
+    # Subscribed by: textual_ui.py
+    # Data: CombatView dict — updated health values and cooldowns for current frame
+
     COMBAT_ENDED = auto()
+    # Emitted by: combat.py
+    # Subscribed by: command_handler.py, game_engine.py, textual_ui.py
+    # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str, "enemies_defeated": int}
+
+    TUTORIAL_SELECTION_MODE_USED = auto()
+    # Emitted by: textual_ui.py (on_input_blurred, when TAB is pressed during tutorial combat)
+    # Subscribed by: command_handler.py
+    # Data: {}
 
 @dataclass
 class Event:

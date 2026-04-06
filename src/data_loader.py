@@ -167,3 +167,37 @@ def load_room_data():
             room_id = filename.replace(".yaml", "").replace(".yml", "")
             rooms[room_id] = load_yaml(os.path.join(room_folder, filename))
     return rooms
+
+
+# Consumables cache
+_consumables_data_cache = None
+
+
+def load_consumable_data(consumable_id):
+    """Load data for a specific consumable from consumables.yaml"""
+    global _consumables_data_cache
+
+    # Load and cache all consumables if not already cached
+    if _consumables_data_cache is None:
+        try:
+            filepath = 'data/items/consumables.yaml'
+            if os.path.exists(filepath):
+                with open(filepath, 'r') as file:
+                    data = yaml.safe_load(file)
+                    _consumables_data_cache = data.get("consumables", {}) if data else {}
+                    debug_log(f"Loaded consumables data with {len(_consumables_data_cache)} items")
+            else:
+                debug_log(f"ERROR: Consumables file not found at path: {filepath}")
+                _consumables_data_cache = {}
+        except Exception as e:
+            debug_log(f"ERROR loading consumables data: {e}")
+            _consumables_data_cache = {}
+
+    # Return the specific consumable
+    if consumable_id in _consumables_data_cache:
+        consumable_data = _consumables_data_cache[consumable_id].copy()
+        consumable_data["id"] = consumable_id
+        return consumable_data
+
+    debug_log(f"Consumable {consumable_id} not found")
+    return None

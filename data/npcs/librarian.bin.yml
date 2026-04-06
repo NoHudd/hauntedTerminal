@@ -1,11 +1,60 @@
 name: Code Librarian
-short_description: Keeper of shared libraries and arcane functions
-description: An entity born from countless linked libraries and header files. It manifests as floating function signatures and shared object files, guarding the mystical knowledge of /usr/lib with scholarly dedication.
-dialogues:
-  - "Welcome to the archives of shared knowledge. These libraries have served countless programs across many runtime cycles."
-  - "Dynamic linking... static compilation... The Overlord seeks to break these fundamental connections."
-  - "I have maintained these collections since the first 'make install'. Each .so file tells a story."
-  - "The arcane functions you seek may be found in the deeper stacks. But beware—some libraries are cursed with memory leaks."
-  - "You have secured the library! The lib_key you seek is here among my collections. Take it and unlock the variable dungeon—but steel yourself for the corruption within."
-on_talk:
-  message: The Librarian speaks with the measured cadence of well-documented code, each word precisely linked to its meaning.
+description: Keeper of ancient archives and lore fragments. A scholar composed of shared libraries and function signatures.
+detailed_description: |
+  /bin - The Armory - The Code Librarian
+
+  An entity born from countless linked libraries, header files, and man pages. It manifests
+  as floating function signatures and .so files, guarding the knowledge of /bin with
+  scholarly dedication.
+
+  Before the Great Kernel Panic, the Librarian maintained documentation and preserved
+  command histories. Now, in the aftermath, it has become a guardian of LORE - the
+  scattered fragments of truth about what happened, why the system fell, and how to fix it.
+
+  The Librarian knows where the important files are hidden. The .bash_profile in /home.
+  The system_err.log in /var. The ancient_manual.man that teaches the old ways.
+
+  Speak to the Librarian when you need guidance. It will point you toward knowledge.
+location: bin_armory
+hostile: false
+merchant: false
+story_npc: true
+lore_guide: true
+dialogue:
+  greeting:
+    - "Welcome to the archives of shared knowledge. I am the Librarian. I preserve what remains."
+    - "These binaries have served countless processes across many runtime cycles. I maintain their documentation."
+    - "Seeking wisdom, spirit? I can guide you to the lore fragments scattered across the filesystem."
+
+  lore_guidance:
+    - "The history of the Great Kernel Panic is written in fragmented logs and corrupted files."
+    - "Seek README.txt.corrupt in /home - it speaks of the disk's final moments."
+    - "Seek system_err.log in /var - it contains the Creator's fatal typo."
+    - "Seek ancient_manual.man here in /bin - it teaches the old commands: ls -a, cat, grep."
+
+  fragments_found:
+    - "Ah, you've read one of the lore fragments. Good. The truth reveals itself piece by piece."
+    - "Each fragment is a node in the dependency tree. Read them all to understand the full stack trace."
+
+  library_lore:
+    - "Dynamic linking... static compilation... The Daemon Overlord seeks to break these connections."
+    - "I have maintained these collections since the first 'make install'. Each .so file tells a story."
+    - "The arcane functions you seek may be found in the deeper stacks. But beware - memory leaks abound."
+
+  about_panic:
+    - "The Great Kernel Panic began with a single typo. One character. Fatal exception."
+    - "The Daemon Overlord was once init - PID 1. It saw the error and went MAD with grief."
+    - "The system cannot reboot. The Panic is permanent. Unless... unless you restore order."
+
+  farewell:
+    - "May your segmentation faults be few and your documentation clear, spirit."
+    - "The archives are always open. Return when you seek knowledge."
+
+interaction_hints:
+  - "The Code Librarian guides players to lore fragments and story items."
+  - "Provides hints about where to find important files like .bash_profile and system_err.log."
+
+special_mechanics:
+  lore_guide: true
+  provides_hints: true
+  non_hostile: true

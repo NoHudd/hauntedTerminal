@@ -1,0 +1,51 @@
+name: The Mirror Sector
+description: A recursively self-referencing directory. /proc/self stares back at you. You see... yourself.
+detailed_description: |
+  /proc/self - The Mirror Sector
+
+  This is the Sudo Trial. The test that proves you are worthy of Superuser privileges.
+
+  /proc/self is a symbolic link that always points to the current process - to YOU. When you look into
+  this directory, you see your own runtime state. Your memory maps. Your open file descriptors.
+  Your entire existence, laid bare in process form.
+
+  But something is wrong. The reflection moves independently. Your shadow has become autonomous.
+
+  A figure emerges from the mirrored data - the Shadow Process. It has your stats. Your HP. Your attacks.
+  Your equipment. Everything you are, inverted and hostile. This is you at your worst - all your bugs,
+  your memory leaks, your undefined behaviors made manifest.
+
+  The Shadow speaks with your voice: "You think you deserve root access? You can't even defeat yourself."
+
+  This is the trial. To become a Superuser, you must first prove you can overcome your own limitations.
+  Defeat your Shadow Process. Prove you are more than the sum of your code.
+
+  Only then will you earn the Sudo Privileges Badge and the right to execute commands as root.
+
+  The mirror shows no mercy. The mirror shows only truth.
+
+  Fight.
+exits:
+  - usr_lib_arcane
+items: []
+# No loot - only the sudo_privileges_badge from defeating the Shadow
+npcs: []
+enemies:
+  - shadow_process
+# Mirrors player stats - created dynamically
+locked: false
+hidden: true
+discovery_requirement: sudo_quest_active
+zone: quantum
+zone_level: 8
+story_location: true
+boss_room: true
+trial_room: true
+sudo_trial: true
+special_mechanics:
+  - mirror_boss_stats
+  - grants_sudo_on_victory
+victory_rewards:
+  - sudo_privileges_badge
+story_flags_on_victory:
+  - sudo_trial_complete

@@ -1,0 +1,37 @@
+name: The Game Gallery
+description: A dusty, neglected sector where ancient games are stored. Most are Permission Denied.
+detailed_description: |
+  /usr/share/games - The Game Gallery
+
+  This forgotten corner of the filesystem holds the remnants of entertainment programs from the Before Times.
+  ASCII art games, text adventures, fortune cookies - all gathering digital dust.
+
+  Most files here are locked with "Permission Denied" - you'll need higher privileges (Level 15+) to access
+  them fully. But even now, you can sense something... unusual. A faint moo-ing sound echoes from deeper
+  within the directory structure.
+
+  On an ancient terminal, a log file scrolls endlessly:
+
+  "The Bovine sees all paths.
+   Seek the 'Games' where no one plays.
+   Look for the 'dot' file that does not wish to be seen.
+   Only those who know the ancient ways (ls -a) can find it."
+
+  Cowsay... fortune... these were tools of whimsy in an era when the system had time for jokes.
+  Now they're archaeological curiosities, pointing toward something hidden.
+exits:
+  - usr_lib_arcane
+  - cowsay_secret  # Hidden exit, only visible with ls -a or high perception
+items:
+  - cow_wisdom_log
+# Easter egg hint location
+npcs: []
+enemies:
+  - permission_denied.sys
+locked: false
+hidden: false
+zone: ancient
+zone_level: 15
+level_requirement: 15
+story_location: true
+easter_egg_zone: true

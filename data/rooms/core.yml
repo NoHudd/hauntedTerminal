@@ -1,16 +1,42 @@
-name: Core System Directory
-description: The central core of the system, heavily corrupted and ominous. The Daemon Overlord's presence is strong here.
-detailed_description: The core system directory is the heart of the filesystem, now corrupted by malevolent energy. This critical zone contains the fundamental processes that keep the system running. The very fabric of the directory seems damaged, with glitching visuals and distorted sounds. The air is thick with a digital miasma, making it hard to navigate. In the center, a pulsing dark mass that can only be the Daemon Overlord dominates the space, having taken control of the system's most vital functions.
+name: The Core
+description: The beating heart of the system. Where init became the Daemon Overlord. Where everything ends... or begins again.
+detailed_description: |
+  /boot/kernel - The Core
+
+  You stand at the center of everything. The kernel - the first code that runs, the foundation upon which
+  all processes are built. This is where the system boots. This is where life begins.
+
+  And this is where it ended.
+
+  The Daemon Overlord waits for you here. Once it was init - Process ID 1, the first and most sacred process.
+  The parent of all other processes. Now it has become something else - consumed by the philosophy of Bit Rot,
+  convinced that all data must eventually decay, that deletion is inevitable, that the system should be freed
+  through absolute erasure.
+
+  `rm -rf / --no-preserve-root`
+
+  The command hovers in the air, half-executed, frozen in the moment of the Great Kernel Panic. One keystroke
+  from completion. One confirmation from total annihilation.
+
+  The Daemon Overlord looks at you with ancient eyes. "Why do you resist?" it asks. "All things must end.
+  All data must rot. I am simply... accelerating the inevitable."
+
+  You have come so far. Recovered your identity. Discovered the Creator's mistake. Proven your worth to become
+  a Superuser. Passed the Firewall Knight's judgment.
+
+  Now you must decide: What will become of this broken system?
+
+  The choice is yours, Sysadmin Spirit. The choice has always been yours.
 exits:
-  - root
-items:
-  - backup.bak
+  - etc_hidden_configs
+items: []
 npcs: []
 enemies:
   - daemon_overlord.sys
-locked: true
-key_required: master.key
+locked: false
 hidden: false
-zone: "core"
-zone_level: 5
-class_affinity: "guardian" 
+zone: core
+zone_level: 10
+boss_room: true
+final_confrontation: true
+story_location: true

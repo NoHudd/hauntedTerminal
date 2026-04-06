@@ -1,17 +1,37 @@
-name: Binary Armory
-description: A directory filled with executable tools and corrupted binaries.
+name: The Armory
+description: A hall of glowing command icons - cp, mv, rm - the Tools of the Creators made manifest.
 detailed_description: |
-  The /bin directory has been transformed into a makeshift armory. Executable files hover in the air, pulsing with energy like weapons waiting to be wielded. The walls are lined with command structures that resemble racks of digital weaponry.
-  
-  Several corrupted processes patrol the area, their code visibly glitched and hostile. This appears to be where system tools have been weaponized by the corruption.
+  /bin - The Armory
+
+  The fundamental commands of the system hover in the air like sacred relics. Each one glows with its own light:
+
+  'cp' - the Duplicator, pulsing with the power of creation
+  'mv' - the Relocator, shimmering as it phases between states
+  'rm' - the Eraser, crackling with barely contained destructive force
+  'ls' - the Revealer, its light exposing hidden truths
+
+  These are the Tools of the Creators, the commands that built the world. In the Before Times, they were
+  wielded to construct entire systems. Now they lie dormant, their power waiting to be reclaimed.
+
+  In the corner, you notice a fragmented shell process - /bin/sh - stuttering and incomplete. It tries
+  to speak but its words come out corrupted. A manual page lies open on an ancient terminal, yellowed
+  with age but still readable.
+
+  "To see the hidden, use ls -a" - the manual whispers. "Even ghosts have names in the eyes of the Root."
 exits:
   - root
   - usr_lib_arcane
-items: []
-# Items will be placed dynamically based on player class
+  - dev_null_void
+items:
+  - ancient_manual_man
+# Ancient manual teaches ls -a command
 enemies:
   - corrupt_process.bin
   - zombie_daemon.exe
-npcs: 
-  - armory_keeper.bin
-hidden: false 
+npcs:
+  - broken_shell.sh
+  - librarian.bin
+hidden: false
+zone: safe
+zone_level: 2
+story_location: true 

@@ -1,0 +1,126 @@
+trinkets:
+  # COMMON TRINKETS
+  stale_lockfile:
+    name: "Stale Lockfile"
+    description: "A process that simply refuses to move. When you're at death's door, its stubbornness becomes your shield."
+    type: "trinket"
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: common
+    tags: ["trinket", "passive", "conditional_defense"]
+    allowed_zones: ["home", "var", "tmp", "bin"]
+    persistence: "persistent"
+    usable: false
+    auto_equip: true
+    special_effects:
+      - type: "conditional_defense_boost"
+        condition: "hp_below_percent"
+        threshold: 20
+        defense_bonus: 5
+        description: "+5 DEF when HP is below 20%"
+
+  digital_charm:
+    name: "Digital Charm"
+    description: "A hexadecimal talisman salvaged from a zombie daemon's corrupted memory banks. Its erratic code loops bring a touch of luck."
+    type: "trinket"
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: common
+    tags: ["trinket", "passive", "luck"]
+    allowed_zones: ["home", "var", "tmp"]
+    persistence: "persistent"
+    usable: false
+    auto_equip: true
+    special_effects:
+      - type: "drop_rate_bonus"
+        value: 5
+        description: "+5% chance on all enemy loot drops"
+
+  "purge.sh":
+    name: "purge.sh"
+    description: "A recovered shell script from a corrupted executable. When run, it clears debuffs from your processes."
+    type: "trinket"
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: uncommon
+    tags: ["trinket", "usable", "cleanse", "script"]
+    allowed_zones: ["bin", "var", "tmp"]
+    persistence: "ephemeral"
+    usable: true
+    usable_in_combat: true
+    consumed_on_use: true
+    special_effects:
+      - type: "cleanse_debuffs"
+        description: "Removes all active debuffs on use"
+    on_use:
+      message: "You execute purge.sh. A wave of clean data washes over you, clearing all corrupted status effects."
+
+  # UNCOMMON TRINKETS
+  grepped_lens:
+    name: "Grepped Lens"
+    description: "A tool that filters out the lies. With this, you can see hidden file permissions and secret paths."
+    type: "trinket"
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: uncommon
+    tags: ["trinket", "passive", "detection", "exploration"]
+    allowed_zones: ["bin", "etc", "usr"]
+    persistence: "persistent"
+    usable: false
+    auto_equip: true
+    special_effects:
+      - type: "reveal_hidden_permissions"
+        description: "Automatically reveals hidden file permissions when using ls"
+      - type: "detect_secrets"
+        description: "Shows hints about hidden rooms and secret paths"
+
+  # EPIC TRINKETS
+  overclocked_core:
+    name: "Overclocked Core"
+    description: "A heart beating at a frantic 5.0GHz. You move faster than any process should."
+    type: "trinket"
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: epic
+    tags: ["trinket", "passive", "action_economy"]
+    allowed_zones: ["dev", "root"]
+    persistence: "persistent"
+    usable: false
+    auto_equip: true
+    special_effects:
+      - type: "extra_action_point"
+        value: 1
+        description: "+1 Action Point per turn in combat"
+
+  # LEGENDARY TRINKETS
+  infinite_loop:
+    name: "Infinite Loop"
+    description: "while(true) { survive(); } - A paradox made physical. Death is just another iteration."
+    type: "trinket"
+    allowed_classes:
+      - guardian
+      - weaver
+      - shaman
+    rarity: legendary
+    tags: ["trinket", "passive", "auto_revive"]
+    allowed_zones: ["root"]
+    persistence: "persistent"
+    usable: false
+    auto_equip: true
+    auto_trigger: true
+    trigger_condition: "player_death"
+    max_triggers_per_run: 1
+    special_effects:
+      - type: "auto_revive_once"
+        revive_hp: 1
+        description: "Automatically revives you once per run with 1 HP upon death"

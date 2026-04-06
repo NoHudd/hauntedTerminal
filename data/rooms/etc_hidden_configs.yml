@@ -1,18 +1,37 @@
-name: Hidden Configuration Room
-description: A secretive chamber containing powerful system configurations.
+name: The Kernel Gate
+description: A checkpoint guarded by the Firewall Knight. Passage is Read-Only without proper permissions.
 detailed_description: |
-  This hidden area within the /etc directory contains the core configuration files for the entire system. The room is bathed in a soft blue light, with countless tiny configuration options floating in the air like stars.
-  
-  Ancient system secrets are stored here, providing immense power to those who understand how to properly configure and utilize them. The room appears to be untouched by the corruption, protected by its hidden nature.
-  
-  A message glows on the central terminal: "Configuration is power. Edit wisely."
+  /etc/iptables - The Kernel Gate
+
+  A massive gateway carved from firewall rules blocks your path. The gate pulses with packet-filtering logic,
+  its surface etched with access control lists that shift and change in real-time.
+
+  Standing before the gate is the Firewall Knight - an iptables process that has become sentient, bound by
+  ancient protocols to guard the path to the Kernel. Its armor is made of nested ACCEPT/REJECT rules, its
+  sword forged from DROP commands.
+
+  "This directory is Read-Only," the Knight intones, its voice echoing with administrative authority.
+  "Unless you carry the chmod Key, you shall pass no further into the Kernel."
+
+  The Knight's eyes glow with the light of port 443. It has been here since the Before Times, fulfilling
+  its purpose even as the world burned. It cannot be reasoned with. It cannot be bribed. It can only
+  recognize proper file permissions.
+
+  Beyond the gate, you can see the path to the Core - the beating heart of the system, where the
+  Daemon Overlord waits.
+
+  The Knight will not move. Not without the Key.
 exits:
   - usr_lib_arcane
-items:
-  - master_config.yml
-  - power_boost.conf
-  - health_overflow.conf
+  - core  # Only accessible with chmod_key
+items: []
 enemies: []
 npcs:
-  - sysadmin_ghost.bin
-hidden: true  # This room is completely hidden until discovered 
+  - firewall_knight.iptables
+locked: true
+key_required: chmod_key
+hidden: false
+zone: core
+zone_level: 6
+story_location: true
+gate_guardian: true

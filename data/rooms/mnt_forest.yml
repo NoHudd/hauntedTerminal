@@ -10,6 +10,7 @@ exits:
   - home_grove
   - opt_mage_tower
   - srv_warrior_tomb
+  - proc_secrets
 items: []
 # Items placed dynamically by class-based system
 enemies:

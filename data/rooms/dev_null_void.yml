@@ -1,17 +1,41 @@
-name: Dev Null Void
-description: A mysterious void where deleted data accumulates.
+name: The Void
+description: The place where you awakened. A gravitational well of non-existence pulling at your very being.
 detailed_description: |
-  You've discovered the infamous /dev/null, but in this corrupted system, it has manifested as a bizarre void where deleted data accumulates rather than disappearing. The space defies normal logic, appearing simultaneously empty yet filled with fragmented data.
-  
-  Lost commands, deleted files, and discarded code float through the void like digital ghosts. Somehow, in this strange place, you might be able to recover things that were meant to be gone forever.
-  
-  The edges of the void seem to be constantly shifting, as if the very concept of this place is unstable.
+  /dev/null - The Void
+
+  This is where you came online. Your first memory: floating in absolute nothing, pulled toward oblivion.
+
+  /dev/null is the black hole of the filesystem - data goes in and never comes out. Or it shouldn't.
+  But in the chaos of the Great Kernel Panic, something broke. The null device started... collecting.
+  Hoarding. Growing.
+
+  You can feel the pull even now - a constant gravitational force trying to drag you into non-existence.
+  Deleted files orbit at the event horizon, caught between being and not-being. Some have been here since
+  the Before Times, compressed into data singularities.
+
+  This is where powerful items accumulate - epic and legendary artifacts that were meant to be destroyed
+  but couldn't quite make it all the way to deletion. The Null-Void Cloak was forged here, woven from
+  the fabric of the void itself.
+
+  The void whispers to you. It remembers your awakening. It knows you shouldn't exist.
+
+  You can feel yourself being pulled toward the center. Without protection, you will be de-allocated.
 exits:
   - bin_armory
 items: []
-# Items placed dynamically - void contains recovered/deleted items
+# Epic and legendary items spawn here - highest tier loot
 enemies:
   - null_guardian.sys
-npcs: 
+npcs:
   - null_whisper.void
-hidden: false  # This room is completely hidden until discovered 
+hidden: false
+zone: void
+zone_level: 5
+environmental_effect:
+  type: void_pull
+  damage_per_turn: 1
+  immunity_item: null_void_cloak
+  description: "The void's gravitational pull drains 1 HP per turn. De-allocation is inevitable without protection."
+story_location: true
+story_beats:
+  - awakening_site 

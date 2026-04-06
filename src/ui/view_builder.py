@@ -1,0 +1,318 @@
+#!/usr/bin/env python3
+"""
+View Builder - Converts backend objects into view models for the UI.
+
+This is the only module that knows how to translate between backend data structures
+and frontend view models, maintaining clean separation of concerns.
+"""
+
+from typing import List, Optional
+import logging
+
+from src.ui.view_models import (
+    StatsView,
+    InventoryItemView,
+    InventoryView,
+    RoomView,
+    AttackView,
+    CombatView,
+    EnemyView
+)
+
+logger = logging.getLogger(__name__)
+
+# Mapping from room IDs to the simplest command to navigate there
+# These are the shortest, most intuitive paths for users to type
+ROOM_ID_TO_PATH = {
+    "home_grove": "/home",
+    "var_dungeon": "/var",
+    "mnt_forest": "/mnt",
+    "bin_armory": "/bin",
+    "usr_lib_arcane": "/usr",
+    "opt_mage_tower": "/opt",
+    "srv_warrior_tomb": "/srv",
+    "tmp_hidden_chamber": "/tmp",
+    "proc_secrets": "/proc",
+    "etc_hidden_configs": "/etc",
+    "dev_null_void": "/dev",
+    "ghost_hidden": "/ghost",
+    "archive": "/archive",
+    "deprecated_dir": "/deprecated",
+    "root": "/",
+    "core": "/core",
+    "cowsay_secret": "/cowsay",
+    "mirror_sector": "/mirror",
+    "usr_share_games": "/usr/share/games",
+}
+
+
+class ViewBuilder:
+    """Static methods to build view models from backend objects."""
+
+    @staticmethod
+    def build_stats_view(player) -> StatsView:
+        """
+        Build stats view from Player object.
+
+        Args:
+            player: Player object with health, damage, etc.
+
+        Returns:
+            StatsView with player statistics
+        """
+        try:
+            # Use calculate_damage() to get total damage including weapon and status effects
+            total_damage = player.calculate_damage() if hasattr(player, 'calculate_damage') else getattr(player, 'total_damage', 0)
+
+            return StatsView(
+                player_name=getattr(player, 'name', 'Unknown'),
+                health=getattr(player, 'health', 0),
+                max_health=getattr(player, 'max_health', 100),
+                damage=total_damage,
+                player_class=getattr(player, 'player_class', 'Unknown')
+            )
+        except Exception as e:
+            logger.error(f"Error building stats view: {e}", exc_info=True)
+            # Return safe default
+            return StatsView(
+                player_name='Unknown',
+                health=0,
+                max_health=100,
+                damage=0,
+                player_class='Unknown'
+            )
+
+    @staticmethod
+    def build_inventory_view(player) -> InventoryView:
+        """
+        Build inventory view from Player object.
+
+        Args:
+            player: Player object with inventory dict
+
+        Returns:
+            InventoryView with list of InventoryItemView objects
+        """
+        try:
+            inventory = getattr(player, 'inventory', {})
+            equipped_weapon = getattr(player, 'equipped_weapon', None)
+
+            items = []
+            for item_id, item_data in inventory.items():
+                if not isinstance(item_data, dict):
+                    continue
+
+                items.append(InventoryItemView(
+                    id=item_id,
+                    name=item_data.get('name', item_id),
+                    item_type=item_data.get('type', 'unknown'),
+                    rarity=item_data.get('rarity', 'common'),
+                    is_equipped=(item_id == equipped_weapon),
+                    damage=item_data.get('damage'),
+                    healing=item_data.get('healing')
+                ))
+
+            return InventoryView(items=items)
+        except Exception as e:
+            logger.error(f"Error building inventory view: {e}", exc_info=True)
+            return InventoryView(items=[])
+
+    @staticmethod
+    def build_room_view(world, room_id: str) -> RoomView:
+        """
+        Build room view from GameWorld object.
+
+        Args:
+            world: GameWorld object
+            room_id: ID of the room to build view for
+
+        Returns:
+            RoomView with room data
+        """
+        try:
+            rooms = getattr(world, 'rooms', {})
+            room_data = rooms.get(room_id, {})
+
+            # Convert exit IDs to simple paths for the exits panel
+            # Shows what the user needs to type (e.g., "/var")
+            exit_ids = room_data.get('exits', [])
+            exit_commands = []
+            for exit_id in exit_ids:
+                # Get the simple path from the mapping, fallback to room_id
+                path = ROOM_ID_TO_PATH.get(exit_id, exit_id)
+                exit_commands.append(path)
+
+            # Build enemy display names from live world state
+            enemy_ids = getattr(world, 'get_enemies_in_room', lambda r: [])(room_id)
+            enemy_names = [
+                world.enemies.get(eid, {}).get('name', eid)
+                for eid in enemy_ids
+                if eid in getattr(world, 'enemies', {})
+            ]
+
+            # Build NPC display names from live world state
+            npc_ids = getattr(world, 'get_npcs_in_room', lambda r: [])(room_id)
+            npc_names = [
+                world.npcs.get(nid, {}).get('name', nid)
+                for nid in npc_ids
+                if nid in getattr(world, 'npcs', {})
+            ]
+
+            return RoomView(
+                name=room_data.get('name', room_id),
+                description=room_data.get('description', 'An unknown location.'),
+                exits=exit_commands,
+                enemies=enemy_names,
+                npcs=npc_names,
+            )
+        except Exception as e:
+            logger.error(f"Error building room view for {room_id}: {e}", exc_info=True)
+            return RoomView(
+                name=room_id,
+                description='An unknown location.',
+                exits=[]
+            )
+
+    @staticmethod
+    def build_combat_view(player, enemy_data: dict, enemy_health: int,
+                         combat_system) -> CombatView:
+        """
+        Build combat view from player, enemy, and combat system.
+
+        Args:
+            player: Player object
+            enemy_data: Dict with enemy information
+            enemy_health: Current enemy health
+            combat_system: CombatSystem instance for attacks
+
+        Returns:
+            CombatView with all combat UI data
+        """
+        try:
+            # Build attack list
+            available_attacks = ViewBuilder.build_attack_list(player, combat_system)
+
+            # Build usable items (consumables/spells in inventory)
+            usable_items = []
+            inventory = getattr(player, 'inventory', {})
+            for item_id, item_data in inventory.items():
+                if not isinstance(item_data, dict):
+                    continue
+
+                item_type = item_data.get('type', '')
+                if item_type in ['consumable', 'spell']:
+                    usable_items.append(InventoryItemView(
+                        id=item_id,
+                        name=item_data.get('name', item_id),
+                        item_type=item_type,
+                        rarity=item_data.get('rarity', 'common'),
+                        is_equipped=False,
+                        damage=item_data.get('damage'),
+                        healing=item_data.get('healing')
+                    ))
+
+            return CombatView(
+                enemy_name=enemy_data.get('name', 'Unknown Enemy'),
+                enemy_health=enemy_health,
+                enemy_max_health=enemy_data.get('health', enemy_health),
+                player_health=getattr(player, 'health', 0),
+                player_max_health=getattr(player, 'max_health', 100),
+                available_attacks=available_attacks,
+                usable_items=usable_items
+            )
+        except Exception as e:
+            logger.error(f"Error building combat view: {e}", exc_info=True)
+            # Return minimal combat view
+            return CombatView(
+                enemy_name='Unknown Enemy',
+                enemy_health=enemy_health,
+                enemy_max_health=enemy_health,
+                player_health=getattr(player, 'health', 0),
+                player_max_health=getattr(player, 'max_health', 100),
+                available_attacks=[],
+                usable_items=[]
+            )
+
+    @staticmethod
+    def build_enemy_view(enemy_id: str, enemy_data: dict) -> EnemyView:
+        """
+        Build enemy view from enemy data.
+
+        Args:
+            enemy_id: Enemy identifier
+            enemy_data: Dict with enemy information
+
+        Returns:
+            EnemyView with enemy display data
+        """
+        try:
+            return EnemyView(
+                id=enemy_id,
+                name=enemy_data.get('name', enemy_id),
+                health=enemy_data.get('health', 50),
+                max_health=enemy_data.get('health', 50),
+                damage=enemy_data.get('damage', 10),
+                description=enemy_data.get('description', 'A hostile entity.')
+            )
+        except Exception as e:
+            logger.error(f"Error building enemy view for {enemy_id}: {e}", exc_info=True)
+            return EnemyView(
+                id=enemy_id,
+                name=enemy_id,
+                health=50,
+                max_health=50,
+                damage=10,
+                description='A hostile entity.'
+            )
+
+    @staticmethod
+    def build_attack_list(player, combat_system) -> List[AttackView]:
+        """
+        Build list of available attacks with cooldown info.
+
+        Args:
+            player: Player object
+            combat_system: CombatSystem instance
+
+        Returns:
+            List of AttackView objects
+        """
+        try:
+            player_id = getattr(player, 'player_id', None)
+            player_class = getattr(player, 'player_class', 'unknown')
+
+            if not player_id:
+                logger.warning("Player has no player_id, returning empty attack list")
+                return []
+
+            # Get available attacks from combat system
+            spells = getattr(player, 'spells', [])
+
+            available_attacks = combat_system.get_available_attacks(player, spells)
+
+            attack_views = []
+            # get_available_attacks returns a dict, so iterate over .values()
+            for attack in available_attacks.values():
+                if not isinstance(attack, dict):
+                    logger.warning(f"Attack is not a dict: {type(attack)}")
+                    continue
+
+                attack_id = attack.get('id', '')
+                # Cooldown info is already in the attack data from get_available_attacks()
+                cooldown_remaining = attack.get('cooldown_remaining', 0)
+                on_cooldown = attack.get('on_cooldown', False)
+
+                attack_view = AttackView(
+                    id=attack_id,
+                    name=attack.get('name', attack_id),
+                    bonus_damage=attack.get('bonus_damage', 0),
+                    cooldown=attack.get('cooldown', 0),
+                    cooldown_remaining=cooldown_remaining,
+                    on_cooldown=on_cooldown,
+                    accuracy=attack.get('accuracy', 100)
+                )
+                attack_views.append(attack_view)
+            return attack_views
+        except Exception as e:
+            logger.error(f"Error building attack list: {e}", exc_info=True)
+            return []

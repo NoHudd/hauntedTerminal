@@ -1,67 +1,97 @@
-#app-grid {
-    layout: grid;
-    grid-columns: 3fr 1fr; /* Already 75%/25% ratio */
-    grid-rows: 1fr;
+/* =============================================================================
+   LAYOUT
+   ============================================================================= */
+
+#main-area {
+    layout: vertical;
     height: 100%;
+    width: 3fr;
 }
 
 #output-panel {
-    border: solid blue;
+    border: round $primary;
     padding: 1 2;
-    height: 100%;
+    height: 1fr;
 }
 
 #sidebar {
     layout: grid;
-    grid-rows: 1fr 1fr 1fr; /* Inventory, Stats, and Exits panels */
+    grid-rows: 1fr 1fr 1fr;
     height: 100%;
+    width: 1fr;
 }
 
+/* =============================================================================
+   ROOM STRIP & ENTITY STRIP
+   ============================================================================= */
+
+#room-strip {
+    height: 3;
+    border: round $primary;
+    padding: 0 2;
+}
+
+#entity-strip {
+    height: 3;
+    border: round $accent;
+    padding: 0 2;
+}
+
+/* =============================================================================
+   SIDEBAR PANELS
+   ============================================================================= */
+
 #inventory-panel {
-    border: solid yellow;
+    border: round $warning;
     padding: 1 2;
 }
 
 #stats-panel {
-    border: solid green;
+    border: round $success;
     padding: 1 2;
 }
 
-#exits-panel {
-    border: solid blue;
-    padding: 1 2;
-}
-
-/* Combat-specific styling */
 #combat-panel {
-    border: solid red;
+    border: round $error;
     padding: 1 2;
-    background: $background 10%;
 }
 
-/* Combat mode - all panels red except inventory */
-.combat-active #exits-panel {
-    border: solid red;
+/* =============================================================================
+   COMBAT MODE — active state overrides
+   ============================================================================= */
+
+.combat-active #combat-panel {
+    border: round $error;
     border-title-style: bold;
     background: $error 5%;
 }
 
 .combat-active #stats-panel {
-    border: solid red;
+    border: round $error;
     border-title-style: bold;
     background: $error 5%;
 }
 
 .combat-active #output-panel {
-    border: solid red;
+    border: round $error;
     background: $error 5%;
 }
 
-/* Inventory stays yellow in combat */
+/* Inventory stays amber in combat */
 .combat-active #inventory-panel {
-    border: solid yellow;
+    border: round $warning;
     background: $warning 5%;
 }
+
+/* Combat input styling */
+.combat-active #input-field {
+    border: round $error;
+    background: $error 10%;
+}
+
+/* =============================================================================
+   HEALTH BARS
+   ============================================================================= */
 
 .combat-health-bar {
     transition: width 500ms;
@@ -76,8 +106,12 @@
     background: $warning;
 }
 
+/* =============================================================================
+   COMBAT ACTION BUTTONS
+   ============================================================================= */
+
 .combat-action-button {
-    border: solid cyan;
+    border: round $accent;
     background: $primary 20%;
     padding: 0 1;
     margin: 0 1;
@@ -85,16 +119,20 @@
 }
 
 .combat-action-button:focus {
-    border: solid white;
+    border: round white;
     background: $accent 30%;
     text-style: bold;
 }
 
 .combat-action-button-disabled {
-    border: solid $surface;
+    border: round $surface;
     background: $surface 10%;
     color: $surface;
 }
+
+/* =============================================================================
+   COMBAT LOG COLORS
+   ============================================================================= */
 
 .combat-log-player {
     color: $success;
@@ -127,83 +165,129 @@
     text-style: bold reverse;
 }
 
+/* =============================================================================
+   HEADER / FOOTER / INPUT
+   ============================================================================= */
+
 #header {
-    background: #000080; /* Dark blue */
+    background: $primary-darken-3;
     color: white;
     text-align: center;
 }
 
 Footer {
-    background: #000080; /* Dark blue */
+    background: $primary-darken-3;
     color: white;
 }
 
 #input-field {
-    border: solid cyan;
+    border: round $accent;
     height: 3;
     padding: 0 1;
 }
 
-/* Combat input styling */
-.combat-active #input-field {
-    border: solid red;
-    background: $error 10%;
+#input-field:focus {
+    border: round $accent;
+    background: $accent 10%;
 }
 
-/* Enhanced combat panel styling */
-#enhanced-combat-panel {
-    border: solid red;
-    padding: 1;
-    display: none;
-    background: $background;
-    border-subtitle-style: bold;
+.combat-active #input-field:focus {
+    border: round $error;
+    background: $error 15%;
 }
 
-.combat-active #enhanced-combat-panel {
-    display: block;
+/* =============================================================================
+   ROOM THEMING
+   ============================================================================= */
+
+.room-home #output-panel {
+    border: round $primary;
+    background: $primary 3%;
 }
 
-#combat-health-display {
-    padding: 1;
-    border: solid green;
-    height: 6;
+.room-dangerous #output-panel {
+    border: round $error;
+    background: $error 3%;
+}
+
+.room-safe #output-panel {
+    border: round $success;
+    background: $success 3%;
+}
+
+/* =============================================================================
+   GAME STATE BORDERS
+   ============================================================================= */
+
+.game-state-exploring #output-panel {
+    border: round $primary;
+    border-title-style: italic;
+}
+
+.game-state-in-combat #output-panel {
+    border: round $error;
     border-title-style: bold;
 }
 
-#combat-actions-container {
-    padding: 1;
-    height: 8;
-    overflow: auto;
-    border: solid cyan;
-    border-title-style: bold;
+.game-state-menu #output-panel {
+    border: round $primary;
 }
 
-#combat-log-display {
-    padding: 1;
-    border: solid blue;
-    height: 6;
-    overflow: auto;
-    border-title-style: bold;
+/* =============================================================================
+   STATUS EFFECTS
+   ============================================================================= */
+
+.status-poisoned {
+    background: $error-darken-3 15%;
 }
 
-#combat-effects-overlay {
-    height: 10;
-    text-align: center;
-    background: transparent;
+.status-blessed {
+    background: $success-darken-3 15%;
 }
 
-/* Combat widget specific styles */
-.animated-health-bar {
-    height: 3;
-    border: solid white;
-    padding: 1;
-    background: $background;
+.status-cursed {
+    background: $accent-darken-3 15%;
 }
 
-.combat-log-entry {
-    margin-bottom: 1;
-    padding: 0 1;
+/* =============================================================================
+   RARITY ITEM COLORS
+   ============================================================================= */
+
+.rarity-common {
+    color: white;
 }
+
+.rarity-uncommon {
+    color: $success;
+    text-style: italic;
+}
+
+.rarity-rare {
+    color: $primary;
+    text-style: bold;
+}
+
+.rarity-epic {
+    color: $accent;
+    text-style: bold;
+}
+
+.rarity-legendary {
+    color: $warning;
+    text-style: bold reverse;
+}
+
+/* =============================================================================
+   PANEL FLASH ANIMATION
+   ============================================================================= */
+
+.panel-update {
+    background: $accent 15%;
+}
+
+/* =============================================================================
+   FLOATING DAMAGE / HEAL NUMBERS
+   ============================================================================= */
 
 .floating-damage {
     text-align: center;
@@ -221,107 +305,21 @@ Footer {
     padding: 0 1;
 }
 
-/* Enhanced room theming */
-.room-home {
-    background: $primary 5%;
+/* =============================================================================
+   COMBAT MODE HINT MODAL
+   ============================================================================= */
+
+CombatModeHintScreen {
+    align: center middle;
 }
 
-.room-home #output-panel {
-    border: solid $primary;
-    background: $primary 3%;
-}
-
-.room-dangerous {
-    background: $error 5%;
-}
-
-.room-dangerous #output-panel {
-    border: solid $error;
-    background: $error 3%;
-}
-
-.room-safe {
-    background: $success 5%;
-}
-
-.room-safe #output-panel {
-    border: solid $success;
-    background: $success 3%;
-}
-
-/* Status effect styling */
-.status-poisoned {
-    background: #4a2c2a;
-    border: solid #8b5a2b;
-}
-
-.status-blessed {
-    background: #2a4a3c;
-    border: solid #5a8b6b;
-}
-
-.status-cursed {
-    background: #3c2a4a;
-    border: solid #6b5a8b;
-}
-
-/* Rarity-based item styling */
-.rarity-common {
-    color: white;
-}
-
-.rarity-uncommon {
-    color: green;
-    text-style: italic;
-}
-
-.rarity-rare {
-    color: blue;
-    text-style: bold;
-}
-
-.rarity-epic {
-    color: magenta;
-    text-style: bold;
-}
-
-.rarity-legendary {
-    color: yellow;
-    text-style: bold reverse;
-}
-
-/* Enhanced input field states */
-#input-field:focus {
-    border: solid $accent;
-    background: $accent 10%;
-}
-
-.combat-active #input-field:focus {
-    border: solid $error;
-    background: $error 15%;
-}
-
-/* Panel enhancement animations */
-#sidebar {
-}
-
-.panel-update {
-    background: $accent 15%;
-}
-
-/* Dynamic border styling for game states */
-.game-state-exploring #output-panel {
-    border: solid cyan;
-    border-title-style: italic;
-}
-
-.game-state-in-combat #output-panel {
-    border: solid $error;
-    border-title-style: bold;
-}
-
-.game-state-menu #output-panel {
-    border: solid $primary;
+CombatModeHintScreen > #combat-hint-content {
+    width: 70;
+    height: auto;
+    max-height: 20;
+    border: thick $warning;
+    background: $surface;
+    padding: 1 2;
 }
 
 /* =============================================================================
@@ -335,11 +333,11 @@ LogViewerScreen {
 LogViewerScreen > RichLog {
     width: 90%;
     height: 80%;
-    border: solid yellow;
+    border: round $warning;
     background: $surface;
     padding: 1;
 }
 
 LogViewerScreen > RichLog:focus {
-    border: solid yellow;
+    border: round $warning;
 }

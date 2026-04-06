@@ -86,6 +86,22 @@ class GameWorld:
         
         debug_log(f"[Instance {self.instance_id}] Restored world state with {len(self.item_locations)} items, {len(self.enemy_locations)} enemies, {len(self.npc_locations)} NPCs")
 
+    def spawn_tutorial_enemy(self, room_id: str = "home_grove") -> None:
+        """Spawn the scripted tutorial enemy in the given room.
+
+        The enemy is not persisted to save state — it re-spawns if the player
+        reloads before completing the tutorial.
+        """
+        enemy_id = "glitched_process.tmp"
+        if enemy_id not in self.enemies:
+            debug_log(f"Tutorial enemy {enemy_id} not found in enemies data")
+            return
+        if room_id not in self.enemy_locations:
+            self.enemy_locations[room_id] = []
+        if enemy_id not in self.enemy_locations[room_id]:
+            self.enemy_locations[room_id].append(enemy_id)
+            debug_log(f"Tutorial enemy {enemy_id} spawned in {room_id}")
+
     def scale_enemy_stats(self, enemy_data, player_class):
         """Scale enemy stats based on player class power scaling"""
         if not enemy_data or not player_class:
@@ -296,25 +312,21 @@ class GameWorld:
     
     def _ensure_home_grove_basics(self):
         """Ensure home_grove has essential consumables for good player experience."""
-        home_grove_items = self.item_locations.get("home_grove", [])
-        
-        # Check if there's already a health potion in home_grove
-        has_health_potion = False
-        for item_id in home_grove_items:
-            item_data = self.items.get(item_id, {})
-            if "healing" in item_data.get("tags", []) or "restoration" in item_data.get("tags", []):
-                has_health_potion = True
-                break
-        
-        # If no health potion, add one
-        if not has_health_potion:
-            health_potions = ["health_potion_minor", "health_potion_major"]
-            for potion_id in health_potions:
-                if potion_id in self.items:
-                    success = self._place_item_in_room(potion_id, self.items[potion_id], "home_grove")
-                    if success:
-                        debug_log(f"Added {potion_id} to home_grove to ensure basic consumables")
-                        break
+        # item_locations maps item_id -> room_id, so check it correctly
+        home_grove_items = [item_id for item_id, loc in self.item_locations.items() if loc == "home_grove"]
+
+        # Check if there's already a healing consumable in home_grove
+        has_health_item = any(
+            "healing" in self.items.get(item_id, {}).get("tags", [])
+            for item_id in home_grove_items
+        )
+
+        # health_packet is always placed via room YAML, so this is just a safety net
+        if not has_health_item and "health_packet" in self.items:
+            if "health_packet" not in self.item_locations:
+                self.item_locations["health_packet"] = "home_grove"
+                self.item_spawn_counts["health_packet"] = 1
+                debug_log("Added health_packet to home_grove as safety net")
     
     def _place_items_default(self):
         """Fallback to original placement algorithm."""
@@ -345,36 +357,9 @@ class GameWorld:
                 continue
             
             # Skip items that don't match the player's class if specified
-            if player_class:
-                should_skip = False
-                
-                # Check for class_restriction field
-                if "class_restriction" in item_data:
-                    # Handle both string and list restrictions
-                    class_restriction = item_data["class_restriction"]
-                    if isinstance(class_restriction, str):
-                        if class_restriction.lower() != player_class.lower():
-                            debug_log(f"Skipping item {item_id} - class restriction mismatch: {class_restriction} vs {player_class}")
-                            should_skip = True
-                    elif isinstance(class_restriction, list):
-                        if player_class.lower() not in [r.lower() for r in class_restriction]:
-                            debug_log(f"Skipping item {item_id} - class restriction mismatch: {class_restriction} vs {player_class}")
-                            should_skip = True
-                
-                # Also check for allowed_classes field (used in weapons)
-                elif "allowed_classes" in item_data:
-                    allowed_classes = item_data["allowed_classes"]
-                    if isinstance(allowed_classes, str):
-                        if allowed_classes.lower() != player_class.lower():
-                            debug_log(f"Skipping item {item_id} - allowed classes mismatch: {allowed_classes} vs {player_class}")
-                            should_skip = True
-                    elif isinstance(allowed_classes, list):
-                        if player_class.lower() not in [c.lower() for c in allowed_classes]:
-                            debug_log(f"Skipping item {item_id} - allowed classes mismatch: {allowed_classes} vs {player_class}")
-                            should_skip = True
-                
-                if should_skip:
-                    continue  # Skip this item, player can't use it
+            if player_class and not self._item_suitable_for_class(item_data, player_class):
+                debug_log(f"Skipping item {item_id} - class restriction mismatch vs {player_class}")
+                continue
             
             # Check if the item has already reached its max spawn count
             max_spawn = item_data.get("max_spawn", 1)
@@ -386,22 +371,11 @@ class GameWorld:
             
             # Get the item's rarity (default to "common" if not specified)
             rarity = item_data.get("rarity", "common")
-            
-            # Convert numeric rarity to string rarity if needed
-            if isinstance(rarity, (int, float)):
-                # Convert numeric rarity to one of our category strings
-                if rarity < 2:
-                    rarity = "legendary"
-                elif rarity < 5:
-                    rarity = "epic"
-                elif rarity < 10:
-                    rarity = "rare"
-                elif rarity < 20:
-                    rarity = "uncommon"
-                else:
-                    rarity = "common"
-                debug_log(f"Converted numeric rarity to string: {rarity} for item {item_id}")
-            
+
+            # Normalize rarity to standardized string format
+            rarity = self._normalize_rarity(rarity)
+            debug_log(f"Normalized rarity for item {item_id}: {rarity}")
+
             # Add item to the appropriate rarity group
             if rarity in items_by_rarity:
                 items_by_rarity[rarity].append((item_id, item_data))
@@ -540,16 +514,139 @@ class GameWorld:
         
         return True
     
+    def _normalize_rarity(self, rarity):
+        """Normalize rarity to standardized string format.
+
+        Supports both numeric (legacy) and string formats.
+        Valid rarities: common, uncommon, rare, epic, legendary, secret, unique
+        """
+        # If already a valid string rarity, return it
+        valid_rarities = ["common", "uncommon", "rare", "epic", "legendary", "secret", "unique"]
+        if isinstance(rarity, str) and rarity.lower() in valid_rarities:
+            return rarity.lower()
+
+        # Convert numeric rarity to string format (backward compatibility)
+        if isinstance(rarity, (int, float)):
+            if rarity < 2:
+                return "legendary"
+            elif rarity < 5:
+                return "epic"
+            elif rarity < 10:
+                return "rare"
+            elif rarity < 20:
+                return "uncommon"
+            else:
+                return "common"
+
+        # Default to common for unrecognized formats
+        return "common"
+
+    def _get_directory_rarity_multiplier(self, room_id):
+        """Get rarity spawn multipliers based on directory depth.
+
+        Directory hierarchy determines which rarities can spawn:
+        - /home, /var: Common items dominate
+        - /bin, /etc, /usr: Uncommon items more frequent
+        - /lib: Rare items appear
+        - /dev: Epic items spawn
+        - /root: Legendary items exclusive
+
+        Returns a dict of multipliers for each rarity tier.
+        """
+        # Default multipliers (all rarities allowed)
+        base_multipliers = {
+            "common": 1.0,
+            "uncommon": 1.0,
+            "rare": 1.0,
+            "epic": 1.0,
+            "legendary": 1.0,
+            "secret": 0,  # Never spawn naturally
+            "unique": 0   # Never spawn naturally
+        }
+
+        # Extract directory from room_id (e.g., "home_grove" -> "home")
+        room_dir = room_id.split('_')[0] if '_' in room_id else room_id
+
+        # Home and var: Common items only, some uncommon
+        if room_dir in ['home', 'var']:
+            return {
+                "common": 2.0,      # Double common spawn rate
+                "uncommon": 0.5,    # Reduced uncommon
+                "rare": 0,          # No rare
+                "epic": 0,          # No epic
+                "legendary": 0,     # No legendary
+                "secret": 0,
+                "unique": 0
+            }
+
+        # Bin, etc, usr: Common and uncommon, some rare
+        elif room_dir in ['bin', 'etc', 'usr']:
+            return {
+                "common": 1.2,
+                "uncommon": 1.5,    # Increased uncommon
+                "rare": 0.3,        # Small chance of rare
+                "epic": 0,
+                "legendary": 0,
+                "secret": 0,
+                "unique": 0
+            }
+
+        # Lib: Common, uncommon, rare
+        elif room_dir in ['lib']:
+            return {
+                "common": 0.8,
+                "uncommon": 1.2,
+                "rare": 1.5,        # Increased rare
+                "epic": 0.2,        # Small chance of epic
+                "legendary": 0,
+                "secret": 0,
+                "unique": 0
+            }
+
+        # Dev: Uncommon, rare, epic
+        elif room_dir in ['dev']:
+            return {
+                "common": 0.3,      # Reduced common
+                "uncommon": 0.8,
+                "rare": 1.2,
+                "epic": 2.0,        # Double epic spawn rate
+                "legendary": 0.1,   # Tiny chance of legendary
+                "secret": 0,
+                "unique": 0
+            }
+
+        # Root: All rarities, legendary exclusive
+        elif room_dir in ['root']:
+            return {
+                "common": 0.2,      # Very rare common
+                "uncommon": 0.5,
+                "rare": 1.0,
+                "epic": 1.5,
+                "legendary": 3.0,   # Triple legendary spawn rate
+                "secret": 0,        # Still requires special trigger
+                "unique": 0
+            }
+
+        # Default for unrecognized directories
+        return base_multipliers
+
     def _get_class_rarity_weights(self, power_scaling):
-        """Get rarity weights based on class power scaling."""
+        """Get rarity weights based on class power scaling.
+
+        Base weights follow the Great Kernel Panic specification:
+        Common: 60%, Uncommon: 25%, Rare: 10%, Epic: 4%, Legendary: 1%
+        These are modified by class power scaling.
+        """
         if power_scaling == "aggressive":
             # Weavers get more rare/powerful items
             return {
-                "common": 40,
-                "uncommon": 30,
-                "rare": 20,
-                "epic": 8,
-                "legendary": 2
+                "common": 45,
+                "uncommon": 28,
+                "rare": 17,
+                "epic": 7,
+                "legendary": 3,
+                "secret": 0,
+                "unique": 0
             }
         elif power_scaling == "defensive":
             # Guardians get more consistent, common items
@@ -558,15 +655,20 @@ class GameWorld:
                 "uncommon": 20,
                 "rare": 7,
                 "epic": 2,
-                "legendary": 1
+                "legendary": 1,
+                "secret": 0,
+                "unique": 0
             }
         else:  # balanced (shaman)
+            # Base Great Kernel Panic spawn rates
             return {
-                "common": 50,
+                "common": 60,
                 "uncommon": 25,
-                "rare": 15,
-                "epic": 7,
-                "legendary": 3
+                "rare": 10,
+                "epic": 4,
+                "legendary": 1,
+                "secret": 0,  # Secret items never spawn normally
+                "unique": 0   # Unique items never spawn normally
             }
     
     def _organize_rooms_by_zone(self):
@@ -616,8 +718,8 @@ class GameWorld:
             room_data = self.rooms.get(room_id, {})
             allowed_rarities = self._get_allowed_rarities_for_room(room_id, room_data)
 
-            # Select random item based on rarity weights and allowed rarities
-            item_id, item_data = self._select_weighted_item(suitable_items, rarity_weights, allowed_rarities)
+            # Select random item based on rarity weights, allowed rarities, and directory depth
+            item_id, item_data = self._select_weighted_item(suitable_items, rarity_weights, allowed_rarities, room_id)
 
             if not item_id:
                 break
@@ -664,20 +766,11 @@ class GameWorld:
     
     def _item_suitable_for_class(self, item_data, player_class):
         """Check if item is suitable for the player class."""
-        # Check class_restriction
-        if "class_restriction" in item_data:
-            restrictions = item_data["class_restriction"]
-            if isinstance(restrictions, str):
-                restrictions = [restrictions]
-            return player_class.lower() in [r.lower() for r in restrictions]
-        
-        # Check allowed_classes
         if "allowed_classes" in item_data:
             allowed = item_data["allowed_classes"]
             if isinstance(allowed, str):
                 allowed = [allowed]
             return player_class.lower() in [c.lower() for c in allowed]
-            
         return True  # No restrictions
     
     def _item_matches_preferences(self, item_data, loot_preferences):
@@ -690,8 +783,18 @@ class GameWorld:
                 return True
         return False
     
-    def _select_weighted_item(self, suitable_items, rarity_weights, allowed_rarities=None):
-        """Select an item based on rarity weights and optional rarity filter."""
+    def _select_weighted_item(self, suitable_items, rarity_weights, allowed_rarities=None, room_id=None):
+        """Select an item based on rarity weights and optional rarity filter.
+
+        Args:
+            suitable_items: List of (item_id, item_data) tuples
+            rarity_weights: Dict of base rarity weights from class
+            allowed_rarities: Optional list of allowed rarities for this room
+            room_id: Room ID to apply directory-depth multipliers
+
+        Returns:
+            (item_id, item_data) tuple or (None, None)
+        """
         if not suitable_items:
             return None, None
 
@@ -699,6 +802,8 @@ class GameWorld:
         items_by_rarity = {}
         for item_id, item_data in suitable_items:
             rarity = item_data.get("rarity", "common")
+            # Normalize rarity
+            rarity = self._normalize_rarity(rarity)
             if rarity not in items_by_rarity:
                 items_by_rarity[rarity] = []
             items_by_rarity[rarity].append((item_id, item_data))
@@ -713,8 +818,20 @@ class GameWorld:
         if not available_rarities:
             return None, None
 
-        weights = [rarity_weights[r] for r in available_rarities]
-        selected_rarity = random.choices(available_rarities, weights=weights, k=1)[0]
+        # Apply directory-depth multipliers if room_id provided
+        if room_id:
+            dir_multipliers = self._get_directory_rarity_multiplier(room_id)
+            # Combine class weights with directory multipliers
+            weights = [rarity_weights[r] * dir_multipliers.get(r, 1.0) for r in available_rarities]
+            # Filter out zero-weight rarities
+            filtered_rarities = [(r, w) for r, w in zip(available_rarities, weights) if w > 0]
+            if not filtered_rarities:
+                return None, None
+            available_rarities, weights = zip(*filtered_rarities)
+        else:
+            weights = [rarity_weights[r] for r in available_rarities]
+
+        selected_rarity = random.choices(list(available_rarities), weights=list(weights), k=1)[0]
 
         # Select random item from rarity
         return random.choice(items_by_rarity[selected_rarity])
@@ -750,33 +867,25 @@ class GameWorld:
 
     def place_starter_items(self, player_class: str) -> None:
         """Place class-appropriate starter items in home_grove after character creation."""
-        # Class-specific starter weapons
-        starter_weapons = {
-            "guardian": "protocol_shield",  # Common weapon for Guardian
-            "weaver": "basic_exploit",      # Common weapon for Weaver
-            "shaman": "minor_hex",          # Common weapon for Shaman
-        }
+        # Get starter weapon from class data
+        class_info = self.class_data.get(player_class.lower(), {})
+        starter_weapon = class_info.get("starter_weapon")
 
-        # Get class-appropriate starter weapon
-        starter_weapon = starter_weapons.get(player_class.lower())
         if starter_weapon and starter_weapon in self.items:
-            weapon_data = self.items[starter_weapon]
-            self._place_item_in_room(starter_weapon, weapon_data, "home_grove", max_items_per_room=2)
-            debug_log(f"Placed {starter_weapon} in home_grove for {player_class}")
+            # Force-place directly into item_locations — skip the item cap check so
+            # the weapon always lands in home_grove regardless of how many YAML items
+            # were pre-loaded into the room during world state initialization.
+            if starter_weapon not in self.item_locations:
+                self.item_locations[starter_weapon] = "home_grove"
+                self.item_spawn_counts[starter_weapon] = 1
+                debug_log(f"Placed {starter_weapon} in home_grove for {player_class}")
+            else:
+                debug_log(f"Starter weapon {starter_weapon} already placed in {self.item_locations[starter_weapon]}, moving to home_grove")
+                self.item_locations[starter_weapon] = "home_grove"
+        else:
+            logger.warning(f"Starter weapon '{starter_weapon}' for class '{player_class}' not found in items data")
 
-        # Place a random health consumable (common rarity)
-        consumables = [
-            item_id for item_id, data in self.items.items()
-            if data.get('type') == 'consumable'
-            and data.get('rarity') == 'common'
-            and 'health' in data.get('effect', {}).keys()
-        ]
-
-        if consumables:
-            health_item = random.choice(consumables)
-            health_data = self.items[health_item]
-            self._place_item_in_room(health_item, health_data, "home_grove", max_items_per_room=2)
-            debug_log(f"Placed {health_item} in home_grove as starter consumable")
+        # health_packet is already guaranteed in home_grove via the room YAML
 
     def _place_item_in_room(self, item_id, item_data, room_id, max_items_per_room=3):
         """Place a specific item in a specific room."""
@@ -834,17 +943,6 @@ class GameWorld:
             if self.room_states[room_id]["locked"]:
                 self.room_states[room_id]["locked"] = False
                 debug_log(f"Unlocked room {room_id}")
-                
-                # Emit room unlocked event
-                room_data = self.get_room(room_id)
-                event_bus.emit_event(
-                    EventType.ROOM_UNLOCKED,
-                    {
-                        "room": room_id,
-                        "room_name": room_data.get("name", room_id) if room_data else room_id
-                    },
-                    "GameWorld"
-                )
                 return True
             else:
                 debug_log(f"Room {room_id} is already unlocked")
@@ -960,19 +1058,6 @@ class GameWorld:
             # Mark item as permanently removed (won't respawn from room YAML)
             self.removed_items.add(item_id)
             debug_log(f"Marked item {item_id} as permanently removed")
-
-            # Emit event for other systems
-            item_data = self.get_item(item_id)
-            event_bus.emit_event(
-                EventType.ITEM_TAKEN,
-                {
-                    "item_id": item_id,
-                    "room": room,
-                    "item_type": item_data.get("type") if item_data else "unknown",
-                    "rarity": item_data.get("rarity", "common") if item_data else "common"
-                },
-                "GameWorld"
-            )
             return True
         debug_log(f"WARNING: Attempted to remove item {item_id} that is not in any room")
         return False
@@ -986,18 +1071,6 @@ class GameWorld:
         if item_id in self.removed_items:
             self.removed_items.remove(item_id)
             debug_log(f"Removed {item_id} from permanently removed list (item was dropped)")
-
-        # Emit event for other systems
-        item_data = self.get_item(item_id)
-        event_bus.emit_event(
-            EventType.ITEM_DROPPED,
-            {
-                "item_id": item_id,
-                "room": room_id,
-                "item_type": item_data.get("type") if item_data else "unknown"
-            },
-            "GameWorld"
-        )
     
     def remove_enemy_from_room(self, enemy_id):
         """Remove an enemy from its current room (when defeated)"""

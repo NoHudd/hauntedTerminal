@@ -58,12 +58,39 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
 
 ## 🎮 Getting Started
 
-### Prerequisites
+### Quick Start (Recommended)
 
+**The easiest way to start playing!** Just run the appropriate start script for your system:
+
+**On Mac/Linux:**
+```bash
+./start.sh
+```
+
+**On Windows:**
+```cmd
+start.bat
+```
+
+The start script will automatically:
+- Check for Python installation
+- Create a virtual environment
+- Install all dependencies
+- Launch the game with a cool startup sequence
+
+**First time setup is completely automatic!**
+
+---
+
+### Manual Installation (Alternative)
+
+If you prefer to set things up manually:
+
+#### Prerequisites
 - Python 3.7 or higher
 - pip (Python package installer)
 
-### Installation
+#### Steps
 
 1. Clone the repository:
    ```bash
@@ -71,7 +98,7 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
    cd HFSE
    ```
 
-2. Create a virtual environment (recommended):
+2. Create a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -82,12 +109,10 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
    pip install -r requirements.txt
    ```
 
-### Running the Game
-
-Start your journey into the corrupted filesystem:
-```bash
-python main.py
-```
+4. Run the game:
+   ```bash
+   python main.py
+   ```
 
 ---
 
@@ -289,18 +314,110 @@ SKIP_INTRO = True
 
 ```
 HFSE/
-├── main.py                 # Entry point
-├── src/
-│   ├── game_engine.py      # Core game loop
-│   ├── game_world.py       # World state management
-│   ├── player.py           # Player class, stats, inventory
-│   ├── command_handler.py  # Command parsing
-│   ├── combat.py           # Combat system
-│   ├── events.py           # Event-driven architecture
-│   ├── ui/                 # Textual UI components
-│   └── ...
-├── data/                   # YAML content files
-└── saves/                  # Player save files
+│
+├── main.py                         # Entry point — starts the Textual app
+├── start.sh / start.bat            # Auto-setup scripts (venv + deps + launch)
+├── requirements.txt                # Python dependencies
+│
+├── src/                            # All game logic
+│   ├── game_engine.py              # Orchestrator — wires player, world, UI, events together
+│   │                               #   handles game states, new game / restart / load flows
+│   ├── game_world.py               # World state — rooms, item/enemy locations, lock states,
+│   │                               #   room discovery, loot placement
+│   ├── game_states.py              # GameState enum (MENU, PLAYING, IN_COMBAT, GAME_OVER…)
+│   ├── state_manager.py            # Enforces valid state transitions, emits UI_STATE_CHANGED
+│   ├── player.py                   # Player stats, inventory, HP/damage, move_to(), to/from_dict()
+│   ├── command_handler.py          # Parses player input → routes to action handlers
+│   │                               #   (cd, ls, use, take, talk, attack, flee…)
+│   │                               #   owns room_aliases dict (path → room_id)
+│   ├── combat.py                   # Turn-based combat session, attack resolution,
+│   │                               #   cooldowns, emits COMBAT_STARTED/FRAME_UPDATED/ENDED
+│   ├── events.py                   # EventType enum + EventBus (pub/sub message bus)
+│   ├── data_loader.py              # Loads all YAML files into dicts; caches results
+│   ├── save.py                     # Save/load JSON to saves/ using player.to_dict()
+│   ├── rarity.py                   # Single RARITIES dict (color, emoji, sort order per tier)
+│   │
+│   └── ui/
+│       ├── textual_ui.py           # Textual TUI app — panels, input, event subscriptions,
+│       │                           #   combat UI, inventory display, game-over screen
+│       ├── ui_interface.py         # UIProtocol — interface contract between engine and UI
+│       ├── ui.css                  # Textual CSS styles for all panels and states
+│       ├── view_builder.py         # Converts raw backend objects → ViewModels (pure dicts)
+│       │                           #   owns ROOM_ID_TO_PATH display map
+│       └── view_models.py          # Frozen dataclasses: StatsView, InventoryView,
+│                                   #   RoomView, CombatView, AttackView, EnemyView
+│
+├── data/                           # All game content — edit YAML to change the game
+│   ├── classes.yaml                # Class definitions: stats, attacks list, display block,
+│   │                               #   loot_preference tags, starter weapon
+│   ├── attacks.yml                 # Every attack: damage bonus, accuracy, cooldown, effects
+│   ├── abilities.yaml              # Passive/active ability definitions
+│   │
+│   ├── rooms/                      # One .yml per room
+│   │   ├── home_grove.yml          # Starting area (/home)
+│   │   ├── var_dungeon.yml         # /var — Memory Banks
+│   │   ├── bin_armory.yml          # /bin — The Armory
+│   │   ├── usr_lib_arcane.yml      # /usr/lib — Arcane Library
+│   │   ├── mnt_forest.yml          # /mnt — Mount Forest (hub to optional areas)
+│   │   ├── tmp_hidden_chamber.yml  # /tmp — The Forge (hidden)
+│   │   ├── etc_hidden_configs.yml  # /etc — Hidden Configs
+│   │   ├── dev_null_void.yml       # /dev/null — The Void
+│   │   ├── proc_secrets.yml        # /proc — Process Secrets (hidden)
+│   │   ├── ghost_hidden.yml        # Hidden ghost area
+│   │   ├── mirror_sector.yml       # /proc/self — Sudo Trial arena
+│   │   ├── opt_mage_tower.yml      # /opt — Mage Tower (Weaver class-restricted)
+│   │   ├── srv_warrior_tomb.yml    # /srv — Warrior Tomb (Guardian class-restricted)
+│   │   ├── usr_share_games.yml     # Easter egg path
+│   │   ├── cowsay_secret.yml       # Great ASCII Bovine sanctuary
+│   │   ├── archive.yml             # /archive — lore room
+│   │   ├── deprecated_dir.yml      # /deprecated — legacy content
+│   │   ├── root.yml                # /root
+│   │   └── core.yml                # /boot/kernel — Final boss room
+│   │
+│   ├── items/                      # Items split by category
+│   │   ├── weapons.yaml            # Swords, staves, shields — damage, allowed_classes
+│   │   ├── armor.yaml              # Armor pieces — defense, class restrictions
+│   │   ├── consumables.yaml        # Health packets, buffs — combat_effects block
+│   │   ├── keys.yaml               # Keys — unlocks: [room_id] list
+│   │   ├── crafting.yaml           # Crafting materials for Forge Master recipes
+│   │   ├── trinkets.yaml           # Passive effect items
+│   │   └── lore_fragments.yaml     # Readable files that reveal story
+│   │
+│   ├── enemies/                    # One .yml per enemy
+│   │   ├── daemon_overlord.sys.yml # Final boss
+│   │   ├── corruption_lord.exe.yml # Sub-boss
+│   │   ├── shadow_process.yml      # Sudo Trial enemy (mirror of player)
+│   │   └── ...                     # 15 total enemies
+│   │
+│   └── npcs/                       # One .yml per NPC
+│       ├── echo.usr.yml            # ECHO — tutorial guide
+│       ├── firewall_knight.iptables.yml
+│       ├── forge_master.tmp.yml    # Crafting NPC
+│       ├── null_whisper.void.yml   # Lore NPC
+│       ├── librarian.bin.yml
+│       ├── great_ascii_bovine.cow.yml  # Easter egg NPC
+│       └── ...                     # 15 total NPCs
+│
+├── config/
+│   ├── settings.py                 # Active config (gitignored)
+│   ├── settings.example.py         # Template — copy to settings.py
+│   └── dev_config.py               # DEV_MODE, DEBUG_MODE, SKIP_INTRO flags
+│
+├── docs/
+│   └── TODO.md                     # Master task list (bugs, architecture, features)
+│
+├── storyHFSE/                      # Narrative design documents
+│   ├── world.md                    # World lore and zone descriptions
+│   ├── archetypes_entities.md      # NPC/enemy character bibles
+│   ├── item_registry.md            # Canonical item list and story roles
+│   └── env_logs.md                 # In-world log files and lore text
+│
+├── utils/
+│   ├── debug_tools.py              # debug_log() helper used throughout codebase
+│   ├── particle_animation.py       # Startup animation
+│   └── typewriter.py               # Typewriter text effect
+│
+└── saves/                          # Auto-created — JSON save files per run
 ```
 
 ---
@@ -364,4 +481,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
                 ||     ||
 ```
 
-*Type `python main.py` to begin your journey.*
+*Type `./start.sh` (Mac/Linux) or `start.bat` (Windows) to begin your journey.*

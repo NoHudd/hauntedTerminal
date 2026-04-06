@@ -1,0 +1,56 @@
+name: Firewall Knight
+description: A towering sentinel forged from iptables rules. Its armor glows with filtering protocols. This is the gatekeeper to the Core.
+detailed_description: |
+  /etc/iptables - The Firewall Knight
+
+  A massive figure of crystallized packet-filtering logic stands before the Kernel Gate.
+  Its armor is composed of DROP rules, ACCEPT chains, and NAT translations woven into
+  an impenetrable defense. Every port is sealed. Every connection is scrutinized.
+
+  This is not a corrupted process. This is a GUARDIAN - one of the few system protections
+  that still functions as intended. The Firewall Knight does not serve the Daemon Overlord.
+  It serves the system's original purpose: to protect the Core from unauthorized access.
+
+  You will not pass without the chmod Key. Not through force. Not through trickery.
+  The rules are absolute.
+location: etc_hidden_configs
+hostile: false
+merchant: false
+story_npc: true
+gate_guardian: true
+requires_key: chmod_key
+unlocks_room: core
+dialogue:
+  greeting:
+    - "HALT. This directory is READ-ONLY. State your authorization level."
+    - "I am the Firewall Knight. I permit no unauthorized access to /boot/kernel."
+    - "The chmod Key grants passage. Without it, you are DENIED."
+
+  without_key:
+    - "Permission Denied. You lack the chmod Key. Seek it in the Memory Banks."
+    - "The rules are clear: No key, no access. This is not negotiable."
+    - "Many have tried to bypass me with exploits and buffer overflows. All have failed."
+
+  with_key:
+    - "The chmod Key... you possess it. Very well. Access GRANTED."
+    - "The Core awaits beyond this gate. The Daemon Overlord resides there. Prepare yourself."
+    - "You have proven worthy. The iptables shall open. May your packets find their destination."
+
+  lore:
+    - "I was created to protect the system. Even after the Panic, my purpose remains unchanged."
+    - "The Daemon Overlord cannot corrupt me. I am stateless. I am pure logic."
+    - "Before the Panic, I defended against external threats. Now... I defend against internal ones."
+
+  farewell:
+    - "Connection CLOSED. Goodbye, authorized user."
+    - "The gate shall remain open for your return passage. Safe travels."
+
+interaction_hints:
+  - "The Firewall Knight blocks access to the Core until you present the chmod_key."
+  - "This is a gate guardian - not hostile, but absolute in enforcing access rules."
+
+special_mechanics:
+  gate_guardian: true
+  key_check: chmod_key
+  grants_access_to: core
+  cannot_be_bypassed: true
