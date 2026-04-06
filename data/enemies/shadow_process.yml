@@ -1,0 +1,37 @@
+name: Shadow Process
+short_description: Your reflection made hostile. Everything you are, inverted and turned against you.
+description: |
+  The Shadow Process is not a traditional enemy. It is YOU - your runtime state pulled from /proc/self
+  and inverted into a hostile entity. It shares your HP, your damage, your attacks. It knows your every move
+  because it IS your every move. To defeat it, you must overcome your own limitations.
+health: 100
+damage: 10
+is_boss: true
+auto_attack: true
+mirrors_player: true
+sudo_trial_boss: true
+dialogue:
+  combat_start:
+    - "You think you deserve root access? You can't even defeat yourself."
+    - "I am everything you fear about yourself. Your weaknesses made flesh."
+    - "Look at me. I am your segmentation faults. Your race conditions. Your infinite loops."
+  taking_damage:
+    - "You hurt yourself. Fitting."
+    - "Every blow you land is a blow against your own reflection."
+  dealing_damage:
+    - "Your own attacks turned against you. How does it feel?"
+    - "I know your every move. I AM your every move."
+  on_defeat:
+    - "You... have proven... worthy. I was never your enemy. I was... your test."
+    - "Sudo privileges... granted. You are... the superuser now."
+drops: []
+on_defeat:
+  message: The Shadow Process dissolves into data fragments as the mirror shatters. The Sudo Privileges Badge materializes before you.
+  grants: sudo_privileges_badge
+  story_flag: sudo_trial_complete
+special_mechanics:
+  mirrors_player_stats: true
+  dynamic_health: true
+  dynamic_damage: true
+  cannot_flee: true
+  respawns_on_trial_retry: true

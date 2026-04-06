@@ -9,7 +9,7 @@ dialogue: "M-m-m-memmorryyy...n-need...m-more...RAM..."
 drops:
   - item: digital_charm
     chance: 20
-  - item: health_potion_minor
+  - item: health_packet
     chance: 50
 on_defeat:
   message: The zombie daemon process finally terminates, leaving behind fragments of its corrupted code. 

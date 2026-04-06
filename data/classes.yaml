@@ -1,39 +1,75 @@
 classes:
   guardian:
     name: "Guardian"
-    description: "Defenders of the core, wielding shields and restoration protocols."
+    description: "Sentinel Protocol - Defensive layers turned sentient. You are the firewall that refuses to fall."
     base_health: 120
     base_damage: 10
-    starter_weapon: "protocol_shield"
+    starter_weapon: "segfault_shield"
     starter_abilities:
       - system_shield
       - core_recovery
     preferred_zones: ["safe", "fortified", "core"]
-    power_scaling: "defensive"  # balanced, aggressive, defensive
+    power_scaling: "defensive"
     loot_preference: ["shields", "armor", "healing"]
+    attacks:
+      - strike
+      - power_strike
+      - shield_bash
+    display:
+      color: blue
+      hp_label: "High Health (120 HP)"
+      hp_color: green
+      dmg_label: "Moderate Damage (10 DMG)"
+      dmg_color: yellow
+      weapon_name: "Segfault Shield"
+      echo_description: "a defender of the core systems, wielding shields and restoration protocols"
 
   weaver:
     name: "Weaver"
-    description: "Aggressive code manipulators who exploit system vulnerabilities."
+    description: "Script-Binder - Automated engines that treat reality as code. You rewrite existence itself."
     base_health: 90
     base_damage: 15
-    starter_weapon: "byte_blaster"
+    starter_weapon: "null_pointer"
     starter_abilities:
       - code_injection
       - exploit_vulnerability
     preferred_zones: ["corrupted", "volatile", "dangerous"]
     power_scaling: "aggressive"
-    loot_preference: ["exploits", "hacking_tools", "offensive"]
+    loot_preference: ["exploit", "script", "offensive"]
+    attacks:
+      - arcane_bolt
+      - fireball
+      - frost_nova
+    display:
+      color: red
+      hp_label: "Moderate Health (90 HP)"
+      hp_color: yellow
+      dmg_label: "High Damage (15 DMG)"
+      dmg_color: green
+      weapon_name: "Null Pointer"
+      echo_description: "an aggressive code manipulator who exploits system vulnerabilities"
 
   shaman:
     name: "Shaman"
-    description: "Mystics who commune with the lost data and heal corrupted sectors."
+    description: "Restoration Echo - Born from legacy recovery partitions. You heal the wounds of the Great Kernel Panic."
     base_health: 100
     base_damage: 8
-    starter_weapon: "echo_staff"
+    starter_weapon: "daemon_whisper"
     starter_abilities:
       - data_stitch
       - ghost_sense
     preferred_zones: ["mystical", "ancient", "natural"]
     power_scaling: "balanced"
-    loot_preference: ["staves", "totems", "restoration"] 
+    loot_preference: ["staves", "mystical", "healing"]
+    attacks:
+      - nature_strike
+      - ancient_fury
+      - healing_strike
+    display:
+      color: green
+      hp_label: "Balanced Health (100 HP)"
+      hp_color: yellow
+      dmg_label: "Low Damage (8 DMG)"
+      dmg_color: red
+      weapon_name: "Daemon Whisper"
+      echo_description: "a mystic who communes with lost data and heals corrupted sectors"

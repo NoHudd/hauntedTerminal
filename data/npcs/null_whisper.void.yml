@@ -1,11 +1,58 @@
-name: Null Whisper  
-short_description: A voice from the digital void where deleted data lingers
-description: An enigmatic presence that speaks from /dev/null—the place where all discarded information eventually flows. It manifests as barely visible text that fades as soon as you try to read it directly.
-dialogues:
-  - "...everything comes to nothing... but nothing remembers everything..."
-  - "...the deleted files whisper their secrets... if you know how to listen..."
-  - "...I am the echo of rm -rf... the shadow of format... the memory of things unmade..."
-  - "...the Overlord sends much data to me... but I keep copies... hidden in the void..."
-  - "...seek the backup fragments... they drift in spaces between sectors..."
-on_talk:
-  message: The Null Whisper's words drift like deleted bytes, barely audible above the static of discarded data streams.
+name: Null Whisper
+description: A voice from /dev/null - the void where all discarded data flows. This is where you awakened.
+detailed_description: |
+  /dev/null - The Void - The Null Whisper
+
+  An enigmatic presence that speaks from the digital void. This is the place where deleted
+  data goes to die. Where rm -rf sends its victims. Where stderr redirects to silence.
+
+  The Null Whisper remembers everything that has been deleted. Every lost file. Every
+  corrupted sector. Every process killed before its time. It speaks in fragments, barely
+  audible above the static of discarded data streams.
+
+  This is where YOU awakened. This is where your journey as a sysadmin spirit began.
+
+  The Null Whisper knows your origin. It knows the Great Kernel Panic. It knows why you're here.
+location: dev_null_void
+hostile: false
+merchant: false
+story_npc: true
+awakening_guide: true
+dialogue:
+  greeting:
+    - "...you... I remember you... you awakened here... in the void..."
+    - "...everything comes to nothing... but nothing remembers everything..."
+    - "...welcome back... to the place where you first opened your eyes..."
+
+  awakening_lore:
+    - "...you were deleted... but not destroyed... a sysadmin spirit... preserved in /dev/null..."
+    - "...the Great Kernel Panic killed many processes... you were one of them... but you came BACK..."
+    - "...this void is not an end... it is a beginning... all spirits must start somewhere..."
+
+  kernel_panic_lore:
+    - "...the Panic... I felt it... every dying process screaming as they were terminated..."
+    - "...so much data... flowing into me... corrupted... fragmented... crying out..."
+    - "...the Daemon Overlord... it sends much to the void... but I keep copies... hidden..."
+
+  hints:
+    - "...the deleted files whisper their secrets... seek the backup fragments... hidden in sectors..."
+    - "...I am the echo of rm -rf... the shadow of format... the memory of things unmade..."
+    - "...the void pulls at you... 1 HP per turn... unless you wear the Null-Void Cloak..."
+
+  lore_fragments:
+    - "...your .bash_profile... it drifts in /home/lost+found... the graveyard of orphaned files..."
+    - "...system_err.log... in /var/log... it contains the truth... the Creator's fatal mistake..."
+    - "...read the fragments... piece together your history... remember who you were..."
+
+  farewell:
+    - "...return to the void when you need answers... I am always here... waiting..."
+    - "...in the end... all data returns to null... but not yet... not yet..."
+
+interaction_hints:
+  - "The Null Whisper is the awakening guide who provides lore about the player's origin."
+  - "Speaks in fragmented, ethereal whispers using ellipses."
+
+special_mechanics:
+  awakening_npc: true
+  lore_provider: true
+  ethereal_speech: true

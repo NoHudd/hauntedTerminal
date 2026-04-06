@@ -1,22 +1,37 @@
-name: Variable Dungeon
-description: A volatile region of the filesystem filled with darkness and danger.
+name: The Memory Banks
+description: A dark library where the history of the Great Kernel Panic is recorded in scrolling text.
 detailed_description: |
-  The /var directory has been twisted into a nightmarish dungeon. Data streams flow like rivers of darkness between unstable structures that shift and change without warning. The very foundation of this directory seems in constant flux.
-  
-  Warning messages flash periodically through the environment, and the sounds of corrupted processes echo from deeper within. This place is clearly dangerous, but may hold valuable resources and paths to other areas.
+  /var/log - The Memory Banks
+
+  Row upon row of towering shelves stretch into darkness, each containing millions of log files.
+  The air hums with the constant whisper of write operations as the system continues to record its pain.
+
+  Crash reports scroll endlessly across the walls in glowing amber text. You see the same timestamps
+  repeated over and over: the moment of the Great Kernel Panic, burned into the system's memory forever.
+
+  [CRITICAL] [CRITICAL] [CRITICAL] - the words echo through the halls.
+
+  In a dusty alcove, you spot a terminal still displaying the original error log. The truth about
+  what caused the apocalypse might be written here, preserved in the Memory Banks.
+
+  Some of the newer logs seem to be tracking... you. Your movements. Your awakening. The system is watching.
 exits:
   - usr_lib_arcane
   - home_grove
+  - tmp_hidden_chamber
 items:
-  - corrupted_data.dat
-  - tmp_key
+  - system_err_log
+  - chmod_key
+# Story items - Creator's Typo discovery and Firewall Knight key
 enemies:
   - var_daemon.sys
   - data_corruptor.exe
 npcs: []
-locked: true
-key_required: lib_key
+locked: false
 hidden: false
-zone: "dangerous"
+zone: dangerous
 zone_level: 3
-class_affinity: "weaver" 
+class_affinity: weaver
+story_location: true
+story_beats:
+  - typo_discovered

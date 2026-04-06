@@ -3,6 +3,7 @@ import yaml
 import random
 from utils.debug_tools import debug_log
 from src.events import event_bus, EventType
+from src.ui.view_builder import ViewBuilder
 
 class CombatSystem:
     """Handles all combat-related functionality with a unified approach."""
@@ -34,18 +35,10 @@ class CombatSystem:
         return attack
     
     def get_attacks_for_class(self, player_class):
-        """Get available attacks for a specific character class."""
-        if player_class == "fighter":
-            attacks = ["strike", "power_strike", "shield_bash"]
-        elif player_class == "mage":
-            attacks = ["arcane_bolt", "fireball", "frost_nova"]
-        elif player_class == "celtic":
-            attacks = ["nature_strike", "ancient_fury", "healing_strike"]
-        elif player_class == "guardian":
-            attacks = ["strike", "power_strike", "shield_bash"]  # Guardian uses fighter attacks
-        else:
-            attacks = ["strike"]  # Default attack for unknown class
-            
+        """Get available attacks for a specific character class from classes.yaml."""
+        from src.data_loader import load_class_data
+        class_data = load_class_data()
+        attacks = class_data.get(player_class, {}).get("attacks", ["strike"])
         debug_log(f"Available attacks for {player_class} class: {attacks}")
         return attacks
     
@@ -154,18 +147,20 @@ class CombatSystem:
             enemy_damage_reduction = attack_data.get('enemy_damage_reduction', 0)
         
         debug_log(f"Attack '{attack_id}' results: damage={damage}, healing_amount={healing_amount}, enemy_damage_reduction={enemy_damage_reduction}")
-        
-        message = f"You use {attack_data['name']} for {damage} damage!"
-        if bonus_damage > 0: # Show total damage and bonus if bonus damage exists
-            message = f"You use {attack_data['name']} for {damage} damage ({player_base_damage} base + {bonus_damage} weapon bonus)!"
-        else: # Otherwise, just show total damage
-            message = f"You use {attack_data['name']} for {damage} damage!"
+
+        # Build message with player name for combat log
+        player_name = getattr(player, 'name', 'Player')
+        attack_name = attack_data['name']
+
+        message = f"{player_name} used {attack_name} ({damage} dmg)"
+        if bonus_damage > 0:
+            message = f"{player_name} used {attack_name} ({damage} dmg: {player_base_damage} base + {bonus_damage} bonus)"
 
         if healing_amount > 0:
-            message += f" You also heal for {healing_amount} health."
-        
+            message += f" [+{healing_amount} HP]"
+
         if enemy_damage_reduction > 0:
-            message += f" Enemy damage reduced by {int(enemy_damage_reduction * 100)}% next turn."
+            message += f" [Enemy dmg -{int(enemy_damage_reduction * 100)}%]"
             
         return {
             "damage": damage,
@@ -230,7 +225,7 @@ class CombatSystem:
         base_attacks_ids = self.get_attacks_for_class(player_class) # This returns list of IDs
         # Add learned spells (which are also attack_ids)
         spell_attack_ids = []
-        if learned_spells and player_class in ["mage", "celtic"]: # Ensure only spellcasting classes get spells
+        if learned_spells and player_class in ["weaver", "shaman", "mage", "celtic"]: # Ensure only spellcasting classes get spells
             for spell in learned_spells: # Assuming learned_spells is a list of spell dicts
                 spell_id = spell.get('spell_name', '').lower().replace(' ', '_') # Convert to attack_id format
                 if spell_id in self.attacks: # Check if this spell_id is a defined attack
@@ -249,6 +244,9 @@ class CombatSystem:
                 continue
             
             attack_display_data = attack_definition.copy() # Use a copy for modification
+
+            # Add the attack_id to the data for easier access
+            attack_display_data['id'] = attack_id
 
             # Ensure 'bonus_damage' is present, falling back to 'damage' if necessary
             if 'bonus_damage' not in attack_display_data and 'damage' in attack_display_data:
@@ -305,21 +303,38 @@ class CombatSession:
         """Start the combat session."""
         enemy_name = self.enemy_data.get("name", self.enemy_id)
         debug_log(f"Starting combat with {enemy_name}")
-        
-        # Build initial combat display
-        combat_intro = f"[bold red]⚔️  Combat initiated with {enemy_name}![/bold red]"
-        if "dialogue" in self.enemy_data:
-            combat_intro += f"\n[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}"
-        
-        self.ui.update_output(combat_intro)
-        
-        # Emit combat started event
+
+        # Build combat view and emit combat started event
+        combat_view = ViewBuilder.build_combat_view(
+            self.player,
+            self.enemy_data,
+            self.enemy_health,
+            combat_system
+        )
+
         event_bus.emit_event(
             EventType.COMBAT_STARTED,
-            {"session": self, "player": self.player, "enemy": self.enemy_data},
+            combat_view.to_dict(),
             "CombatSession"
         )
-        
+
+        # Emit combat intro message as a combat log entry
+        combat_intro = f"⚔️  Combat initiated with {enemy_name}!"
+        if "dialogue" in self.enemy_data:
+            combat_intro += f" | {enemy_name}: {self.enemy_data['dialogue']}"
+
+        event_bus.emit_event(
+            EventType.COMBAT_ACTION_RESULT,
+            {
+                "actor": "system",
+                "action": "combat_start",
+                "message": combat_intro,
+                "damage": 0,
+                "success": True
+            },
+            "CombatSession"
+        )
+
         self._show_combat_status()
         self._request_player_action()
 
@@ -373,27 +388,10 @@ class CombatSession:
 
     def _show_combat_status(self):
         """Display current combat status."""
-        player_health_bar = self._create_health_bar(self.player.health, self.player.max_health, "green")
-        enemy_health_bar = self._create_health_bar(self.enemy_health, self.enemy_max_health, "red")
-        
-        enemy_name = self.enemy_data.get("name", self.enemy_id)
-        
-        # Build the status display as a single block
-        status_block = f"""
-[bold]Your Health:[/bold] {self.player.health}/{self.player.max_health}
-{player_health_bar}
-[bold red]{enemy_name}'s Health:[/bold red] {self.enemy_health}
-{enemy_health_bar}"""
-        
-        # Check if this is initial combat display or ongoing
-        if not hasattr(self, '_combat_initialized'):
-            # First time showing combat status - use update_output to start fresh
-            self.ui.update_output(status_block)
-            self._combat_initialized = True
-        else:
-            # Ongoing combat - append status updates
-            self.ui.append_output("\n" + "─" * 50)  # Separator line
-            self.ui.append_output(status_block)
+        # Health status is shown in the Battle Status panel (right side)
+        # Combat log with actions is shown in main output panel
+        # No need to output anything here - UI handles all display via events
+        pass
     
     def _create_health_bar(self, current, maximum, color):
         """Create ASCII health bar."""
@@ -429,75 +427,22 @@ class CombatSession:
                 usable_items.append((item_id, item_data))
         
         # Store available actions for validation
+        self.all_attacks = available_attacks  # All attacks including those on cooldown
         self.available_attacks = {attack_id: attack_data for attack_id, attack_data in available_attacks.items() if not attack_data.get("on_cooldown", False)}
         self.available_items = {item_id: item_data for item_id, item_data in usable_items}
-        
-        # Show available actions in a concise format
-        self.ui.update_output(f"\n[bold red]⚔️ Your turn![/bold red] Type [cyan]'ls'[/cyan] to see all actions or use:")
-        
-        # Show quick reference
-        quick_actions = []
-        attack_names = list(self.available_attacks.keys())[:2]  # Show first 2 attacks
-        for attack_id in attack_names:
-            quick_actions.append(f"[cyan]./{attack_id}[/cyan]")
-        
-        if usable_items:
-            item_name = usable_items[0][0]
-            quick_actions.append(f"[yellow]use {item_name}[/yellow]")
-        
-        quick_actions.append("[magenta]flee[/magenta]")
-        
-        self.ui.update_output(" | ".join(quick_actions))
+
+        # UI will show combat log and available actions via _update_combat_main_output()
+        # No need to call update_output here - let the event system handle display
     
     def _show_detailed_actions(self):
         """Show detailed list of available actions."""
         if not self.is_active:
             return
-            
-        # Get available attacks
-        available_attacks = combat_system.get_available_attacks(self.player, self.player.spells)
-        base_damage = self.player.calculate_damage()
-        
-        self.ui.update_output("\n[bold]Available Executables:[/bold]")
-        
-        for attack_id, attack_data in available_attacks.items():
-            attack_name = attack_data.get("name", attack_id)
-            bonus_damage = attack_data.get("bonus_damage", 0)
-            on_cooldown = attack_data.get("on_cooldown", False)
-            
-            script_name = f"./{attack_id}"
-            total_damage = base_damage + bonus_damage
-            
-            if on_cooldown:
-                cooldown_remaining = attack_data.get('cooldown_remaining', 0)
-                self.ui.update_output(f"[gray]-rwx------ {script_name}  (cooldown: {cooldown_remaining} turns)[/gray]")
-            else:
-                damage_info = f"({total_damage} dmg)" if bonus_damage > 0 else f"({base_damage} dmg)"
-                self.ui.update_output(f"[cyan]-rwxr-xr-x {script_name}[/cyan]  {damage_info}")
-        
-        # Show usable items
-        usable_items = []
-        for item_id, item_data in self.player.inventory.items():
-            # Check both old and new combat usability systems
-            is_combat_usable = (
-                item_data.get("usable") and (
-                    "combat_usable" in item_data.get("tags", []) or  # Old system
-                    item_data.get("usable_in_combat", False)          # New system
-                )
-            )
-            if is_combat_usable:
-                usable_items.append((item_id, item_data))
-        
-        if usable_items:
-            self.ui.update_output("\n[bold]Usable Items:[/bold]")
-            for item_id, item_data in usable_items:
-                item_name = item_data.get("name", item_id)
-                self.ui.update_output(f"[yellow]{item_name}[/yellow] - use with: [cyan]use {item_id}[/cyan]")
-        
-        # Show commands
-        self.ui.update_output(f"\n[bold]Commands:[/bold] [cyan]./attack_name[/cyan], [yellow]use item[/yellow], [magenta]flee[/magenta]")
-        
-        # Continue waiting for action
+
+        # The TAB key shows detailed attack info in the Stats panel
+        # The combat log in main output shows action history
+        # No need to output anything here - UI shows attacks in Stats panel
+        # Just continue waiting for action
         self.awaiting_action = True
     
     def _on_combat_action(self, event):
@@ -531,6 +476,19 @@ class CombatSession:
             attack_name = cmd[2:]  # Remove './' prefix
             if attack_name in self.available_attacks:
                 self._process_player_action("attack", attack_name)
+            elif attack_name in self.all_attacks:
+                # Attack exists but is on cooldown
+                attack_data = self.all_attacks[attack_name]
+                if attack_data.get("on_cooldown", False):
+                    display_name = attack_data.get("name", attack_name)
+                    cd_remaining = attack_data.get("cooldown_remaining", 0)
+                    self.ui.update_output(
+                        f"[bold yellow]⏱️ {display_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
+                    )
+                    self._request_player_action()
+                else:
+                    # Attack exists but not in available - process anyway
+                    self._process_player_action("attack", attack_name)
             else:
                 self.ui.update_output(f"[red]bash: {cmd}: command not found[/red]")
                 self._request_player_action()
@@ -568,10 +526,24 @@ class CombatSession:
         # Handle direct attack names (without ./ prefix)
         elif cmd in self.available_attacks:
             self._process_player_action("attack", cmd)
-        
+
+        # Check if attack exists but is on cooldown
+        elif cmd in self.all_attacks:
+            attack_data = self.all_attacks[cmd]
+            if attack_data.get("on_cooldown", False):
+                attack_name = attack_data.get("name", cmd)
+                cd_remaining = attack_data.get("cooldown_remaining", 0)
+                self.ui.update_output(
+                    f"[bold yellow]⏱️ {attack_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
+                )
+                self._request_player_action()
+            else:
+                # Attack exists but somehow not in available_attacks - process it anyway
+                self._process_player_action("attack", cmd)
+
         else:
             self.ui.update_output(f"[red]bash: {command}: command not found[/red]")
-            self.ui.update_output("[dim]Type 'ls' to see available commands[/dim]")
+            # Don't show hint - battle log and UI already show available actions
             self._request_player_action()
     
     def _process_player_action(self, action_type, action_value):
@@ -598,10 +570,7 @@ class CombatSession:
                 self.ui.update_output(f"[red]Item '{action_value}' not found in inventory.[/red]")
                 self._request_player_action()
                 return
-            
-            # Process item effects
-            self.ui.append_output(f"[yellow]📦 Using {item_data.get('name', action_value)}...[/yellow]")
-            
+
             # Handle healing items - support both old and new formats
             heal_amount = 0
             if "healing" in item_data:
@@ -610,23 +579,18 @@ class CombatSession:
             elif "on_use" in item_data and "heal" in item_data["on_use"]:
                 # New format: on_use.heal field
                 heal_amount = item_data["on_use"]["heal"]
-            
+
+            actual_heal = 0
             if heal_amount > 0:
                 old_health = self.player.health
                 self.player.heal(heal_amount)
                 actual_heal = self.player.health - old_health
-                self.ui.append_output(f"[green]✨ You healed {actual_heal} HP![/green]")
-                
-                # Show on_use message if available
-                if "on_use" in item_data and "message" in item_data["on_use"]:
-                    self.ui.append_output(f"[italic]{item_data['on_use']['message']}[/italic]")
-            
+
             # Handle damage boost items
             if "damage_boost" in item_data:
                 boost = item_data["damage_boost"]
-                self.ui.update_output(f"[green]Your damage increased by {boost}![/green]")
                 # Temporary damage boost could be implemented here
-            
+
             # Handle consumable items (remove after use) - support both formats
             should_consume = (
                 item_data.get("consumable", False) or           # Old format
@@ -634,12 +598,13 @@ class CombatSession:
             )
             if should_consume:
                 self.player.remove_from_inventory(action_value)
-                self.ui.update_output(f"[dim]Used up {item_data.get('name', action_value)}[/dim]")
             
-            # Show item description/effect
-            if "effect_message" in item_data:
-                self.ui.update_output(f"[italic]{item_data['effect_message']}[/italic]")
-            
+            # Build detailed message for item usage
+            item_name = item_data.get('name', action_value)
+            item_message = f"{self.player.name} used {item_name}"
+            if heal_amount > 0:
+                item_message += f" (healed {actual_heal} HP)"
+
             # Emit combat action result event for item usage
             event_bus.emit_event(
                 EventType.COMBAT_ACTION_RESULT,
@@ -647,8 +612,9 @@ class CombatSession:
                     "actor": "player",
                     "action": "item",
                     "item_name": action_value,
-                    "message": f"Used {item_data.get('name', action_value)}",
+                    "message": item_message,
                     "damage": 0,
+                    "healing": actual_heal if heal_amount > 0 else 0,
                     "success": True
                 },
                 "CombatSession"
@@ -656,9 +622,8 @@ class CombatSession:
         
         elif action_type == "attack":
             attack_result = combat_system.perform_attack(self.player, action_value)
-            self.ui.append_output(f"[green]⚔️ {attack_result['message']}[/green]")
-            
-            # Emit combat action result event
+
+            # Emit combat action result event (UI will display via combat log)
             event_bus.emit_event(
                 EventType.COMBAT_ACTION_RESULT,
                 {
@@ -671,7 +636,7 @@ class CombatSession:
                 },
                 "CombatSession"
             )
-            
+
             if attack_result["success"]:
                 self.enemy_health -= attack_result["damage"]
                 if attack_result["healing_amount"] > 0:
@@ -685,9 +650,30 @@ class CombatSession:
             # Emit enemy defeated event (for loot, achievements, etc)
             event_bus.emit_event(
                 EventType.ENEMY_DEFEATED,
-                {"enemy_id": self.enemy_id, "player": self.player},
+                {
+                    "enemy_id": self.enemy_id,
+                    "player_name": self.player.name
+                },
                 "CombatSession"
             )
+
+            # Award harvesting cycles (XP)
+            base_cycles = self.enemy_data.get("harvesting_cycles", 50)
+            is_boss = self.enemy_data.get("boss_room", False) or self.enemy_data.get("boss_enemy", False)
+            if is_boss:
+                base_cycles *= 3
+
+            old_level = self.player.level
+            self.player.harvest_cycles(base_cycles)
+            new_level = self.player.level
+
+            # Display cycles gained
+            self.ui.update_output(f"[cyan]+{base_cycles} Harvesting Cycles[/cyan]")
+
+            # Check if player leveled up
+            if new_level > old_level:
+                self.ui.update_output(f"[bold yellow]⬆ LEVEL UP! You are now level {new_level}![/bold yellow]")
+                self.ui.update_output(f"[green]+10 Max HP, +2 DMG[/green]")
 
             # Check if more enemies in queue
             if self._engage_next_enemy():
@@ -720,26 +706,24 @@ class CombatSession:
     def _enemy_turn(self):
         """Process enemy's turn."""
         enemy_name = self.enemy_data.get("name", self.enemy_id)
-        self.ui.append_output(f"[bold red]🗡️ {enemy_name} attacks you![/bold red]")
-        
+
         damage = self.enemy_damage
         self.player.take_damage(damage)
-        self.ui.append_output(f"[red]💔 You took {damage} damage![/red]")
-        
-        # Emit combat action result event for enemy action
+
+        # Emit combat action result event for enemy action (UI will display via combat log)
         event_bus.emit_event(
             EventType.COMBAT_ACTION_RESULT,
             {
                 "actor": "enemy",
                 "action": "attack",
                 "attack_name": "basic_attack",
-                "message": f"{enemy_name} deals {damage} damage to you!",
+                "message": f"{enemy_name} attacked ({damage} dmg)",
                 "damage": damage,
                 "success": True
             },
             "CombatSession"
         )
-        
+
         # Update UI with new player health
         self._update_ui_panels()
     
@@ -747,11 +731,27 @@ class CombatSession:
         """Update UI panels during combat."""
         # Emit events to update UI panels
         from src.events import event_bus, EventType
-        
-        # Update player stats to refresh combat panel
+
+        # Build updated combat view with current health values
+        combat_view = ViewBuilder.build_combat_view(
+            self.player,
+            self.enemy_data,
+            self.enemy_health,
+            combat_system
+        )
+
+        # Emit frame update so UI shows current health and cooldowns
+        event_bus.emit_event(
+            EventType.COMBAT_FRAME_UPDATED,
+            combat_view.to_dict(),
+            "CombatSession"
+        )
+
+        # Also update player stats
+        stats_view = ViewBuilder.build_stats_view(self.player)
         event_bus.emit_event(
             EventType.PLAYER_STATS_CHANGED,
-            {"player": self.player},
+            stats_view.to_dict(),
             "CombatSession"
         )
     
@@ -769,15 +769,15 @@ class CombatSession:
         # Reset cooldowns after combat ends (normal or fled)
         combat_system.reset_cooldowns(self.player)
 
-        # Emit combat ended event
+        # Emit combat ended event with primitive data only
         event_bus.emit_event(
             EventType.COMBAT_ENDED,
             {
-                "session": self,
                 "victory": victory,
                 "defeat": defeat,
                 "fled": fled,
-                "enemy_id": self.enemy_id
+                "enemy_id": self.enemy_id,
+                "enemies_defeated": self.current_enemy_index + (1 if victory else 0)
             },
             "CombatSession"
         )

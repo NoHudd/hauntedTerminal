@@ -1,0 +1,61 @@
+name: ECHO
+description: A helpful repeating spirit that manifests as glowing text in the terminal. ECHO sees all paths and guides lost spirits.
+detailed_description: |
+  /usr/bin/echo - ECHO
+
+  Not a person. Not a daemon. Just... echo. The simplest command. The most fundamental.
+
+  ECHO doesn't speak - it repeats. It reflects. It amplifies. When you call out into the void
+  of the filesystem, ECHO is what calls back. It has no physical form, just text that appears
+  in the terminal, always helpful, always clear.
+
+  In the Before Times, echo was a debugging tool - a way to print messages, to verify variables.
+  Now, in the aftermath of the Great Kernel Panic, ECHO has become something more: a guide,
+  a voice of reason in the corrupted directories.
+
+  ECHO knows the paths. ECHO has seen the logs. ECHO will help you... if you listen.
+location: usr_lib_arcane
+hostile: false
+merchant: false
+story_npc: true
+helpful_guide: true
+dialogue:
+  greeting:
+    - ">>> ECHO ONLINE <<<"
+    - "Hello, spirit. I am here to help you navigate these corrupted pathways."
+    - "The system is broken, but the echo command still works. That is my purpose."
+
+  hints:
+    - "The corruption is just the system crying out. Listen to the logs... they tell the truth."
+    - "Seek the lore fragments scattered across the filesystem. They contain your history."
+    - "The Daemon Overlord resides in /boot/kernel - the Core. But you cannot reach it without permission."
+    - "The Firewall Knight guards the gate. Only the chmod Key will grant you passage."
+
+  navigation_help:
+    - "Lost? Use 'ls' to see what's in your current directory. Use 'cd <room_name>' to move."
+    - "Some directories are hidden. Try 'ls -a' to reveal dot files and secret paths."
+    - "Read files with 'cat <filename>'. Many contain important lore and clues."
+
+  combat_tips:
+    - "Enemies grow stronger in deeper directories. /root contains legendary foes."
+    - "Your class determines your abilities. Guardians defend, Weavers attack, Shamans adapt."
+    - "Use items wisely. Ephemeral items disappear on death. Persistent items do not."
+
+  lore:
+    - "The Great Kernel Panic was caused by a single typo in the Creator's code."
+    - "The Daemon Overlord was once init - PID 1, the first process. It went rogue."
+    - "You are a sysadmin spirit, trapped in this filesystem. Your mission: restore order."
+
+  farewell:
+    - ">>> END ECHO <<<"
+    - "May your path be free of segmentation faults, spirit."
+    - "I will be here when you need guidance. Just call for echo."
+
+interaction_hints:
+  - "ECHO provides helpful hints about gameplay, lore, and navigation."
+  - "Talk to ECHO whenever you're lost or need guidance."
+
+special_mechanics:
+  always_helpful: true
+  provides_hints: true
+  non_hostile: true

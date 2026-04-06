@@ -27,6 +27,7 @@ from src.events import event_bus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
 from src.data_loader import load_room_data, load_enemy_data
 from src.state_manager import state_manager
+from src.ui.view_builder import ViewBuilder
 
 # Import debug tools
 from utils.debug_tools import debug_log
@@ -79,6 +80,8 @@ class ImprovedGameEngine:
         self.current_room = DEFAULT_ROOM
         state_manager.set_state(DEFAULT_GAME_STATE, emit_event=False)
         self.pending_player_name = ""
+        self._awaiting_skip_response: bool = False
+        self._pending_player_name: str = ""
 
         # Load game data
         try:
@@ -134,6 +137,9 @@ class ImprovedGameEngine:
         # Create world
         self.world = GameWorld(rooms, items, enemies, npcs)
         logger.info(f"Loaded {len(rooms)} rooms, {len(items)} items, {len(enemies)} enemies, {len(npcs)} NPCs")
+
+        # Validate cross-file references at startup
+        self._validate_data_references(rooms, items, enemies)
     
     def _load_game_data_for_load(self):
         """Load game data when loading a saved game - skip world state initialization."""
@@ -152,6 +158,46 @@ class ImprovedGameEngine:
         
         logger.info("Game data loaded successfully for save game")
     
+    def _validate_data_references(self, rooms, items, enemies):
+        """Validate cross-file references at startup. Logs errors for broken references."""
+        errors = []
+
+        # Load class data to validate starter weapons
+        try:
+            import yaml as _yaml
+            with open("data/classes.yaml") as f:
+                class_data = _yaml.safe_load(f).get("classes", {})
+            for cls_name, cls_info in class_data.items():
+                weapon = cls_info.get("starter_weapon")
+                if weapon and weapon not in items:
+                    errors.append(f"Class '{cls_name}' starter_weapon '{weapon}' not found in items")
+        except Exception as e:
+            errors.append(f"Could not validate class data: {e}")
+
+        for room_id, room in rooms.items():
+            # Room item references
+            for item_id in room.get("items", []):
+                if item_id not in items:
+                    errors.append(f"Room '{room_id}' references unknown item '{item_id}'")
+            # Room enemy references
+            for enemy_id in room.get("enemies", []):
+                if enemy_id not in enemies:
+                    errors.append(f"Room '{room_id}' references unknown enemy '{enemy_id}'")
+
+        for enemy_id, enemy in enemies.items():
+            # Enemy drop references
+            for drop in enemy.get("drops", []):
+                drop_item = drop.get("item")
+                if drop_item and drop_item not in items:
+                    errors.append(f"Enemy '{enemy_id}' drop references unknown item '{drop_item}'")
+
+        if errors:
+            for msg in errors:
+                logger.error(f"[DATA VALIDATION] {msg}")
+            logger.error(f"[DATA VALIDATION] {len(errors)} reference error(s) found — check YAML files")
+        else:
+            logger.info("[DATA VALIDATION] All cross-file references OK")
+
     def _load_data_from_dir(self, directory: str, category_key: str) -> Dict[str, Any]:
         """Generic data loader for enemies and NPCs."""
         data_map = {}
@@ -188,29 +234,35 @@ class ImprovedGameEngine:
     def _load_items(self) -> Dict[str, Any]:
         """Load all items from categorized YAML files into a single dictionary."""
         items = {}
-        
+
         items_dir = 'data/items'
         if not os.path.exists(items_dir):
             logger.warning(f"Items directory {items_dir} does not exist")
             return items
-            
-        try:
-            for filename in os.listdir(items_dir):
-                if filename.endswith(('.yaml', '.yml')):
-                    filepath = os.path.join(items_dir, filename)
+
+        for filename in os.listdir(items_dir):
+            if filename.endswith(('.yaml', '.yml')):
+                filepath = os.path.join(items_dir, filename)
+                try:
                     with open(filepath, 'r') as file:
                         data = yaml.safe_load(file)
                         if data:
                             category = os.path.splitext(filename)[0]
-                            for item_id, item_data in data.get(category, {}).items():
-                                item_data['id'] = item_id
-                                if 'type' not in item_data:
-                                    item_data['type'] = category.rstrip('s')
-                                items[item_id] = item_data
-                                
-        except Exception as e:
-            logger.error(f"Error loading items: {e}")
-            
+                            category_items = data.get(category, {})
+                            if category_items:
+                                for item_id, item_data in category_items.items():
+                                    if item_data:  # Make sure item_data isn't None
+                                        item_data['id'] = item_id
+                                        if 'type' not in item_data:
+                                            item_data['type'] = category.rstrip('s')
+                                        items[item_id] = item_data
+                                logger.debug(f"Loaded {len(category_items)} items from {filename}")
+                            else:
+                                logger.warning(f"No items found in {filename} under key '{category}'")
+                except Exception as e:
+                    logger.error(f"Error loading items from {filename}: {e}")
+
+        logger.info(f"Total items loaded: {len(items)}")
         return items
     
     # Event handlers
@@ -235,6 +287,14 @@ class ImprovedGameEngine:
                 self._handle_class_input(command)
             elif game_state == GameState.TUTORIAL_NAME_INPUT:
                 self._handle_tutorial_name_input(command)
+            elif game_state == GameState.GAME_OVER:
+                # Any keypress from game over screen → return to main menu
+                logger.debug("GAME_OVER state: transitioning to MENU")
+                state_manager.set_state(GameState.MENU)
+                if hasattr(self.ui, '_display_title_screen'):
+                    self.ui._display_title_screen()
+                else:
+                    self.ui.update_output("\n1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: ")
             else:
                 logger.debug(f"No specific handler for state {game_state}, defaulting to menu handler")
                 self._handle_menu_command(command)
@@ -276,6 +336,17 @@ class ImprovedGameEngine:
         """Handle combat ended event."""
         logger.info("Combat ended, exiting combat state")
 
+        # Check if player was defeated - trigger game over immediately
+        if event.data.get('defeat', False):
+            logger.info("Player defeated in combat - triggering game over")
+            state_manager.set_state(GameState.GAME_OVER)
+            event_bus.emit_event(
+                EventType.GAME_OVER,
+                {"message": "[bold red]GAME OVER[/bold red]\n\nYou have been defeated in combat.\n\nPress any key to continue..."},
+                "GameEngine"
+            )
+            return  # Don't continue with normal combat end processing
+
         # Use StateManager to exit combat
         state_manager.exit_combat()
 
@@ -284,9 +355,15 @@ class ImprovedGameEngine:
 
         # Emit ROOM_ENTERED to refresh exits panel and restore full UI state
         if self.world and self.player:
+            # Build room view for current room
+            room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
+
             event_bus.emit_event(
                 EventType.ROOM_ENTERED,
-                {"world": self.world, "player": self.player},
+                {
+                    "room": room_view.to_dict(),
+                    "player_name": self.player.name
+                },
                 "ImprovedGameEngine"
             )
     
@@ -320,19 +397,22 @@ class ImprovedGameEngine:
             logger.info("Restarting with new game")
 
             # Reset game state
-            state_manager.set_state(GameState.STARTING, emit_event=False)
+            state_manager.set_state(GameState.MENU, emit_event=False)
 
             # Clear event history
             event_bus.clear_history()
-            
+
+            # Unsubscribe stale handlers before replacing them
+            if self.cmd_handler:
+                self.cmd_handler.cleanup_event_subscriptions()
+
             # Create new player (this will trigger character creation)
             from src.player import Player
             self.player = Player()
-            
-            # Reset world state by creating a new world instance
-            from src.game_world import GameWorld
-            self.world = GameWorld(self.items)
-            
+
+            # Reset world state by reloading all game data
+            self._load_game_data()
+
             # Create new command handler with fresh references
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
 
@@ -412,9 +492,17 @@ class ImprovedGameEngine:
                 self.ui.update_output("\n1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: ")
     
     def _start_new_game(self):
-        """Start a new game by showing class selection first."""
-        
-        # Show class selection directly
+        """Start a new game by reloading world data and showing class selection."""
+
+        # Clean up stale event subscriptions from previous session
+        if self.cmd_handler:
+            self.cmd_handler.cleanup_event_subscriptions()
+            self.cmd_handler = None
+
+        # Reload world data so the new game starts with a fresh world state
+        self._load_game_data()
+
+        # Show class selection
         self._show_class_selection()
         
     def _load_game(self):
@@ -448,21 +536,7 @@ class ImprovedGameEngine:
             # Restore player state
             player_data = save_data.get("player", {})
             from src.player import Player
-            self.player = Player(
-                name=player_data.get("name", "Unknown"),
-                player_class=player_data.get("player_class", "guardian")
-            )
-            
-            # Restore player stats and inventory
-            self.player.health = player_data.get("health", self.player.max_health)
-            self.player.max_health = player_data.get("max_health", self.player.max_health)
-            self.player.total_damage = player_data.get("total_damage", self.player.total_damage)
-            self.player.permanent_health_boost = player_data.get("permanent_health_boost", 0)
-            self.player.permanent_damage_boost = player_data.get("permanent_damage_boost", 0)
-            self.player.inventory = player_data.get("inventory", [])
-            self.player.equipped_weapon = player_data.get("equipped_weapon")
-            self.player.current_room = player_data.get("current_room", "home_grove")
-            self.player.spells = player_data.get("spells", [])
+            self.player = Player.from_dict(player_data)
             
             # Load fresh game data but don't initialize world state
             self._load_game_data_for_load()
@@ -481,22 +555,33 @@ class ImprovedGameEngine:
             logger.debug(f"Game state set to {state_manager.current_state}")
 
             # Emit game started event to update UI
+            stats_view = ViewBuilder.build_stats_view(self.player)
+            inventory_view = ViewBuilder.build_inventory_view(self.player)
+
             event_bus.emit_event(
                 EventType.GAME_STARTED,
-                {"player": self.player, "world": self.world},
+                {
+                    "stats": stats_view.to_dict(),
+                    "inventory": inventory_view.to_dict()
+                },
                 "ImprovedGameEngine"
             )
-            
+
             # Update UI panels with loaded game state
             self._update_ui_panels()
-            
+
             # Subscribe to events
             self.cmd_handler.setup_event_subscriptions()
-            
+
             # Show current location with room entered event
+            room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
+
             event_bus.emit_event(
                 EventType.ROOM_ENTERED,
-                {"player": self.player, "world": self.world},
+                {
+                    "room": room_view.to_dict(),
+                    "player_name": self.player.name
+                },
                 "ImprovedGameEngine"
             )
             
@@ -518,15 +603,13 @@ class ImprovedGameEngine:
     
     def _handle_class_input(self, choice: str):
         """Handle player class selection."""
-        class_map = {
-            "1": "guardian", 
-            "2": "weaver", 
-            "3": "shaman"
-        }
-        
+        from src.data_loader import load_class_data
+        classes = load_class_data()
+        class_map = {str(i): class_id for i, class_id in enumerate(classes.keys(), 1)}
+
         if choice not in class_map:
-            self.ui.update_output("[bold red]Invalid choice. Please enter 1, 2, or 3.[/bold red]\n")
-            # Re-show the class selection to help the player
+            valid = ", ".join(class_map.keys())
+            self.ui.update_output(f"[bold red]Invalid choice. Please enter {valid}.[/bold red]\n")
             self._show_class_selection()
             return
             
@@ -537,33 +620,25 @@ class ImprovedGameEngine:
         self._show_tutorial_introduction()
     
     def _show_class_selection(self):
-        """Display class selection screen."""
+        """Display class selection screen, driven by classes.yaml."""
         try:
-            class_info = """
-[bold cyan]Choose Your Spirit Class:[/bold cyan]
+            from src.data_loader import load_class_data
+            classes = load_class_data()
 
-[bold blue]1. Guardian[/bold blue]
-A stalwart defender forged from binary steel. Guardians wield physical might in a world of fragile data. Their vast health and shield mastery let them stand against corrupted daemons head-on, though subtlety is not their domain.
-   • [green]High Health (120 HP)[/green]
-   • [yellow]Moderate Damage (10 DMG)[/yellow]  
-   • [dim]Starter Weapon: Protocol Shield[/dim]
+            lines = ["\n[bold cyan]Choose Your Spirit Class:[/bold cyan]\n"]
+            for i, (class_id, cls) in enumerate(classes.items(), 1):
+                d = cls.get("display", {})
+                color = d.get("color", "white")
+                hp_color = d.get("hp_color", "white")
+                dmg_color = d.get("dmg_color", "white")
+                lines.append(f"[bold {color}]{i}. {cls['name']}[/bold {color}]")
+                lines.append(cls.get("description", ""))
+                lines.append(f"   • [{hp_color}]{d.get('hp_label', '')}[/{hp_color}]")
+                lines.append(f"   • [{dmg_color}]{d.get('dmg_label', '')}[/{dmg_color}]")
+                lines.append(f"   • [dim]Starter Weapon: {d.get('weapon_name', '')}[/dim]\n")
 
-[bold red]2. Weaver[/bold red]  
-Architects of raw system energy. Weavers manipulate data streams like incantations, unleashing destructive packets of code. Fragile in health but terrifying in power, they bend the filesystem itself to strike down foes.
-   • [yellow]Moderate Health (90 HP)[/yellow]
-   • [green]High Damage (15 DMG)[/green]
-   • [dim]Starter Weapon: Byte Blaster[/dim]
-
-[bold green]3. Shaman[/bold green]
-Spirits attuned to the wild harmony of code and nature. The Shaman class balances restoration and offense, channeling echoes of lost data into versatile abilities. Neither the strongest nor the most fragile, they thrive in adaptability.
-   • [yellow]Balanced Health (100 HP)[/yellow] 
-   • [red]Low Damage (8 DMG)[/red]
-   • [dim]Starter Weapon: Echo Staff[/dim]
-
-[bold white]Enter your choice (1, 2, or 3):[/bold white]
-            """
-
-            self.ui.update_output(class_info)
+            lines.append(f"[bold white]Enter your choice (1–{len(classes)}):[/bold white]")
+            self.ui.update_output("\n".join(lines))
             state_manager.set_state(GameState.WAITING_FOR_CLASS)
 
         except Exception as e:
@@ -574,20 +649,11 @@ Spirits attuned to the wild harmony of code and nature. The Shaman class balance
     def _show_tutorial_introduction(self):
         """Show the tutorial introduction with ECHO asking for the player's name."""
         try:
-            class_names = {
-                "guardian": "Guardian",
-                "weaver": "Weaver", 
-                "shaman": "Shaman"
-            }
-            
-            class_descriptions = {
-                "guardian": "a defender of the core systems, wielding shields and restoration protocols",
-                "weaver": "an aggressive code manipulator who exploits system vulnerabilities", 
-                "shaman": "a mystic who communes with lost data and heals corrupted sectors"
-            }
-            
-            selected_class_name = class_names.get(self.selected_class, "Unknown")
-            selected_class_desc = class_descriptions.get(self.selected_class, "a mysterious entity")
+            from src.data_loader import load_class_data
+            classes = load_class_data()
+            cls = classes.get(self.selected_class, {})
+            selected_class_name = cls.get("name", self.selected_class.title())
+            selected_class_desc = cls.get("display", {}).get("echo_description", "a mysterious entity")
             
             tutorial_intro = f"""
 [bold cyan]>>> ECHO SYSTEM INITIALIZING... <<<[/bold cyan]
@@ -614,37 +680,62 @@ to this haunted filesystem.[/italic]
             state_manager.set_state(GameState.MENU)
     
     def _handle_tutorial_name_input(self, name: str):
-        """Handle name input during tutorial."""
-        if not name.strip():
-            self.ui.update_output("\n[bold green]ECHO:[/bold green] [italic]I cannot hear you clearly, spirit. Please speak your name into the void...[/italic]\n")
+        """Handle name input during tutorial — includes skip offer flow."""
+        # If awaiting skip response, handle it
+        if self._awaiting_skip_response:
+            self._handle_skip_response(name.strip().lower())
             return
-            
+
+        # Validate name
+        if not name.strip():
+            self.ui.update_output(
+                "\n[bold green]ECHO:[/bold green] I didn't catch that. What's your name?\n"
+            )
+            return
+
         player_name = name.strip()
-        
-        # Show ECHO's response with personalized message
-        echo_response = f"""
-[bold green]ECHO:[/bold green] [italic]Ah, {player_name}... I can feel your essence stabilizing.
-The filesystem recognizes you now. Your spirit-signature is being written
-to the root directory logs.
+        self._pending_player_name = player_name
 
-Welcome, {player_name}. The corrupted pathways await your touch.
-Your journey as a {self.selected_class.title()} begins in the /home grove,
-where fragments of your former self still linger...[/italic]
-
-[dim]>>> INITIALIZING PLAYER MATRIX... <<<[/dim]
-[dim]>>> LOADING SPIRIT INTERFACE... <<<[/dim]
-[dim]>>> TUTORIAL MODE ENABLED <<<[/dim]
-"""
-        
-        self.ui.update_output(echo_response)
-        
-        # Create player and start game
-        if self.create_player(player_name, self.selected_class):
-            self.initialize_special_items(self.selected_class)
-            self.start_game()
-        else:
+        # Create player (tutorial_state is initialized on the player object)
+        if not self.create_player(player_name, self.selected_class):
             self.ui.update_output("Error creating player. Returning to main menu.")
             state_manager.set_state(GameState.MENU)
+            return
+
+        self.initialize_special_items(self.selected_class)
+
+        # Show skip offer
+        self._awaiting_skip_response = True
+        self.player.tutorial_state["skip_offered"] = True
+        self.ui.update_output(
+            f"\n[bold green]ECHO:[/bold green] Welcome, [bold]{player_name}[/bold]. "
+            f"Want a quick tutorial? It covers all the commands you'll need.\n\n"
+            f"[bold yellow](yes / skip)[/bold yellow]\n"
+        )
+
+    def _handle_skip_response(self, response: str):
+        """Handle yes/no response to the tutorial skip offer."""
+        self._awaiting_skip_response = False
+        negative_words = {"no", "skip", "n", "nope", "nah", "pass"}
+        skipping = (response in negative_words or
+                    response.startswith("skip") or
+                    response.startswith("no"))
+
+        if skipping:
+            # Skip tutorial: mark complete and show quick summary
+            self.player.tutorial_state["completed"] = True
+            self.ui.update_output(
+                "\n[bold green]ECHO:[/bold green] Got it. Quick reference: "
+                "[bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items, "
+                "[bold]attack[/bold] fights enemies. In combat, press [bold]TAB[/bold] to enter "
+                "Selection Mode then [bold]1-9[/bold] to attack. "
+                "[bold]flee[/bold] escapes a fight. [bold]help[/bold] if stuck. Good luck.\n"
+            )
+            self.start_game()
+        else:
+            # Tutorial path: show Step 1 hint, then start game
+            self.cmd_handler.show_tutorial_hint("step1")
+            self.start_game()
     
     def initialize_special_items(self, player_class: str):
         """Create and place special enhancement items based on player class."""
@@ -653,25 +744,13 @@ where fragments of your former self still linger...[/italic]
             logger.info(f"Special items initialized for class: {player_class}")
     
     def _update_ui_panels(self):
-        """Update all UI panels with current game state."""
-        logger.debug(f"_update_ui_panels called - ui: {self.ui is not None}, player: {self.player is not None}, world: {self.world is not None}")
+        """Update all UI panels by emitting view-model events."""
         if self.ui and self.player and self.world:
             try:
-                logger.debug("Calling ui.update_game_state_panels...")
-                self.ui.update_game_state_panels(self.player, self.world)
-                
-                # Emit events for specific updates
-                event_bus.emit_event(
-                    EventType.PLAYER_STATS_CHANGED,
-                    {"player": self.player},
-                    "ImprovedGameEngine"
-                )
-                event_bus.emit_event(
-                    EventType.PLAYER_INVENTORY_CHANGED,
-                    {"player": self.player},
-                    "ImprovedGameEngine"
-                )
-                
+                stats_view = ViewBuilder.build_stats_view(self.player)
+                inventory_view = ViewBuilder.build_inventory_view(self.player)
+                event_bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "ImprovedGameEngine")
+                event_bus.emit_event(EventType.PLAYER_INVENTORY_CHANGED, inventory_view.to_dict(), "ImprovedGameEngine")
             except Exception as e:
                 logger.error(f"Error updating UI panels: {e}")
     
@@ -679,25 +758,26 @@ where fragments of your former self still linger...[/italic]
         """Create a new player."""
         try:
             self.player = Player(name=name, player_class=player_class)
+            self.ui._player_ref = self.player  # Used by UI for tutorial state checks
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
-            
+
             # Set up event subscriptions for command handler
             self.cmd_handler.setup_event_subscriptions()
-            
-            # Show welcome tutorial
-            self.cmd_handler.show_tutorial_hint("welcome")
 
             # Place class-appropriate starter items in home_grove
             if self.world:
                 self.world.place_starter_items(player_class)
                 logger.info(f"Placed starter items for {player_class} in home_grove")
 
+            # Build view for player creation event
+            stats_view = ViewBuilder.build_stats_view(self.player)
+
             event_bus.emit_event(
                 EventType.PLAYER_CREATED,
-                {"player": self.player},
+                stats_view.to_dict(),
                 "ImprovedGameEngine"
             )
-            
+
             # Force UI panel updates after player creation
             self._update_ui_panels()
             
@@ -712,21 +792,33 @@ where fragments of your former self still linger...[/italic]
         try:
             state_manager.set_state(GameState.PLAYING)
 
+            # Build views for game start
+            stats_view = ViewBuilder.build_stats_view(self.player)
+            inventory_view = ViewBuilder.build_inventory_view(self.player)
+
             event_bus.emit_event(
                 EventType.GAME_STARTED,
-                {"player": self.player, "world": self.world},
+                {
+                    "stats": stats_view.to_dict(),
+                    "inventory": inventory_view.to_dict()
+                },
                 "ImprovedGameEngine"
             )
-            
+
             # Update UI panels with initial game state
             logger.debug("Starting game - updating UI panels...")
             self._update_ui_panels()
-            
+
             # Emit room entered event for starting room
             if self.player and hasattr(self.player, 'current_room'):
+                room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
+
                 event_bus.emit_event(
                     EventType.ROOM_ENTERED,
-                    {"player": self.player, "world": self.world},
+                    {
+                        "room": room_view.to_dict(),
+                        "player_name": self.player.name
+                    },
                     "ImprovedGameEngine"
                 )
             

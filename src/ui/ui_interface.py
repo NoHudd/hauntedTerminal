@@ -52,10 +52,6 @@ class UIProtocol(Protocol):
         """Show the game over screen."""
         ...
     
-    def update_game_state_panels(self, player: Any, world: Any) -> None:
-        """Update all game state panels with current data."""
-        ...
-    
     def save_current_game(self) -> None:
         """Handle game saving UI feedback."""
         ...

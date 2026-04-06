@@ -1,0 +1,11 @@
+name: glitched_process.tmp
+short_description: A corrupted background process flickering in and out of existence
+description: A minor process that became corrupted when the daemon overlord's influence spread to /home. It's weak and disoriented — a safe target to learn combat.
+health: 15
+damage: 1
+is_boss: false
+auto_attack: true
+dialogue: "ERR... undefined behavior... seg fault imminent..."
+drops: []
+on_defeat:
+  message: The corrupted process terminates cleanly. Its memory is freed.

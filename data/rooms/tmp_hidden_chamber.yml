@@ -1,21 +1,38 @@
-name: Temporary Hidden Chamber
-description: A secretive cache where powerful temporary items are stored.
+name: The Forge
+description: A high-heat area where data is created and deleted instantly. Superheated plasma arcs between terminals.
 detailed_description: |
-  The /tmp directory has been transformed into a mysterious chamber filled with flickering, ephemeral treasures. Unlike other areas of the system, everything here seems to exist in a half-state, neither fully corrupted nor completely clean.
-  
-  Valuable resources and powerful artifacts hover in containment fields, each radiating with significant power. A warning etched in the wall reads: "All items here are temporary. Use them wisely before they are cleaned from memory."
-  
-  The air crackles with unstable energy - this place seems both valuable and potentially dangerous.
+  /tmp - The Forge
+
+  HEAT WARNING: CRITICAL TEMPERATURE EXCEEDED
+
+  The air shimmers with thermal distortion. This is where the system creates temporary data at incredible speeds -
+  and destroys it just as quickly. Files flash into existence for microseconds before being purged, their brief
+  lives measured in CPU cycles.
+
+  A massive forge dominates the center of the room, its furnace fed by raw data streams. Sparks of compiled code
+  fly through the air. The heat is INTENSE - you can feel your processes slowing, your buffers overheating.
+
+  A figure works at the forge, hammering ephemeral data into solid form. The Forge Master - a tmp process that
+  has somehow achieved persistence. It crafts items from Silicon Dust and Corrupted Blobs, transforming
+  raw materials into weapons and tools.
+
+  "You'll need Firewall Mantle to survive here long," the Forge Master warns, barely looking up from their work.
+
+  The walls glow red. Your systems strain. This place will damage you if you linger without protection.
 exits:
   - var_dungeon
-items:
-  - combat_amplifier
-  - spell_amplifier
-  - admin_badge.dat
-  - opt_key
+items: []
+# Dynamic spawning - crafting materials prioritized
 enemies:
   - memory_cleaner.exe
-npcs: []
-locked: true
-key_required: tmp_key
-hidden: true 
+npcs:
+  - forge_master.tmp
+locked: false
+hidden: false
+zone: volatile
+zone_level: 4
+environmental_effect:
+  type: heat_damage
+  damage_per_turn: 2
+  immunity_item: firewall_mantle
+  description: "The extreme heat damages unprotected processes for 2 HP per turn."

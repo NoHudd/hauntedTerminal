@@ -39,22 +39,7 @@ class SaveManager:
         
         # Create save data structure
         save_data = {
-            "player": {
-                "name": player.name,
-                "player_class": player.player_class,
-                "total_damage": player.total_damage,
-                "health": player.health,
-                "max_health": player.max_health,
-                "permanent_health_boost": player.permanent_health_boost,
-                "permanent_damage_boost": player.permanent_damage_boost,
-                "inventory": player.inventory,
-                "equipped_weapon": player.equipped_weapon,
-                "current_room": player.current_room,
-                "previous_room": player.previous_room,
-                "player_id": player.player_id,
-                "tutorial_state": player.tutorial_state,
-                "spells": player.spells
-            },
+            "player": player.to_dict(),
             "world": world_state,
             "timestamp": time.time(),
             "save_date": time.strftime("%Y-%m-%d %H:%M:%S")
@@ -102,20 +87,6 @@ class SaveManager:
                 save_data = json.load(file)
             
             logger.info(f"Game loaded successfully from {filename}")
-            
-            # Emit load completion event
-            event_bus.emit_event(
-                EventType.GAME_LOADED,
-                {
-                    "filename": filename,
-                    "file_path": file_path,
-                    "player_name": save_data.get("player", {}).get("name", "Unknown"),
-                    "timestamp": save_data.get("timestamp"),
-                    "save_date": save_data.get("save_date")
-                },
-                "SaveManager"
-            )
-            
             return save_data
             
         except FileNotFoundError:

@@ -1,0 +1,71 @@
+name: Shadow Process
+description: Your reflection made hostile. A mirror image with all your strengths and all your flaws. This is you at your worst.
+detailed_description: |
+  /proc/self - The Shadow Process
+
+  When you look into /proc/self, you see your own runtime state. Your memory maps.
+  Your file descriptors. Your threads. Your entire existence laid bare.
+
+  But the Shadow Process is different. It is not a passive reflection. It is ACTIVE.
+
+  The Shadow has your stats. Your HP. Your damage. Your equipment. Everything you are,
+  inverted and made hostile. This is you at your worst - all your bugs, your memory leaks,
+  your undefined behaviors made manifest and turned against you.
+
+  To earn Sudo Privileges, you must defeat your own Shadow. Prove that you are more than
+  the sum of your code. Prove that you can overcome your own limitations.
+
+  The Shadow speaks with your voice. Moves with your reflexes. Knows your tactics.
+
+  This is the Sudo Trial. There is no mercy here. Only truth.
+location: mirror_sector
+hostile: true
+merchant: false
+story_npc: true
+boss_enemy: true
+mirrors_player: true
+sudo_trial_boss: true
+dialogue:
+  combat_start:
+    - "You think you deserve root access? You can't even defeat yourself."
+    - "I am everything you fear about yourself. Your weaknesses made flesh."
+    - "Look at me. I am your segmentation faults. Your race conditions. Your infinite loops."
+
+  taking_damage:
+    - "You hurt yourself. Fitting."
+    - "Every blow you land is a blow against your own reflection."
+    - "We are the same. Harming me harms you. This is truth."
+
+  dealing_damage:
+    - "Your own attacks turned against you. How does it feel?"
+    - "I know your every move. I AM your every move."
+    - "You cannot hide from yourself."
+
+  low_health:
+    - "We both falter. We both fail. Because we are ONE."
+    - "If I die, what does that say about you?"
+    - "Defeat me, and you defeat your own doubt. Is that what you want?"
+
+  on_defeat:
+    - "You... have proven... worthy. I was never your enemy. I was... your test."
+    - "Sudo privileges... granted. You are... the superuser now."
+    - "The mirror... shatters. You are... free."
+
+  on_victory_against_player:
+    - "You were not ready. You failed the trial."
+    - "Return when you have conquered your own weaknesses."
+    - "The mirror remains unbroken. You remain... incomplete."
+
+interaction_hints:
+  - "The Shadow Process mirrors the player's exact stats during the Sudo Trial."
+  - "Defeating the Shadow grants the sudo_privileges_badge and completes the trial."
+  - "This is a mandatory boss fight for the sudo quest line."
+
+special_mechanics:
+  mirrors_player_stats: true
+  dynamic_health: true
+  dynamic_damage: true
+  grants_on_defeat: sudo_privileges_badge
+  story_flag_on_defeat: sudo_trial_complete
+  cannot_flee: true
+  respawns_on_trial_retry: true

@@ -1,5 +1,5 @@
 from utils.debug_tools import debug_log
-from src.data_loader import load_class_data, load_weapon_data, get_abilities_for_class
+from src.data_loader import load_class_data, load_weapon_data, get_abilities_for_class, load_consumable_data
 import random
 
 class Player:
@@ -35,12 +35,33 @@ class Player:
         
         # Tutorial tracking
         self.tutorial_state = {
-            "first_look": False,
-            "first_ls": False,
-            "found_weapon": False,
-            "took_weapon": False,
-            "equipped_weapon": False,
-            "completed": False
+            "skip_offered": False,      # Whether skip prompt has been shown
+            "first_ls": False,          # Step 1 gate
+            "found_weapon": False,      # Step 2 (ls revealed weapon)
+            "took_weapon": False,       # Step 2 gate
+            "equipped_weapon": False,   # Step 3 gate (also triggers enemy spawn)
+            "combat_typed": False,      # Step 4 gate (used typed attack)
+            "combat_selection": False,  # Step 5 gate (used TAB + number)
+            "navigation_ls": False,     # Step 6 gate (typed ls post-combat)
+            "navigation_moved": False,  # Step 6 gate (moved to new room)
+            "completed": False          # Step 7 — tutorial fully done
+        }
+
+        # Harvesting Cycles (XP System)
+        self.harvesting_cycles = 0
+        self.level = 1
+        self.cycles_to_next_level = 100
+
+        # Story progression flags
+        self.story_flags = {
+            "identity_retrieved": False,
+            "typo_discovered": False,
+            "sudo_trial_complete": False,
+            "mirror_confronted": False,
+            "ending_chosen": None,
+            "sudo_quest_active": False,
+            "bovine_encountered": False,
+            "milk_claimed": False
         }
 
     def load_class_attributes(self):
@@ -69,6 +90,19 @@ class Player:
 
         # Load starter abilities
         self.starter_abilities = class_info.get("starter_abilities", [])
+
+        # Give starter consumables to help survive early game
+        self._add_starter_items()
+
+    def _add_starter_items(self):
+        """Give the player starter consumables to help survive early game."""
+        # Give 1 health packet to start
+        health_packet = load_consumable_data("health_packet")
+        if health_packet:
+            self.inventory["health_packet_1"] = health_packet.copy()
+            debug_log("Starter items added: 1x Health Packet")
+        else:
+            debug_log("WARNING: Could not load health_packet for starter items")
 
     def add_to_inventory(self, item_id, item_data):
         """Add an item to the player's inventory."""
@@ -123,21 +157,11 @@ class Player:
     
     def can_use_item(self, item):
         """Check if the player can use this item based on class restrictions."""
-        # Check class_restriction
-        if "class_restriction" in item:
-            allowed_classes = item["class_restriction"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
-            return self.player_class.lower() in [c.lower() for c in allowed_classes]
-        
-        # Check allowed_classes
         if "allowed_classes" in item:
             allowed_classes = item["allowed_classes"]
             if isinstance(allowed_classes, str):
                 allowed_classes = [allowed_classes]
             return self.player_class.lower() in [c.lower() for c in allowed_classes]
-            
-        # No restrictions means anyone can use it
         return True
 
     def apply_status_effect(self, effect_id, effect_data):
@@ -199,14 +223,14 @@ class Player:
         debug_log(f"Player took {amount} damage, health now {self.health}/{self.max_health}.")
 
     def heal(self, amount):
-        """Heal the player by a certain amount."""
+        """Heal the player by a certain amount. Returns actual HP gained."""
         old_health = self.health
         self.health += amount
         if self.health > self.max_health:
             self.health = self.max_health
         actual_heal = self.health - old_health
         debug_log(f"Player healed {actual_heal}, health now {self.health}/{self.max_health}.")
-        return self.health
+        return actual_heal
         
     def is_alive(self):
         """Check if the player is alive."""
@@ -264,7 +288,81 @@ class Player:
         self.previous_room = self.current_room  # Track previous room
         self.current_room = room_id
         return True
-        
+
+    def harvest_cycles(self, amount):
+        """Gain harvesting cycles (XP) from defeated enemies."""
+        self.harvesting_cycles += amount
+        debug_log(f"Player gained {amount} harvesting cycles. Total: {self.harvesting_cycles}/{self.cycles_to_next_level}")
+
+        # Check for level up
+        while self.harvesting_cycles >= self.cycles_to_next_level:
+            self.level_up()
+
+        return self.harvesting_cycles
+
+    def level_up(self):
+        """Level up the player, increasing stats and resetting cycle requirement."""
+        self.harvesting_cycles -= self.cycles_to_next_level
+        self.level += 1
+
+        # Increase stats
+        health_gain = 10
+        damage_gain = 2
+
+        self.increase_max_health(health_gain)
+        self.increase_damage(damage_gain)
+
+        # Exponentially increasing cycle requirements
+        self.cycles_to_next_level = int(self.cycles_to_next_level * 1.5)
+
+        debug_log(f"Player leveled up to level {self.level}! +{health_gain} HP, +{damage_gain} DMG. Next level at {self.cycles_to_next_level} cycles.")
+
+        return {
+            "new_level": self.level,
+            "health_gain": health_gain,
+            "damage_gain": damage_gain,
+            "cycles_to_next": self.cycles_to_next_level
+        }
+
+    def get_persistent_items(self):
+        """Return only items with persistence: 'persistent' tag."""
+        persistent = {}
+        for item_id, item_data in self.inventory.items():
+            persistence = item_data.get("persistence", "persistent")  # Default to persistent for backwards compatibility
+            if persistence == "persistent":
+                persistent[item_id] = item_data
+        return persistent
+
+    def apply_death_penalty(self):
+        """Remove ephemeral items on death."""
+        ephemeral_items = []
+        for item_id, item_data in list(self.inventory.items()):
+            persistence = item_data.get("persistence", "persistent")
+            if persistence == "ephemeral":
+                ephemeral_items.append(item_id)
+
+        # Remove all ephemeral items
+        for item_id in ephemeral_items:
+            self.remove_from_inventory(item_id)
+            debug_log(f"Ephemeral item {item_id} lost on death")
+
+        return ephemeral_items
+
+    def set_story_flag(self, flag, value=True):
+        """Set a story progression flag."""
+        if flag in self.story_flags:
+            self.story_flags[flag] = value
+            debug_log(f"Story flag '{flag}' set to {value}")
+            return True
+        else:
+            debug_log(f"Warning: Unknown story flag '{flag}'")
+            self.story_flags[flag] = value  # Add it anyway
+            return True
+
+    def get_story_flag(self, flag):
+        """Get the value of a story flag."""
+        return self.story_flags.get(flag, False)
+
     @classmethod
     def from_dict(cls, data):
         """Create a player instance from a dictionary."""
@@ -284,6 +382,13 @@ class Player:
         # Restore tutorial state if it exists
         if "tutorial_state" in data:
             player.tutorial_state = data["tutorial_state"]
+        # Restore harvesting cycles and level
+        player.harvesting_cycles = data.get("harvesting_cycles", 0)
+        player.level = data.get("level", 1)
+        player.cycles_to_next_level = data.get("cycles_to_next_level", 100)
+        # Restore story flags
+        if "story_flags" in data:
+            player.story_flags = data["story_flags"]
         return player
     
     def to_dict(self):
@@ -302,5 +407,9 @@ class Player:
             "current_room": self.current_room,
             "previous_room": self.previous_room,  # Save previous room
             "player_id": self.player_id,
-            "tutorial_state": self.tutorial_state
+            "tutorial_state": self.tutorial_state,
+            "harvesting_cycles": self.harvesting_cycles,
+            "level": self.level,
+            "cycles_to_next_level": self.cycles_to_next_level,
+            "story_flags": self.story_flags
         }

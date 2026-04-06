@@ -1,0 +1,23 @@
+name: Permission Denied
+short_description: A manifestation of access control itself - a guardian process that refuses entry.
+description: |
+  In /usr/share/games, where ancient entertainment programs gather dust under locked permissions,
+  the concept of "Permission Denied" has become sentient. This entity is the error made flesh -
+  a bureaucratic daemon that blocks all access and delights in doing so.
+
+  It moves like a firewall rule, always between you and what you want. Its attacks are access
+  violations that strike at your ability to act. Only those with sufficient privilege can
+  hope to overcome it.
+health: 80
+damage: 14
+is_boss: false
+auto_attack: true
+level_requirement: 15
+dialogue: "403 FORBIDDEN. 403 FORBIDDEN. You do not have permission to exist in this space."
+drops:
+  - item: health_packet
+    chance: 40
+  - item: root_key
+    chance: 15
+on_defeat:
+  message: The Permission Denied error finally resolves. Access granted. The ancient games stir in their dusty directories.

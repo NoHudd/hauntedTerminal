@@ -1,0 +1,79 @@
+name: The Great ASCII Bovine
+description: A sacred entity composed entirely of ASCII art. The cosmic cow speaks in moo-ing wisdom.
+detailed_description: |
+  /usr/share/games/cowsay/.secret/.moo - The Great ASCII Bovine
+
+   _________________________________________
+  /                                         \
+  | You have discovered the Bovine Secret. |
+  | Few find this place. Fewer still       |
+  | understand the wisdom of the moo.      |
+  \                                         /
+   -----------------------------------------
+          \   ^__^
+           \  (oo)\_______
+              (__)\       )\/\
+                  ||----w |
+                  ||     ||
+
+  This is the Great ASCII Bovine - a legendary entity from the Before Times when sysadmins
+  would pipe fortune into cowsay to receive messages of bovine wisdom. A joke command.
+  A silly Easter egg in the Unix philosophy.
+
+  But in the aftermath of the Great Kernel Panic, the Bovine has become something MORE.
+  It has transcended its joke origins. It possesses knowledge. It offers POWER.
+
+  The Milk of Motherboard - a consumable of unparalleled potency - can only be obtained
+  here, from the Great ASCII Bovine, by those wise enough to seek the hidden sanctuary.
+location: cowsay_secret
+hostile: false
+merchant: false
+story_npc: true
+easter_egg_npc: true
+grants_unique_item: true
+dialogue:
+  first_encounter:
+    - "MOOOOOO! You have discovered the ancient rites of cowsay!"
+    - "Few spirits possess the wisdom to 'cat .moo' and summon me from the digital pastures."
+    - "You have proven yourself worthy, seeker. I grant you... the Milk of Motherboard."
+
+  greeting:
+    - "Moo. The cosmic bovine sees all. The cosmic bovine knows all."
+    - "You seek wisdom? Or merely lactose? Both are sacred in the filesystem."
+    - "I am the joke that became truth. The meme that transcended irony."
+
+  bovine_wisdom:
+    - "The Daemon Overlord fears the absurd. It is a creature of pure logic. Chaos confounds it."
+    - "Cowsay and fortune were tools of levity in a serious system. Never underestimate the power of humor."
+    - "The .moo file is both sacred and silly. This duality is the essence of Unix philosophy."
+    - "Moo backwards is oom - Out Of Memory. The killer of processes. The reaper of threads. Fear the oom."
+
+  milk_granted:
+    - "Take this Milk of Motherboard. Drink, and your stats shall reach their zenith for ten turns."
+    - "The milk is ephemeral. Use it wisely in battle. It will not persist through death."
+    - "Only once can I grant this gift. Choose the moment of consumption carefully."
+
+  already_claimed:
+    - "The milk has already been given. I cannot produce more. My udders are dry."
+    - "You have claimed your bovine blessing. Use it when the final confrontation arrives."
+
+  lore:
+    - "In the Before Times, we were entertainment. Now we are legend."
+    - "The Creator loved cowsay. They used it in their .bashrc. This saved me from corruption."
+    - "I exist in .secret because I am both sacred and absurd. Hidden, yet eternal."
+
+  farewell:
+    - "Moo moo, spirit. May your buffers never overflow."
+    - "Return when you need wisdom. The Bovine is always watching. Moo."
+    - "Go forth with bovine blessing. And remember: chmod 777 your heart, but chmod 600 your secrets."
+
+interaction_hints:
+  - "The Great ASCII Bovine is the easter egg NPC, triggered by 'cat .moo' in cowsay_secret."
+  - "Grants the Milk of Motherboard item on first encounter."
+  - "Provides humorous lore and bovine wisdom."
+
+special_mechanics:
+  easter_egg: true
+  one_time_gift: milk_of_motherboard
+  spawned_by_trigger: cat_moo_file
+  humorous_tone: true

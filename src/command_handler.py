@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import random
 import logging
 from rich.text import Text
@@ -7,8 +8,10 @@ from src.combat import combat_system, CombatSession
 from src.events import event_bus, EventType
 from src.game_states import GameState
 from src.state_manager import state_manager
+from src.ui.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 from utils.typewriter import TypewriterPresets, create_typewriter_output_func
+from utils.particle_animation import GameOverAnimation
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +37,7 @@ class CommandHandler:
             # Filesystem-style paths with / prefix
             "/home": "home_grove",
             "/home/grove": "home_grove",
-            "/var": "var_dungeon", 
+            "/var": "var_dungeon",
             "/var/dungeon": "var_dungeon",
             "/mnt": "mnt_forest",
             "/mnt/forest": "mnt_forest",
@@ -45,10 +48,13 @@ class CommandHandler:
             "/usr/lib/arcane": "usr_lib_arcane",
             "/opt": "opt_mage_tower",
             "/opt/tower": "opt_mage_tower",
+            "/opt/mage_tower": "opt_mage_tower",
             "/srv": "srv_warrior_tomb",
             "/srv/tomb": "srv_warrior_tomb",
+            "/srv/warrior_tomb": "srv_warrior_tomb",
             "/tmp": "tmp_hidden_chamber",
             "/tmp/chamber": "tmp_hidden_chamber",
+            "/tmp/hidden_chamber": "tmp_hidden_chamber",
             "/proc": "proc_secrets",
             "/proc/secrets": "proc_secrets",
             "/etc": "etc_hidden_configs",
@@ -103,7 +109,6 @@ class CommandHandler:
             "pwd": self.show_current_directory,
             "cat": self.read_file,
             "map": self.show_map,
-            "worldmap": self.show_world_map,
             "take": self.take_item,
             "drop": self.drop_item,
             "use": self.use_item,
@@ -121,35 +126,38 @@ class CommandHandler:
             "exit": self.quit_game
         }
         
-        # Specify which commands require arguments  
+        # Commands that accept an argument (required or optional)
         self.commands_with_args = {
-            "cd", "cat", "take", "drop", "use", "equip", "examine", "talk", "attack"
-        }
-        
-        # Commands that can optionally take arguments
-        self.commands_with_optional_args = {
+            "cd", "cat", "take", "drop", "use", "equip", "examine", "talk", "attack",
             "ls", "find", "ps"
         }
         
         debug_log(f"Registered {len(self.commands)} commands")
     
+    _EVENT_HANDLERS = [
+        (EventType.ROOM_ENTERED, "_on_room_entered"),
+        (EventType.ALL_ENEMIES_DEFEATED, "_on_all_enemies_defeated"),
+        (EventType.ROOM_CHANGED, "_on_room_changed_for_npc"),
+        (EventType.COMBAT_ENDED, "_on_combat_ended_tutorial"),
+        (EventType.TUTORIAL_SELECTION_MODE_USED, "_on_tutorial_selection_mode_used"),
+    ]
+
     def setup_event_subscriptions(self):
         """Set up event subscriptions for the command handler."""
-        event_bus.subscribe(EventType.ROOM_ENTERED, self._on_room_entered)
-        event_bus.subscribe(EventType.ALL_ENEMIES_DEFEATED, self._on_all_enemies_defeated)
-        event_bus.subscribe(EventType.ROOM_CHANGED, self._on_room_changed_for_npc)
+        for event_type, handler_name in self._EVENT_HANDLERS:
+            event_bus.subscribe(event_type, getattr(self, handler_name))
         debug_log("CommandHandler event subscriptions set up")
-    
+
     def cleanup_event_subscriptions(self):
         """Clean up event subscriptions for the command handler."""
-        event_bus.unsubscribe(EventType.ROOM_ENTERED, self._on_room_entered)
-        event_bus.unsubscribe(EventType.ALL_ENEMIES_DEFEATED, self._on_all_enemies_defeated) 
-        event_bus.unsubscribe(EventType.ROOM_CHANGED, self._on_room_changed_for_npc)
+        for event_type, handler_name in self._EVENT_HANDLERS:
+            event_bus.unsubscribe(event_type, getattr(self, handler_name))
         debug_log("CommandHandler event subscriptions cleaned up")
     
     def _on_room_entered(self, event):
         """Handle room entered event to respawn fled enemies."""
-        room_id = event.data.get("room")
+        # Get room_id from player's current room (event contains RoomView dict, not room_id)
+        room_id = self.player.current_room
         if room_id:
             debug_log(f"Player entered room {room_id}, checking for fled enemies to respawn")
             self.world.respawn_fled_enemies(room_id)
@@ -178,6 +186,23 @@ class CommandHandler:
             else:
                 debug_log(f"NPC greeting cooldown active for {to_room}, skipping")
     
+    def _on_combat_ended_tutorial(self, event):
+        """Handle combat end for tutorial post-combat hints (Step 5 post-combat + Step 6)."""
+        ts = self.player.tutorial_state
+        if ts.get("completed", False):
+            return
+        if ts.get("combat_typed", False) and not ts.get("navigation_ls", False):
+            if event.data.get("victory", False):
+                self.show_tutorial_hint("step5_postcombat")
+                self.show_tutorial_hint("step6")
+
+    def _on_tutorial_selection_mode_used(self, event):
+        """Handle tutorial selection mode used event (TAB pressed during tutorial combat)."""
+        ts = self.player.tutorial_state
+        if ts.get("combat_typed", False) and not ts.get("combat_selection", False):
+            ts["combat_selection"] = True
+            debug_log("Tutorial: combat_selection gate passed (TAB used in combat)")
+
     def _trigger_automatic_npc_dialogue(self, room_id, context):
         """Automatically trigger NPC dialogue for guidance."""
         debug_log(f"_trigger_automatic_npc_dialogue called: room={room_id}, context={context}")
@@ -266,11 +291,7 @@ class CommandHandler:
 
     def _show_error(self, message: str, log_message: str = None):
         """Display error to UI and log it for debugging."""
-        # Show to player
         self.ui.update_output(message)
-
-        # Log for debugging (remove color codes from log)
-        import re
         clean_message = re.sub(r'\[.*?\]', '', log_message or message)
         logger.error(f"Command error: {clean_message}")
 
@@ -313,50 +334,97 @@ class CommandHandler:
         return keys
 
     def show_tutorial_hint(self, hint_type, item_name=None):
-        """Show contextual tutorial hints based on player progress."""
+        """Show gated tutorial hints. Each step has a single clear instruction."""
         if self.player.tutorial_state.get("completed", False):
-            return  # Tutorial already completed
-        
-        # Get the actual weapon name for dynamic hints
+            return
+
+        player_name = self.player.name if hasattr(self.player, 'name') and self.player.name else "spirit"
+
+        # Determine starter weapon name for dynamic hints
         if item_name:
             weapon_name = item_name
         else:
-            # Get class-specific starter weapon
             class_starter_weapons = {
-                "guardian": "protocol_shield",
-                "weaver": "byte_blaster", 
-                "shaman": "echo_staff"
+                "guardian": "segfault_shield",
+                "weaver": "null_pointer",
+                "shaman": "daemon_whisper"
             }
-            weapon_name = class_starter_weapons.get(self.player.player_class, "protocol_shield")
-            
-        # Get player name for personalization
-        player_name = self.player.name if hasattr(self.player, 'name') and self.player.name else "spirit"
-        
+            weapon_name = class_starter_weapons.get(self.player.player_class, "segfault_shield")
+
         hints = {
-            "welcome": f"[bold green]ECHO>[/bold green] [italic]Ah, {player_name}... you have manifested in the /home grove. This sector remains stable—a sanctuary in the digital chaos.\n\nYour spirit-form is adapting to the command interface. Try [bold]ls[/bold] to scan this directory's contents.\nRemember: files are fragments of power. Some hold tools, others hold secrets.[/italic]",
-            "first_look": f"[bold green]ECHO>[/bold green] [italic]Good, {player_name}. You're learning to see through the corruption.\nTo claim artifacts, use [bold]take <filename>[/bold]. To wield tools of power, use [bold]equip <item>[/bold].\nYour possessions appear in the inventory panel—the void claims careless spirits.[/italic]",
-            "found_weapon": f"[bold green]ECHO>[/bold green] [italic]Excellent, {player_name}! I sense a weapon resonating with your {self.player.player_class.title()} essence.\nThe [bold]{weapon_name}[/bold] pulses with familiar energy. Use [bold]take {weapon_name}[/bold] to bind it to your spirit.[/italic]",
-            "took_weapon": f"[bold green]ECHO>[/bold green] [italic]The weapon recognizes you, {player_name}. When darkness manifests as corrupted processes, you must be ready.\nUse [bold]equip {weapon_name}[/bold] to channel its power. Every battle is a struggle for the filesystem's soul.[/italic]",
-            "equipped_weapon": f"[bold green]ECHO>[/bold green] [italic]Well done, {player_name}. Your essence and weapon are now synchronized.\nIn combat, use [bold]attack [enemy][/bold] to strike, or execute weapon abilities as commands.\nCheck the inventory panel to review your spiritual arsenal.[/italic]",
-            "completed": f"[bold green]ECHO> Tutorial Complete, {player_name}![/bold green] [italic]The basic interface is now yours to command.\nThe corrupted directories await your cleansing touch. Purge the malevolent code and restore the root filesystem.\n\nMay your commands ring true in the digital void...[/italic]"
+            # Step 0: skip summary (player chose to skip)
+            "skip_summary": (
+                "[bold green]ECHO>[/bold green] Got it. Quick reference: "
+                "[bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items, "
+                "[bold]attack[/bold] fights enemies. In combat, press [bold]TAB[/bold] to enter "
+                "Selection Mode then [bold]1-9[/bold] to attack. [bold]flee[/bold] escapes a fight. "
+                "[bold]help[/bold] if stuck. Good luck."
+            ),
+            # Step 1: welcome + ls instruction
+            "step1": (
+                "[bold green]ECHO>[/bold green] You're in /home — a stable part of the filesystem. "
+                "The rest is corrupted and needs clearing. Let's start simple. "
+                "Type: [bold]ls[/bold] and press Enter to see what's here."
+            ),
+            # Step 2: take weapon instruction
+            "step2": (
+                f"[bold green]ECHO>[/bold green] Good — that's everything in this directory. "
+                f"See that weapon? Type: [bold]take {weapon_name}[/bold] to pick it up. "
+                f"Items you carry appear in the Inventory panel on the right."
+            ),
+            # Step 3: equip instruction
+            "step3": (
+                f"[bold green]ECHO>[/bold green] You're carrying it, but it's not active yet. "
+                f"Type: [bold]equip {weapon_name}[/bold] to ready it. "
+                f"Equipping means it'll be used in combat."
+            ),
+            # Step 4: combat - typed attack instruction
+            "step4": (
+                "[bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat. "
+                "Type: [bold]attack[/bold] to strike it."
+            ),
+            # Step 5: combat - Selection Mode instruction (fires after first typed attack)
+            "step5": (
+                "[bold green]ECHO>[/bold green] Nice hit. One more should finish it. "
+                "Try this: press [bold]TAB[/bold] to enter Selection Mode, "
+                "then press [bold]1[/bold] to attack without typing anything. "
+                "TAB switches you back to typing whenever you need it."
+            ),
+            # Step 5 post-combat informational (no gate)
+            "step5_postcombat": (
+                "[bold green]ECHO>[/bold green] You won. Two more things to know: "
+                "[bold]use [item][/bold] uses a consumable mid-fight, "
+                "and [bold]flee[/bold] lets you escape if things go badly."
+            ),
+            # Step 6: navigation ls instruction
+            "step6": (
+                "[bold green]ECHO>[/bold green] Let's move. "
+                "Type: [bold]ls[/bold] again — exits show at the bottom of the room listing."
+            ),
+            # Step 6b: navigation move instruction
+            "step6b": (
+                "[bold green]ECHO>[/bold green] See those paths? "
+                "Type one — like [bold]/var[/bold] — and you'll move there. "
+                "That's how the whole filesystem works."
+            ),
+            # Step 7: tutorial complete cheat-sheet
+            "completed": (
+                f"[bold green]ECHO> Tutorial complete, {player_name}.[/bold green]\n"
+                f"Quick reminder:\n"
+                f"  • [bold]ls[/bold] — scan a room\n"
+                f"  • [bold]take / equip[/bold] — grab and ready items\n"
+                f"  • [bold]attack[/bold] or TAB + number — fight enemies\n"
+                f"  • [bold]flee[/bold] — escape a fight\n"
+                f"  • [bold]help[/bold] — if you get stuck\n"
+                f"Good luck out there."
+            ),
         }
-        
+
         if hint_type in hints:
-            hint_text = f"[dim]{hints[hint_type]}[/dim]"
-            
-            # Use typewriter effect for tutorial hints (faster than narrative)
-            output_callback = create_typewriter_output_func(
-                lambda text: self.ui.update_output(f"[dim cyan]>>> Echo transmitting...[/dim cyan]\n\n{text}")
-            )
-            
-            try:
-                TypewriterPresets.SYSTEM.type_text_sync(hint_text, output_callback)
-                # Final clean output
-                self.ui.update_output(hint_text)
-            except Exception as e:
-                # Fallback to instant display if typewriter fails
-                debug_log(f"Typewriter effect failed for tutorial hint {hint_type}: {e}")
-                self.ui.update_output(hint_text)
+            self.ui.update_output(hints[hint_type])
+
+            if hint_type == "completed":
+                self.player.tutorial_state["completed"] = True
     
     def create_health_bar(self, current_health, max_health, color="white"):
         """Create an ASCII health bar with the specified color."""
@@ -417,17 +485,10 @@ class CommandHandler:
         # Use the command dispatcher to handle commands
         if cmd in self.commands:
             if cmd in self.commands_with_args:
-                # Command expects an argument
                 arg = args[0] if args else ""
                 debug_log(f"Executing command '{cmd}' with arg '{arg}'")
                 self.commands[cmd](arg)
-            elif cmd in self.commands_with_optional_args:
-                # Command can optionally take arguments
-                arg = args[0] if args else ""
-                debug_log(f"Executing command '{cmd}' with optional arg '{arg}'")
-                self.commands[cmd](arg)
             else:
-                # Command doesn't take arguments
                 debug_log(f"Executing command '{cmd}' with no args")
                 self.commands[cmd]()
         else:
@@ -445,7 +506,6 @@ class CommandHandler:
         - [cyan]pwd[/cyan]: Show current directory
         - [cyan]cat [file][/cyan]: Read the contents of a file
         - [cyan]map[/cyan]: Show available locations
-        - [cyan]worldmap[/cyan]: Show ASCII world layout
         - [cyan]keys[/cyan]: Show key progression system
         - [cyan]take [item][/cyan]: Add an item to your inventory
         - [cyan]drop [item][/cyan]: Remove an item from your inventory
@@ -472,29 +532,29 @@ class CommandHandler:
         shortcuts_text = """[bold cyan]Item Shortcuts & Typing Tips:[/bold cyan]
 
 [bold]Health & Healing:[/bold]
-- [yellow]hp[/yellow] or [yellow]heal[/yellow] → health potion
-- [yellow]health[/yellow] → any health potion 
-- [yellow]potion[/yellow] → any potion
+- [yellow]hp[/yellow] or [yellow]heal[/yellow] → health_packet
+- [yellow]health[/yellow] or [yellow]packet[/yellow] → health_packet
+- [yellow]cache[/yellow] → stable_cache
+- [yellow]buffer[/yellow] → overflowing_buffer
 
 [bold]Weapons:[/bold]
-- [yellow]staff[/yellow] → echo_staff
-- [yellow]shield[/yellow] → protocol_shield  
-- [yellow]blaster[/yellow] → byte_blaster
+- [yellow]shield[/yellow] → segfault_shield (Guardian)
+- [yellow]pointer[/yellow] → null_pointer (Weaver)
+- [yellow]whisper[/yellow] → daemon_whisper (Shaman)
 
 [bold]Other Items:[/bold]
-- [yellow]strength[/yellow] → strength_potion
-- [yellow]swift[/yellow] → swiftness_tonic
-- [yellow]fortitude[/yellow] → fortitude_elixir
+- [yellow]backup[/yellow] → legacy_backup
+- [yellow]seed[/yellow] → sudo_seed
 
 [bold]Partial Matching:[/bold]
 You can type just the beginning of an item name:
-- [yellow]health_pot[/yellow] → health_potion_minor
-- [yellow]echo[/yellow] → echo_staff
+- [yellow]health_p[/yellow] → health_packet
+- [yellow]segfault[/yellow] → segfault_shield
 
 [bold cyan]Usage Examples:[/bold cyan]
-- [green]take hp[/green] (instead of take health_potion_minor)
-- [green]use heal[/green] (instead of use health_potion_minor)
-- [green]take staff[/green] (instead of take echo_staff)"""
+- [green]take hp[/green] (instead of take health_packet)
+- [green]use heal[/green] (instead of use health_packet)
+- [green]take shield[/green] (instead of take segfault_shield)"""
         self.ui.update_output(shortcuts_text)
     
     def show_current_directory(self):
@@ -527,21 +587,17 @@ You can type just the beginning of an item name:
         self.world.set_room_visited(room_id)
         
         # Get room information
-        title = Text(f"Location: {room_id}", style="bold white on dark_blue")
+        room_name = room.get("name", room_id)
+        title = Text(f"{room_name}", style="bold white on dark_blue")
         description = Text(room.get("description", "No description available."))
-        
+
         # Get atmospheric enhancement
         atmospheric = self.get_atmospheric_description(room_id)
-        
-        # Get exits
-        exits = self.world.get_exits(room_id)
-        exits_str = "Exits: " + ", ".join(exits) if exits else "No visible exits."
-        
+
         # Create content with title and atmospheric description
         location_content = f"[bold]{title}[/bold]\n\n{description}"
         if atmospheric:
             location_content += f"\n\n{atmospheric}"
-        location_content += f"\n\n{exits_str}"
         
         self.ui.update_output(location_content)
     
@@ -549,51 +605,57 @@ You can type just the beginning of an item name:
         """Format item description to show what it does in parentheses"""
         if not item:
             return "No description available"
-            
+
         # Get base description (try different fields with fallbacks)
         base_desc = (
-            item.get("short_description") or 
+            item.get("short_description") or
             item.get("description", "").split(".")[0] or  # Take first sentence if multiple
-            item.get("name") or 
+            item.get("name") or
             "Unknown item"
         )
-        
+
         # Determine item effect based on type and properties
         effect = ""
-        
-        # Healing items
-        if "on_use" in item and "heal" in item["on_use"]:
-            effect = f"+{item['on_use']['heal']} Health"
-        
-        # Damage-dealing items
+
+        # Healing items - check combat_effects.player_heal first (new format)
+        if "combat_effects" in item and "player_heal" in item["combat_effects"]:
+            effect = f"+{item['combat_effects']['player_heal']} HP"
+
+        # Also check on_use.heal (old format)
+        elif "on_use" in item and "heal" in item["on_use"]:
+            effect = f"+{item['on_use']['heal']} HP"
+
+        # Damage-dealing consumables
+        elif "combat_effects" in item and "player_damage" in item["combat_effects"]:
+            effect = f"+{item['combat_effects']['player_damage']} DMG"
         elif "on_use" in item and "damage" in item["on_use"]:
-            effect = f"+{item['on_use']['damage']} Damage"
-        
+            effect = f"+{item['on_use']['damage']} DMG"
+
         # Status effect items
         elif "on_use" in item and "status_effect" in item["on_use"]:
             effect_name = item["on_use"]["status_effect"].get("name", "Effect")
             effect = f"Status: {effect_name}"
-        
-        # Weapons
+
+        # Weapons - check damage field
         elif item.get("type") == "weapon" or "weapon" in str(item.get("type", "")):
-            bonus = item.get("bonus_total_damage", 0)
-            if bonus > 0:
-                effect = f"+{bonus} Damage"
-        
+            damage = item.get("damage", 0)
+            if damage > 0:
+                effect = f"+{damage} DMG"
+
         # Upgrade items
         elif "effects" in item:
             effects = []
             if "permanent_health" in item["effects"]:
-                effects.append(f"+{item['effects']['permanent_health']} Health")
+                effects.append(f"+{item['effects']['permanent_health']} HP")
             if "permanent_damage" in item["effects"]:
-                effects.append(f"+{item['effects']['permanent_damage']} Damage")
+                effects.append(f"+{item['effects']['permanent_damage']} DMG")
             if effects:
                 effect = "Perm: " + "/".join(effects)
-        
+
         # Key items
         elif item.get("type") == "key" or "unlocks" in item:
             effect = "Unlocks areas"
-            
+
         # Add the effect in parentheses if we found one
         if effect:
             return f"{base_desc} ({effect})"
@@ -629,10 +691,6 @@ You can type just the beginning of an item name:
         has_content = False
         show_hidden = args == "-a"  # Check for -a flag
         
-        # Tutorial: first ls
-        if not self.player.tutorial_state.get("first_ls", False):
-            self.player.tutorial_state["first_ls"] = True
-        
         # Check for enemies first - if enemies present, block exploration
         has_enemies, enemy_output = self._check_enemies_blocking_exploration(room_id)
         if has_enemies:
@@ -650,8 +708,7 @@ You can type just the beginning of an item name:
                 output.append(f"  {item_id}", style="green")
                 output.append(f" - {description}\n")
                 
-                # Tutorial: found weapon
-                if not self.player.tutorial_state.get("found_weapon", False) and item and item.get("type") == "weapon":
+                if item and item.get("type") == "weapon":
                     weapon_found = True
                     
             has_content = True
@@ -714,24 +771,29 @@ You can type just the beginning of an item name:
             output.append("No files, processes, or entities found.")
 
         self.ui.update_output(output)
-        
-        # Tutorial: first time using ls (equivalent to old "first_look")
-        if not self.player.tutorial_state.get("first_look", False):
-            self.player.tutorial_state["first_look"] = True
-            self.show_tutorial_hint("first_look")
-        
-        # Tutorial: show weapon hint after ls reveals weapon
-        if weapon_found:
-            self.player.tutorial_state["found_weapon"] = True
-            # Find the actual weapon item to show in tutorial
-            weapon_item_id = None
-            for item_id in items:
-                item = self.world.get_item(item_id)
-                if item and item.get("type") == "weapon":
-                    weapon_item_id = item_id
-                    break
-            self.show_tutorial_hint("found_weapon", weapon_item_id)
-    
+
+        # Tutorial gating for list_directory
+        ts = self.player.tutorial_state
+        if not ts.get("completed", False):
+            # Step 1 gate: first ls
+            if not ts.get("first_ls", False):
+                ts["first_ls"] = True
+                # Step 2 hint fires if weapon visible in this ls
+                if weapon_found:
+                    ts["found_weapon"] = True
+                    # Find weapon id for hint
+                    weapon_item_id = None
+                    for item_id in items:
+                        item = self.world.get_item(item_id)
+                        if item and item.get("type") == "weapon":
+                            weapon_item_id = item_id
+                            break
+                    self.show_tutorial_hint("step2", weapon_item_id)
+            # Step 6 gate: navigation ls (post-combat)
+            elif ts.get("combat_typed", False) and not ts.get("navigation_ls", False):
+                ts["navigation_ls"] = True
+                self.show_tutorial_hint("step6b")
+
     def change_directory(self, directory):
         """Change to a different directory (room)"""
         if not directory:
@@ -776,7 +838,10 @@ You can type just the beginning of an item name:
                 key_item = self.player.get_item_from_inventory(key_required)
                 
                 # Check if key has unlocks data (new format)
-                if "unlocks" in key_item and directory in key_item["unlocks"]:
+                # Normalize unlocks through room_aliases so path-format entries ("/opt/mage_tower")
+                # match resolved room IDs ("opt_mage_tower").
+                resolved_unlocks = [self.room_aliases.get(r.lower(), r) for r in key_item.get("unlocks", [])]
+                if "unlocks" in key_item and directory in resolved_unlocks:
                     debug_log(f"Using key {key_required} to unlock {directory} (new format)")
                     self.world.unlock_room(directory)
                     self.ui.update_output(f"[yellow]You automatically use {key_required} to unlock {directory}.[/yellow]")
@@ -809,58 +874,67 @@ You can type just the beginning of an item name:
         # Move the player
         debug_log(f"Moving player from {current_room} to {directory}")
         self.player.move_to(directory)
-        self.ui.update_output(f"Changed to [bold]{directory}[/bold]")
+
+        # Get the room name for a friendly entry message
+        new_room = self.world.get_room(directory)
+        room_name = new_room.get('name', directory) if new_room else directory
+        self.ui.update_output(f"[bold cyan]Entering {room_name}...[/bold cyan]")
         debug_log(f"Successfully moved player to {directory}")
-        
-        # Emit room changed event
-        event_bus.emit_event(
-            EventType.PLAYER_MOVED,
-            {"player": self.player, "from_room": current_room, "to_room": directory},
-            "CommandHandler"
-        )
-        
+
+        # Build room view for the new room and emit room entered event
+        room_view = ViewBuilder.build_room_view(self.world, directory)
+
         event_bus.emit_event(
             EventType.ROOM_ENTERED,
-            {"room": directory, "player": self.player, "world": self.world},
+            {"room": room_view.to_dict(), "player_name": self.player.name},
             "CommandHandler"
         )
         
         # Display the new location
         self.display_location()
-        
-        # Check for enemies in the new room
-        debug_log(f"Checking for enemies after moving to {directory}")
-        self.check_for_enemies()
-    
+
+        # Step 6 navigation gate → tutorial complete
+        ts = self.player.tutorial_state
+        if not ts.get("completed", False) and ts.get("navigation_ls", False):
+            if not ts.get("navigation_moved", False):
+                ts["navigation_moved"] = True
+                self.show_tutorial_hint("completed")
+
     def read_file(self, filename):
         """Read the contents of a file (item)"""
         if not filename:
             self._show_error("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
             return
-        
+
         # Check if file is in the current room
         current_room = self.player.current_room
         items_in_room = self.world.get_items_in_room(current_room)
-        
-        if filename in items_in_room:
+
+        # Try to find item by ID or name (case-insensitive, with/without underscores/dots)
+        item_id = self._find_item_by_name_or_id(filename, items_in_room)
+
+        if item_id:
             # Item is in the room
-            item = self.world.get_item(filename)
+            item = self.world.get_item(item_id)
             if item:
-                content = item.get("content", "This file appears to be empty or corrupted.")
-                file_content = f"[bold]{filename}[/bold]\n\n{content}"
+                item_name = item.get("name", item_id)
+                content = item.get("content", item.get("description", "This file appears to be empty or corrupted."))
+                file_content = f"[bold]{item_name}[/bold]\n\n{content}"
                 self.ui.update_output(file_content)
-                
+
                 # Execute any special effects defined for this item
                 if "on_read" in item:
                     self.execute_effect(item["on_read"])
             else:
                 self._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
-        elif self.player.has_item(filename):
-            # Item is in the player's inventory
-            item = self.player.get_item_from_inventory(filename)
+        elif self.player.has_item(filename) or self._find_item_in_inventory_by_name(filename):
+            # Item is in the player's inventory - find by name or ID
+            item_id_inv = self._find_item_in_inventory_by_name(filename) or filename
+            item = self.player.get_item_from_inventory(item_id_inv)
             if item:
-                content = item.get("content", "This file appears to be empty or corrupted.")
-                file_content = f"[bold]{filename}[/bold]\n\n{content}"
+                item_name = item.get("name", item_id_inv)
+                content = item.get("content", item.get("description", "This file appears to be empty or corrupted."))
+                file_content = f"[bold]{item_name}[/bold]\n\n{content}"
                 self.ui.update_output(file_content)
 
                 # Execute any special effects defined for this item
@@ -870,6 +944,31 @@ You can type just the beginning of an item name:
                 self._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         else:
             self._show_error(f"[bold red]Cannot find {filename} in this directory or your inventory.[/bold red]")
+
+    @staticmethod
+    def _normalize_item_name(s: str) -> str:
+        return s.lower().replace(".", "_").replace("-", "_")
+
+    def _find_item_in_list(self, search_term, item_ids, get_item_fn):
+        """Find an item ID by name or ID match (fuzzy)."""
+        target = self._normalize_item_name(search_term)
+        for item_id in item_ids:
+            if self._normalize_item_name(item_id) == target:
+                return item_id
+            item_data = get_item_fn(item_id)
+            if item_data and self._normalize_item_name(item_data.get("name", "")) == target:
+                return item_id
+        return None
+
+    def _find_item_by_name_or_id(self, search_term, item_list):
+        """Find item ID in a room's item list by name or ID."""
+        return self._find_item_in_list(search_term, item_list, self.world.get_item)
+
+    def _find_item_in_inventory_by_name(self, search_term):
+        """Find item in player inventory by name or ID."""
+        return self._find_item_in_list(
+            search_term, self.player.inventory, self.player.get_item_from_inventory
+        )
     
     def take_item(self, item_id):
         """Pick up an item and add it to inventory"""
@@ -934,17 +1033,13 @@ You can type just the beginning of an item name:
             formatted_name = RaritySystem.format_item_name_with_rarity(item_name, rarity, show_emoji=False)
             
             self.ui.update_output(f"Added {formatted_name} to your inventory.")
-            
-            # Emit inventory changed event
-            event_bus.emit_event(
-                EventType.ITEM_TAKEN,
-                {"item_id": item_id, "item": item, "player": self.player, "room": current_room},
-                "CommandHandler"
-            )
-            
+
+            # Build inventory view for updated inventory and emit event
+            inventory_view = ViewBuilder.build_inventory_view(self.player)
+
             event_bus.emit_event(
                 EventType.PLAYER_INVENTORY_CHANGED,
-                {"player": self.player},
+                inventory_view.to_dict(),
                 "CommandHandler"
             )
             
@@ -956,7 +1051,7 @@ You can type just the beginning of an item name:
             # Tutorial: took weapon
             if not self.player.tutorial_state.get("took_weapon", False) and item.get("type") == "weapon":
                 self.player.tutorial_state["took_weapon"] = True
-                self.show_tutorial_hint("took_weapon", actual_item_id)
+                self.show_tutorial_hint("step3", actual_item_id)
         else:
             debug_log(f"Failed to add {actual_item_id} to inventory")
             self._show_error(f"[bold red]Could not add {item_id} to inventory.[/bold red]")
@@ -1049,7 +1144,8 @@ You can type just the beginning of an item name:
             self._handle_lore_item(actual_item_id, item)
         elif item_type == "consumable" or "heal" in item.get("on_use", {}):
             debug_log(f"Handling consumable item: {actual_item_id}")
-            self._handle_consumable_item(actual_item_id, item)
+            if self._handle_consumable_item(actual_item_id, item) is False:
+                return  # Item had no effect — don't consume it
         elif "upgrade" in item_type if item_type else False:
             debug_log(f"Handling upgrade item: {actual_item_id}")
             self._handle_upgrade_item(actual_item_id, item)
@@ -1080,60 +1176,57 @@ You can type just the beginning of an item name:
         if not unlocks:
             self.ui.update_output(f"You examine [green]{item_id}[/green], but it doesn't seem to unlock anything here.")
             return
-        
-        # Check if the key unlocks a room in the current location
+
+        # Check if the key unlocks a room in the current location.
+        # Normalize path-format entries ("/opt/mage_tower") to room IDs ("opt_mage_tower")
+        # via room_aliases so YAML paths and room IDs are interchangeable.
         current_room_id = self.player.current_room
         exits = self.world.get_exits(current_room_id)
-        
+        resolved_unlocks = [self.room_aliases.get(r.lower(), r) for r in unlocks]
+
         unlocked_something = False
-        for room_to_unlock in unlocks:
+        for room_to_unlock in resolved_unlocks:
             if room_to_unlock in exits:
                 self.world.unlock_room(room_to_unlock)
                 self.ui.update_output(f"[yellow]You hear a click. The path to {room_to_unlock} is now open.[/yellow]")
                 unlocked_something = True
-        
+
         if not unlocked_something:
             self.ui.update_output(f"You can't find a lock that [green]{item_id}[/green] fits here.")
     
+    def _show_damage_change(self, old_damage: int, new_damage: int):
+        """Display damage comparison after equipping a weapon."""
+        delta = new_damage - old_damage
+        if delta > 0:
+            self.ui.update_output(f"[green]Your total damage increased by {delta} (from {old_damage} to {new_damage}).[/green]")
+        elif delta < 0:
+            self.ui.update_output(f"[red]Your total damage decreased by {abs(delta)} (from {old_damage} to {new_damage}).[/red]")
+        else:
+            self.ui.update_output(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
+
     def _handle_weapon_item(self, item_id, item):
         """Handle equipping a weapon"""
-        # Check if player can equip this weapon
         if not self.player.can_use_item(item):
             self._show_error(f"[bold red]You cannot equip {item_id}.[/bold red]")
             return
-        
-        # Get old weapon info before equipping the new one
+
         old_weapon_id = self.player.equipped_weapon
         old_damage = self.player.calculate_damage()
-        
-        # Equip the weapon
+
         self.player.equip_weapon(item_id, item)
         self.ui.update_output(f"You have equipped [green]{item_id}[/green].")
-        
-        # Remove the old weapon from inventory if it's different from the new one
+
         if old_weapon_id and old_weapon_id != item_id and old_weapon_id in self.player.inventory:
             self.player.remove_from_inventory(old_weapon_id)
             self.ui.update_output(f"Your old weapon ({old_weapon_id}) was removed from inventory.")
-        
-        # Display the weapon's effects and new total damage
-        new_damage = self.player.calculate_damage()
-        damage_change = new_damage - old_damage
-        
-        if damage_change > 0:
-            self.ui.update_output(f"[green]Your total damage increased by {damage_change} (from {old_damage} to {new_damage}).[/green]")
-        elif damage_change < 0:
-            self.ui.update_output(f"[red]Your total damage decreased by {abs(damage_change)} (from {old_damage} to {new_damage}).[/red]")
-        else:
-            self.ui.update_output(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
-        
-        # Tutorial: equipped weapon
+
+        self._show_damage_change(old_damage, self.player.calculate_damage())
+
         if not self.player.tutorial_state.get("equipped_weapon", False):
             self.player.tutorial_state["equipped_weapon"] = True
-            self.show_tutorial_hint("equipped_weapon")
-            # Mark tutorial as completed after equipping first weapon
-            if not self.player.tutorial_state.get("completed", False):
-                self.player.tutorial_state["completed"] = True
-                self.show_tutorial_hint("completed")
+            self.world.spawn_tutorial_enemy("home_grove")
+            self.show_tutorial_hint("step4")
+            self.check_for_enemies()
     
     def _handle_lore_item(self, item_id, item):
         """Handle reading a lore item"""
@@ -1144,25 +1237,73 @@ You can type just the beginning of an item name:
             self.execute_effect(item["on_read"])
 
     def _handle_consumable_item(self, item_id, item):
-        """Handle using a consumable item"""
-        on_use_effects = item.get("on_use", {})
+        """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
         item_name = item.get("name", item_id)
-        
-        # Process healing
-        if "heal" in on_use_effects:
-            heal_amount = on_use_effects["heal"]
-            healed_for = self.player.heal(heal_amount)
-            self.ui.update_output(f"You used [green]{item_name}[/green] and restored {healed_for} health.")
-        else:
+        combat_effects = item.get("combat_effects", {})
+        on_use_effects = item.get("on_use", {})
+        special_effects = item.get("special_effects", [])
+
+        # Show the on_use message if present
+        message = on_use_effects.get("message") if isinstance(on_use_effects, dict) else None
+
+        # Guard: if this item only heals and the player is already at full health, refuse use.
+        only_heals = "player_heal" in combat_effects and not any(
+            k in combat_effects for k in ("player_heal_over_time", "player_mana_restore")
+        ) and not special_effects
+        if only_heals and self.player.health >= self.player.max_health:
+            self.ui.update_output(f"[yellow]Your health is already full. The {item_name} was not consumed.[/yellow]")
+            return False
+
+        # Apply combat_effects (the canonical effect block for consumables)
+        healed = 0
+        if "player_heal" in combat_effects:
+            healed = self.player.heal(combat_effects["player_heal"])
+
+        if "player_heal_over_time" in combat_effects:
+            hot_amount = combat_effects["player_heal_over_time"]
+            duration = combat_effects.get("duration_turns", 3)
+            self.player.add_status_effect(
+                f"{item_id}_hot",
+                {"type": "heal_over_time", "heal_per_turn": hot_amount // duration, "name": item_name},
+                duration
+            )
+            if not message:
+                self.ui.update_output(f"You used [green]{item_name}[/green]. Healing {hot_amount} HP over {duration} turns.")
+
+        if "player_mana_restore" in combat_effects:
+            amount = combat_effects["player_mana_restore"]
+            if hasattr(self.player, "restore_mana"):
+                self.player.restore_mana(amount)
+            if not message:
+                self.ui.update_output(f"You used [green]{item_name}[/green]. Restored {amount} mana.")
+
+        # Apply special_effects (e.g. permanent stat boost for sudo_seed)
+        for effect in special_effects:
+            if effect.get("type") == "permanent_stat_boost":
+                stat = effect.get("stat")
+                value = effect.get("value", 0)
+                if stat == "strength" and hasattr(self.player, "increase_damage"):
+                    self.player.increase_damage(value)
+                elif stat == "health" and hasattr(self.player, "increase_max_health"):
+                    self.player.increase_max_health(value)
+
+        # Show message or fallback
+        if message:
+            heal_suffix = f" ([green]+{healed} HP[/green])" if healed else ""
+            self.ui.update_output(f"{message}{heal_suffix}")
+        elif not combat_effects and not special_effects:
             self.ui.update_output(f"You used [green]{item_name}[/green].")
 
-        # Process other effects
-        for effect_key, effect_value in on_use_effects.items():
-            if effect_key == "heal":
-                continue  # Already handled
+        # Legacy on_use heal field (fallback for any old-format items)
+        if "heal" in on_use_effects and not healed:
+            healed = self.player.heal(on_use_effects["heal"])
+            self.ui.update_output(f"You used [green]{item_name}[/green] and restored {healed} health.")
 
+        # Process status effects from on_use block
+        for effect_key, effect_value in (on_use_effects.items() if isinstance(on_use_effects, dict) else []):
+            if effect_key in ("heal", "message"):
+                continue
             debug_log(f"Processing additional effect: {effect_key} from consumable {item_id}")
-            # Process status effect
             if effect_key == "status_effect":
                 effect_data = effect_value
                 effect_id = effect_data.get("id", item_id + "_effect")
@@ -1171,6 +1312,10 @@ You can type just the beginning of an item name:
                 debug_log(f"Applying status effect {effect_id} ({effect_name}) for {effect_duration} turns")
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
                 self.ui.update_output(f"[magenta]You gained the '{effect_name}' effect for {effect_duration} turns![/magenta]")
+
+        # Emit stats update so UI reflects the new HP/mana
+        stats_view = ViewBuilder.build_stats_view(self.player)
+        event_bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
     
     def _handle_upgrade_item(self, item_id, item):
         """Handle using an upgrade item"""
@@ -1465,82 +1610,6 @@ You can type just the beginning of an item name:
         
         self.ui.update_output(output)
 
-    def show_world_map(self):
-        """Display an ASCII world map showing spatial relationships."""
-        output = Text()
-        output.append("🗺️  FILESYSTEM WORLD MAP\n", style="bold cyan")
-        output.append("=" * 60 + "\n", style="dim")
-        
-        # Get current room status for display
-        current_room = self.player.current_room
-        
-        # Create ASCII map layout
-        ascii_map = """
-                    ┌─[root]─────────────────────────┐
-                    │                               │
-            ┌─[bin_armory]                 [usr_lib_arcane]─┐
-            │       │                           │           │
-      [dev_null_void]└──────────┬─────────────────┘    [etc_hidden]
-                               │                       (hidden)
-                        [home_grove]
-                         │       │
-                   [var_dungeon] [mnt_forest]────┬─────────────────┐
-                         │            │          │                 │
-                [tmp_hidden_chamber]   │    [opt_mage_tower]  [srv_warrior_tomb]
-                      (hidden)         │      (🔒 mage)        (🔒 fighter)
-                                       │
-                                 [proc_secrets]
-                                   (hidden)
-        """
-        
-        # Color and highlight the map based on player progress
-        lines = ascii_map.strip().split('\n')
-        for line in lines:
-            formatted_line = self._format_map_line(line, current_room)
-            output.append(formatted_line + "\n")
-        
-        # Add legend
-        output.append("\n" + "─" * 60 + "\n", style="dim")
-        output.append("📍 LEGEND:\n", style="bold yellow")
-        output.append("  ➤ YOUR LOCATION    🔒 Locked Area    (hidden) Not Discovered\n", style="dim")
-        output.append("  ✅ Visited         🔍 Discovered     ❓ Unknown\n", style="dim")
-        
-        self.ui.update_output(output)
-
-    def _format_map_line(self, line, current_room):
-        """Format a single line of the ASCII map with colors and status."""
-        # Extract room names from brackets
-        import re
-        rooms_in_line = re.findall(r'\[([^\]]+)\]', line)
-        
-        formatted_line = line
-        for room_id in rooms_in_line:
-            original = f"[{room_id}]"
-            
-            # Determine room status and color
-            if room_id == current_room:
-                replacement = f"[bold cyan]➤[{room_id}]←[/bold cyan]"
-            elif self._is_room_visited(room_id):
-                replacement = f"[green]✅[{room_id}][/green]"
-            elif self._is_room_discovered(room_id):
-                replacement = f"[yellow]🔍[{room_id}][/yellow]"
-            else:
-                replacement = f"[dim]❓[{room_id}][/dim]"
-            
-            formatted_line = formatted_line.replace(original, replacement)
-        
-        return formatted_line
-
-    def _is_room_visited(self, room_id):
-        """Check if a room has been visited."""
-        room_state = self.world.get_room_state(room_id)
-        return room_state and room_state.get("visited", False)
-
-    def _is_room_discovered(self, room_id):
-        """Check if a room has been discovered (not hidden)."""
-        room_state = self.world.get_room_state(room_id)
-        return room_state and not room_state.get("hidden", False)
-
     def find_command(self, args=""):
         """Implement find command for discovering hidden areas."""
         if not args:
@@ -1572,26 +1641,16 @@ You can type just the beginning of an item name:
     def ps_command(self, args=""):
         """Implement ps command for discovering process-related areas."""
         if self.player.current_room == "mnt_forest":
-            # Show some fake processes
-            self.ui.update_output("PID  PPID  CMD")
-            self.ui.update_output("  1     0  /sbin/init")
-            self.ui.update_output(" 42     1  [mount_daemon]")
-            self.ui.update_output("127     1  /proc/secrets_handler")
-            self.ui.update_output("...")
-            
-            # Discover the proc_secrets room
+            lines = ["PID  PPID  CMD", "  1     0  /sbin/init", " 42     1  [mount_daemon]", "127     1  /proc/secrets_handler", "..."]
             if self.world.discover_room("proc_secrets"):
-                self.ui.update_output("\n[bold green]Discovered hidden process chamber: proc_secrets[/bold green]")
-                self.ui.update_output("The secrets_handler process reveals a hidden chamber...")
-                self.ui.update_output("[yellow]You can now access it with: cd proc_secrets[/yellow]")
+                lines += ["\n[bold green]Discovered hidden process chamber: proc_secrets[/bold green]",
+                          "The secrets_handler process reveals a hidden chamber...",
+                          "[yellow]You can now access it with: cd proc_secrets[/yellow]"]
             else:
-                self.ui.update_output("\n[dim]Process chamber already discovered: proc_secrets[/dim]")
+                lines.append("\n[dim]Process chamber already discovered: proc_secrets[/dim]")
         else:
-            # Show generic ps output for other rooms
-            self.ui.update_output("PID  PPID  CMD")
-            self.ui.update_output("  1     0  /sbin/init")
-            self.ui.update_output(" 23     1  [kthreadd]")
-            self.ui.update_output(" 42     1  [ksoftirqd/0]")
+            lines = ["PID  PPID  CMD", "  1     0  /sbin/init", " 23     1  [kthreadd]", " 42     1  [ksoftirqd/0]"]
+        self.ui.update_output("\n".join(lines))
 
     def show_keys(self):
         """Display key progression and unlock information."""
@@ -1705,7 +1764,7 @@ You can type just the beginning of an item name:
                 # Emit room changed event for UI updates
                 event_bus.emit_event(
                     EventType.ROOM_CHANGED,
-                    {"player": self.player, "from_room": fled_from_room, "to_room": self.player.current_room},
+                    {"player_name": self.player.name, "from_room": fled_from_room, "to_room": self.player.current_room},
                     "CommandHandler"
                 )
 
@@ -1764,32 +1823,23 @@ You can type just the beginning of an item name:
         old_weapon_id = self.player.equipped_weapon
         old_damage = self.player.calculate_damage()
         
-        # Equip the weapon
         success = self.player.equip_weapon(weapon_id)
         if success:
             weapon_name = weapon.get("name", weapon_id)
             self.ui.update_output(f"You have equipped [green]{weapon_name}[/green].")
-            
-            # Display the weapon's effects and new total damage
-            new_damage = self.player.calculate_damage()
-            damage_change = new_damage - old_damage
-            
-            if damage_change > 0:
-                self.ui.update_output(f"[green]Your total damage increased by {damage_change} (from {old_damage} to {new_damage}).[/green]")
-            elif damage_change < 0:
-                self.ui.update_output(f"[red]Your total damage decreased by {abs(damage_change)} (from {old_damage} to {new_damage}).[/red]")
-            else:
-                self.ui.update_output(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
-            
-            # Update tutorial progress
+            self._show_damage_change(old_damage, self.player.calculate_damage())
+
             if not self.player.tutorial_state.get("equipped_weapon", False):
                 self.player.tutorial_state["equipped_weapon"] = True
-                self.show_tutorial_hint("equipped_weapon")
+                self.world.spawn_tutorial_enemy("home_grove")
+                self.show_tutorial_hint("step4")
+                self.check_for_enemies()
 
-            # Emit event to update UI stats panel
+            # Emit event to update UI stats panel with view data
+            stats_view = ViewBuilder.build_stats_view(self.player)
             event_bus.emit_event(
                 EventType.PLAYER_STATS_CHANGED,
-                {"player": self.player},
+                stats_view.to_dict(),
                 "CommandHandler"
             )
 
@@ -1800,13 +1850,20 @@ You can type just the beginning of an item name:
     def _handle_combat_command(self, command):
         """Handle commands during combat."""
         debug_log(f"Handling combat command: {command}")
-        
+
         # Emit combat action selected event
         event_bus.emit_event(
             EventType.COMBAT_ACTION_SELECTED,
             {"choice": command},
             "CommandHandler"
         )
+
+        # Step 4 gate: first typed attack → show Step 5 hint (Selection Mode)
+        ts = self.player.tutorial_state
+        if not ts.get("completed", False) and ts.get("equipped_weapon", False):
+            if not ts.get("combat_typed", False):
+                ts["combat_typed"] = True
+                self.show_tutorial_hint("step5")
 
     def check_for_enemies(self):
         """Check for enemies in the current room and start combat if found."""
@@ -1922,42 +1979,32 @@ You can type just the beginning of an item name:
                     self.check_for_enemies()
 
     def _show_game_over_screen(self):
-        """Show ASCII game over screen with options."""
-        game_over_ascii = """
-[bold red]
-╔══════════════════════════════════════════════════════════════════╗
-║                                                                  ║
-║   ██████╗  █████╗ ███╗   ███╗███████╗     ██████╗ ██╗   ██╗███████╗██████╗ ║
-║  ██╔════╝ ██╔══██╗████╗ ████║██╔════╝    ██╔═══██╗██║   ██║██╔════╝██╔══██╗║
-║  ██║  ███╗███████║██╔████╔██║█████╗      ██║   ██║██║   ██║█████╗  ██████╔╝║
-║  ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝      ██║   ██║╚██╗ ██╔╝██╔══╝  ██╔══██╗║
-║  ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗    ╚██████╔╝ ╚████╔╝ ███████╗██║  ██║║
-║   ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝     ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝║
-║                                                                  ║
-║                    >>> SEGMENTATION FAULT <<<                    ║
-║                                                                  ║
-║              Your essence scatters through broken memory.        ║
-║           The filesystem quakes as the Daemon Overlord          ║
-║                      grows stronger...                           ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-[/bold red]
+        """Show animated ASCII game over screen with particle effects."""
+        import threading
 
-[dim]The digital void echoes with the sound of your defeat.[/dim]
-[italic cyan]Even the greatest sysadmins must sometimes face corruption...[/italic cyan]
+        debug_log("Starting game over animation")
 
-[bold white]Options:[/bold white]
-  [bold green]r[/bold green] - Restart from your last save
-  [bold yellow]n[/bold yellow] - Start a new game
-  [bold red]q[/bold red] - Quit to shell
-
-[bold white]What would you like to do?[/bold white] """
-
-        self.ui.update_output(game_over_ascii)
-        
-        # Set up game over mode to handle player input
+        # Set up game over mode immediately so we capture input
         self._in_game_over_mode = True
-        debug_log("Game over screen displayed, waiting for player choice")
+
+        # Create the animation
+        animation = GameOverAnimation(width=78, height=20)
+
+        def run_animation():
+            """Run the particle animation in a background thread."""
+            def update_display(content: str):
+                # Use thread-safe callback if available (Textual UI)
+                if hasattr(self.ui, 'call_from_thread'):
+                    self.ui.call_from_thread(self.ui.update_output, content)
+                else:
+                    self.ui.update_output(content)
+
+            animation.run_animation(update_display, duration=2.5, fps=12)
+            debug_log("Game over animation completed, waiting for player choice")
+
+        # Run animation in background thread
+        animation_thread = threading.Thread(target=run_animation, daemon=True)
+        animation_thread.start()
 
     def _handle_game_over_choice(self, choice):
         """Handle player choice from game over screen."""
@@ -2066,22 +2113,23 @@ And you, spirit, are free.
         """Resolve item shortcuts and partial matches to actual item IDs."""
         # Define common shortcuts
         shortcuts = {
-            # Health potions
-            "hp": ["health_potion_minor", "health_potion_major"],
-            "health": ["health_potion_minor", "health_potion_major"], 
-            "potion": ["health_potion_minor", "health_potion_major", "strength_potion", "swiftness_tonic", "fortitude_elixir"],
-            "heal": ["health_potion_minor", "health_potion_major"],
+            # Consumables
+            "hp": ["health_packet", "stable_cache"],
+            "health": ["health_packet", "stable_cache"],
+            "potion": ["health_packet", "stable_cache", "overflowing_buffer"],
+            "heal": ["health_packet", "stable_cache"],
+            "packet": ["health_packet"],
             
-            # Weapons  
-            "staff": ["echo_staff"],
-            "shield": ["protocol_shield"],
-            "blaster": ["byte_blaster"],
+            # Weapons
+            "shield": ["segfault_shield"],
+            "pointer": ["null_pointer"],
+            "whisper": ["daemon_whisper"],
             
             # Other consumables
-            "strength": ["strength_potion"],
-            "swift": ["swiftness_tonic"],
-            "fortitude": ["fortitude_elixir"],
-            "focus": ["focus_draught"]
+            "buffer": ["overflowing_buffer"],
+            "cache": ["stable_cache"],
+            "backup": ["legacy_backup"],
+            "seed": ["sudo_seed"]
         }
         
         # Get available items based on location
@@ -2114,9 +2162,9 @@ And you, spirit, are free.
             return partial_matches[0]
         elif len(partial_matches) > 1:
             debug_log(f"Multiple partial matches for '{item_input}': {partial_matches}")
-            # For health potions, prefer minor over major
-            if "health_potion_minor" in partial_matches:
-                return "health_potion_minor"
+            # For health items, prefer health_packet
+            if "health_packet" in partial_matches:
+                return "health_packet"
             return partial_matches[0]  # Return first match as fallback
         
         # Check if input contains key words that match item names
@@ -2130,20 +2178,10 @@ And you, spirit, are free.
 
     def _get_class_restriction_text(self, item):
         """Get the class restriction text for display in error messages."""
-        # Check class_restriction field first
-        if "class_restriction" in item:
-            class_restriction = item["class_restriction"]
-            if isinstance(class_restriction, list):
-                return " or ".join(class_restriction)
-            return str(class_restriction)
-        
-        # Check allowed_classes field
-        if "allowed_classes" in item:
-            allowed_classes = item["allowed_classes"]
-            if isinstance(allowed_classes, list):
-                return " or ".join(allowed_classes)
-            return str(allowed_classes)
-            
+        for field in ("class_restriction", "allowed_classes"):
+            val = item.get(field)
+            if val:
+                return " or ".join(val) if isinstance(val, list) else str(val)
         return "unknown"
 
     def save_game(self):

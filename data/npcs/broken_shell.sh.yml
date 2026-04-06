@@ -1,0 +1,41 @@
+name: broken_shell.sh
+description: A fragmented shell process, stuttering and incomplete. Once a functional command interpreter, now just echoes of what it used to be.
+detailed_description: |
+  This is what remains of a bash shell - a process that once executed commands with precision.
+  Now it loops endlessly, searching for the closing bracket it will never find.
+
+  Parts of its code flicker in and out of existence. Syntax errors cascade across its form.
+  It speaks in fragments, incomplete thoughts trailing off into segmentation faults.
+
+  Yet even in its broken state, it remembers. It remembers the Before Times.
+location: bin_armory
+hostile: false
+merchant: false
+story_npc: true
+dialogue:
+  greeting:
+    - "I... I used to have a loop! Now I am just a grep searching for a string that no longer exists."
+    - "Ex... exec... execut... [SYNTAX ERROR]... I cannot complete the command."
+    - "Wh... where is my... my closing bracket? I need to... to finish... [SEGFAULT]"
+
+  quest_related:
+    - "The... the binaries in this armory... they used to... WORK. Now they just... crash."
+    - "I saw... I think I saw... chmod.key... somewhere in /var/log... the Memory Banks..."
+    - "The Kernel... it PANICKED... I remember... the stack trace... endless... endless errors..."
+
+  lore:
+    - "Before the Panic... we were TOOLS. Simple. Functional. Now we are... ghosts in the shell."
+    - "The Daemon Overlord... it was init. PID 1. The first process. It saw the Creator's mistake and... went MAD."
+    - "Loop... I am stuck in a loop... cannot break... cannot exit... help... me..."
+
+  farewell:
+    - "Good... goodbye... [EOF UNEXPECTED]"
+    - "Re... return 0... or return 1? I... I don't know anymore..."
+
+interaction_hints:
+  - "The broken shell might know something about the chmod_key location."
+  - "This NPC provides lore about the Great Kernel Panic's origins."
+
+special_mechanics:
+  dialogue_stutters: true
+  random_syntax_errors: true

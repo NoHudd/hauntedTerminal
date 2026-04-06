@@ -1,155 +1,121 @@
 weapons:
-  # COMMON WEAPONS (6-8 damage)
-  protocol_shield:
-    name: "Protocol Shield"
-    description: "A defensive matrix shield designed to block attacks and restore system stability."
-    type: "weapon"
-    damage: 6
-    allowed_classes:
-      - guardian
-    rarity: common
-    tags: ["shields", "defensive"]
-    allowed_zones: ["safe", "core", "fortified"]
-
-  byte_blaster:
-    name: "Byte Blaster"
-    description: "A corrupted hacking device that weaponizes data packets into raw offensive force."
+  # STARTER WEAPONS (Class-specific, Common rarity)
+  segfault_shield:
+    name: "Segmentation Fault Shield"
+    description: "A defensive barrier formed from a crashed memory segment. Basic but reliable protection."
     type: "weapon"
     damage: 8
     allowed_classes:
+      - guardian
+    rarity: common
+    tags: ["shields", "defensive", "starter"]
+    allowed_zones: ["home", "safe"]
+    persistence: "persistent"
+    special_effects:
+      - type: "defensive_bonus"
+        value: 2
+        description: "+2 DEF while equipped"
+
+  null_pointer:
+    name: "Null Pointer"
+    description: "A reference to nothing that somehow deals damage. The paradox is your weapon."
+    type: "weapon"
+    damage: 10
+    allowed_classes:
       - weaver
     rarity: common
-    tags: ["hacking_tools", "offensive"]
-    allowed_zones: ["dangerous", "corrupted", "volatile"]
+    tags: ["offensive", "exploit", "starter"]
+    allowed_zones: ["home", "corrupted"]
+    persistence: "persistent"
 
-  echo_staff:
-    name: "Echo Staff"
-    description: "A resonant staff attuned to the ghost echoes of the ancient system. Its strikes discrupt enemy proceeses."
+  daemon_whisper:
+    name: "Daemon Whisper"
+    description: "An echo of a terminated process. Its ghostly wails strike at corrupted code."
     type: "weapon"
     damage: 7
     allowed_classes:
       - shaman
     rarity: common
-    tags: ["staves", "mystical"]
-    allowed_zones: ["natural", "mystical", "ancient"]
+    tags: ["mystical", "staves", "starter"]
+    allowed_zones: ["home", "mystical"]
+    persistence: "persistent"
+    special_effects:
+      - type: "spirit_damage"
+        value: 2
+        description: "+2 damage against ghost-type enemies"
 
-  # UNCOMMON WEAPONS (9-12 damage)
-  enhanced_protocol_shield:
-    name: "Enhanced Protocol Shield"
-    description: "An upgraded defensive matrix with improved stability algorithms and counter-attack protocols."
+  # COMMON WEAPONS
+  dangling_pointer:
+    name: "Dangling Pointer"
+    description: "A jagged shard of lost memory. Its unstable nature makes it unreliable but dangerous."
     type: "weapon"
-    damage: 10
+    damage: 5
     allowed_classes:
       - guardian
-    rarity: uncommon
-    tags: ["shields", "defensive", "enhanced"]
-    allowed_zones: ["safe", "core", "fortified"]
+      - weaver
+      - shaman
+    rarity: common
+    tags: ["memory", "unstable", "offensive"]
+    allowed_zones: ["home", "var", "tmp", "bin"]
+    persistence: "ephemeral"
+    special_effects:
+      - type: "miss_chance"
+        value: 10
+        description: "10% chance to miss due to pointer instability"
 
-  data_corruption_rifle:
-    name: "Data Corruption Rifle"
-    description: "A precision weapon that fires concentrated corruption streams, devastating digital entities."
+  # UNCOMMON WEAPONS
+  kill_script:
+    name: "Kill Script"
+    description: "A SIGKILL command made physical. Particularly effective against zombie processes that refuse to die."
     type: "weapon"
     damage: 12
     allowed_classes:
       - weaver
     rarity: uncommon
-    tags: ["rifles", "corruption", "precision"]
-    allowed_zones: ["dangerous", "corrupted", "volatile"]
+    tags: ["script", "signal", "offensive", "anti_zombie"]
+    allowed_zones: ["bin", "etc", "usr", "tmp"]
+    persistence: "persistent"
+    special_effects:
+      - type: "bonus_damage_vs_type"
+        target_type: "zombie"
+        value: 5
+        description: "+5 damage against zombie-type enemies"
 
-  spirit_resonator:
-    name: "Spirit Resonator"
-    description: "An ancient staff that amplifies the whispers of lost souls into powerful sonic attacks."
-    type: "weapon"
-    damage: 11
-    allowed_classes:
-      - shaman
-    rarity: uncommon
-    tags: ["staves", "mystical", "sonic"]
-    allowed_zones: ["natural", "mystical", "ancient"]
-
-  # RARE WEAPONS (13-16 damage)
-  quantum_barrier:
-    name: "Quantum Barrier"
-    description: "A shield that exists in multiple dimensions simultaneously, providing exceptional protection."
-    type: "weapon"
-    damage: 14
-    allowed_classes:
-      - guardian
-    rarity: rare
-    tags: ["shields", "quantum", "dimensional"]
-    allowed_zones: ["safe", "core", "fortified", "quantum"]
-
-  neural_disruptor:
-    name: "Neural Disruptor"
-    description: "A sophisticated weapon that directly attacks the neural pathways of digital consciousnesses."
-    type: "weapon"
-    damage: 16
-    allowed_classes:
-      - weaver
-    rarity: rare
-    tags: ["neural", "disruptor", "consciousness"]
-    allowed_zones: ["dangerous", "corrupted", "volatile", "neural"]
-
-  ancestral_totem:
-    name: "Ancestral Totem"
-    description: "A sacred artifact pulsing with the combined power of all departed system administrators."
-    type: "weapon"
-    damage: 15
-    allowed_classes:
-      - shaman
-    rarity: rare
-    tags: ["totems", "ancestral", "sacred"]
-    allowed_zones: ["natural", "mystical", "ancient", "sacred"]
-
-  # EPIC WEAPONS (17-20 damage)
-  void_aegis:
-    name: "Void Aegis"
-    description: "A shield forged from crystallized void energy, capable of absorbing and redirecting attacks."
+  # RARE WEAPONS
+  dangling_reference:
+    name: "Dangling Reference"
+    description: "A sharp logic error that bypasses security protocols. Its precision cuts through defensive barriers."
     type: "weapon"
     damage: 18
     allowed_classes:
       - guardian
-    rarity: epic
-    tags: ["shields", "void", "energy", "crystallized"]
-    allowed_zones: ["safe", "core", "fortified", "quantum", "void"]
-
-  reality_compiler:
-    name: "Reality Compiler"
-    description: "A weapon that rewrites the fundamental code of reality itself, causing devastating effects."
-    type: "weapon"
-    damage: 20
-    allowed_classes:
       - weaver
-    rarity: epic
-    tags: ["compiler", "reality", "fundamental"]
-    allowed_zones: ["dangerous", "corrupted", "volatile", "neural", "reality"]
-
-  world_tree_branch:
-    name: "World Tree Branch"
-    description: "A living branch from the system's core world tree, channeling the raw power of creation."
-    type: "weapon"
-    damage: 19
-    allowed_classes:
       - shaman
-    rarity: epic
-    tags: ["branches", "world_tree", "creation", "living"]
-    allowed_zones: ["natural", "mystical", "ancient", "sacred", "primordial"]
+    rarity: rare
+    tags: ["logic_error", "armor_penetration", "offensive"]
+    allowed_zones: ["lib", "usr", "dev", "etc"]
+    persistence: "persistent"
+    special_effects:
+      - type: "armor_penetration"
+        value: 15
+        description: "Ignores 15% of enemy armor"
 
-  # LEGENDARY WEAPONS (21+ damage)
-  daemon_slayer:
-    name: "Daemon Slayer"
-    description: "The legendary weapon of the first system administrator, specifically designed to eliminate the Daemon Overlord."
+  # LEGENDARY WEAPONS
+  zero_day_blade:
+    name: "The Zero-Day Blade"
+    description: "An unpatchable exploit made manifest. No defense can stand against an unknown vulnerability."
     type: "weapon"
-    damage: 25
+    damage: 50
     allowed_classes:
       - guardian
       - weaver
       - shaman
     rarity: legendary
-    tags: ["legendary", "daemon_slayer", "first_admin", "overlord"]
-    allowed_zones: ["all"]
+    tags: ["legendary", "exploit", "true_damage", "zero_day"]
+    allowed_zones: ["root"]
+    persistence: "persistent"
     special_effects:
-      - type: "daemon_bane"
-        description: "Deals double damage to daemon-type enemies"
-      - type: "system_restore"
-        description: "Has a chance to restore corrupted system areas on kill"
+      - type: "true_damage"
+        description: "Deals true damage that cannot be mitigated by any armor or defensive abilities"
+      - type: "exploit"
+        description: "Bypasses all defensive protocols and immunities"
