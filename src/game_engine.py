@@ -69,6 +69,15 @@ class ImprovedGameEngine:
         # Initialize reloadable game components
         self._initialize_game_components()
 
+    def _bind_ui_refs(self):
+        """Refresh UI back-refs (player, world, room aliases) for autocomplete and tutorial."""
+        if not self.ui:
+            return
+        self.ui._player_ref = self.player
+        self.ui._world_ref = self.world
+        if self.cmd_handler:
+            self.ui._room_aliases_ref = self.cmd_handler.room_aliases
+
     def _initialize_game_components(self):
         """Initialize/reinitialize game components (reloadable)."""
         logger.info("Initializing game components")
@@ -415,6 +424,7 @@ class ImprovedGameEngine:
 
             # Create new command handler with fresh references
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
+            self._bind_ui_refs()
 
             # Restart the game loop
             state_manager.set_state(GameState.PLAYING)
@@ -452,13 +462,14 @@ class ImprovedGameEngine:
             # Restore world state from save
             world_data = save_data.get("world", {})
             self.world.set_state(world_data)
-            
+
             # Create new command handler
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
-            
+            self._bind_ui_refs()
+
             # Update UI
             self._update_ui_panels()
-            
+
             logger.info("Save game restart completed successfully")
             
         except Exception as e:
@@ -547,7 +558,8 @@ class ImprovedGameEngine:
             
             # Create command handler
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
-            
+            self._bind_ui_refs()
+
             self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
 
             # Start the game loop
@@ -758,8 +770,8 @@ to this haunted filesystem.[/italic]
         """Create a new player."""
         try:
             self.player = Player(name=name, player_class=player_class)
-            self.ui._player_ref = self.player  # Used by UI for tutorial state checks
             self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
+            self._bind_ui_refs()
 
             # Set up event subscriptions for command handler
             self.cmd_handler.setup_event_subscriptions()

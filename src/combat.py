@@ -495,24 +495,22 @@ class CombatSession:
         
         # Handle use command
         elif cmd == "use" and len(parts) > 1:
-            item_name = parts[1]
-            if item_name in self.available_items:
-                self._process_player_action("item", item_name)
-            elif item_name in self.player.inventory:
-                # Check if item is usable in combat
-                item_data = self.player.inventory[item_name]
-                # Check both old and new combat usability systems
+            item_input = parts[1]
+            resolved = self.player.resolve_inventory_item(item_input)
+            if resolved and resolved in self.player.inventory:
+                item_data = self.player.inventory[resolved]
                 is_combat_usable = (
-                    "combat_usable" in item_data.get("tags", []) or  # Old system
-                    item_data.get("usable_in_combat", False)          # New system
+                    "combat_usable" in item_data.get("tags", []) or
+                    item_data.get("usable_in_combat", False)
                 )
                 if is_combat_usable:
-                    self._process_player_action("item", item_name)
+                    self._process_player_action("item", resolved)
                 else:
-                    self.ui.update_output(f"[yellow]{item_name} cannot be used in combat.[/yellow]")
+                    item_label = item_data.get("name", resolved)
+                    self.ui.update_output(f"[yellow]{item_label} cannot be used in combat.[/yellow]")
                     self._request_player_action()
             else:
-                self.ui.update_output(f"[red]Item '{item_name}' not found in inventory.[/red]")
+                self.ui.update_output(f"[red]Item '{item_input}' not found in inventory.[/red]")
                 self._request_player_action()
         
         # Handle flee command
@@ -571,20 +569,35 @@ class CombatSession:
                 self._request_player_action()
                 return
 
-            # Handle healing items - support both old and new formats
+            # Handle healing items - support legacy and new combat_effects formats
             heal_amount = 0
-            if "healing" in item_data:
-                # Old format: direct healing field
+            combat_effects = item_data.get("combat_effects", {})
+            if "player_heal" in combat_effects:
+                heal_amount = combat_effects["player_heal"]
+            elif "healing" in item_data:
                 heal_amount = item_data["healing"]
-            elif "on_use" in item_data and "heal" in item_data["on_use"]:
-                # New format: on_use.heal field
+            elif isinstance(item_data.get("on_use"), dict) and "heal" in item_data["on_use"]:
                 heal_amount = item_data["on_use"]["heal"]
 
             actual_heal = 0
             if heal_amount > 0:
-                old_health = self.player.health
-                self.player.heal(heal_amount)
-                actual_heal = self.player.health - old_health
+                actual_heal = self.player.heal(heal_amount)
+
+            # Heal-over-time consumables (e.g. stable_cache)
+            if "player_heal_over_time" in combat_effects:
+                hot_amount = combat_effects["player_heal_over_time"]
+                duration = combat_effects.get("duration_turns", 3)
+                per_turn = max(1, hot_amount // duration)
+                self.player.add_status_effect(
+                    f"{action_value}_hot",
+                    {"type": "heal_over_time", "heal_per_turn": per_turn,
+                     "name": item_data.get("name", action_value)},
+                    duration
+                )
+
+            # Mana restore consumables
+            if "player_mana_restore" in combat_effects and hasattr(self.player, "restore_mana"):
+                self.player.restore_mana(combat_effects["player_mana_restore"])
 
             # Handle damage boost items
             if "damage_boost" in item_data:
