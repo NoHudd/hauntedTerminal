@@ -154,6 +154,65 @@ class Player:
     def get_item_from_inventory(self, item_id):
         """Get a specific item from the inventory."""
         return self.inventory.get(item_id)
+
+    def resolve_inventory_item(self, name):
+        """Resolve a user-typed name/shortcut to an actual inventory key.
+
+        Handles exact match, prefix match (e.g. 'health_packet' -> 'health_packet_1'),
+        common shortcuts ('hp', 'heal', 'pointer', etc.), and substring fallback.
+        Returns the inventory key or None.
+        """
+        if not name:
+            return None
+
+        keys = list(self.inventory.keys())
+        lower = name.lower()
+
+        # Exact match
+        if name in self.inventory:
+            return name
+
+        # Prefix match (suffixed instance keys like health_packet_1)
+        prefix_matches = [k for k in keys if k.lower().startswith(lower)]
+        if len(prefix_matches) == 1:
+            return prefix_matches[0]
+
+        shortcuts = {
+            "hp": ["health_packet", "stable_cache"],
+            "health": ["health_packet", "stable_cache"],
+            "heal": ["health_packet", "stable_cache"],
+            "potion": ["health_packet", "stable_cache", "overflowing_buffer"],
+            "packet": ["health_packet"],
+            "buffer": ["overflowing_buffer"],
+            "cache": ["stable_cache"],
+            "backup": ["legacy_backup"],
+            "seed": ["sudo_seed"],
+            "shield": ["segfault_shield"],
+            "pointer": ["null_pointer"],
+            "whisper": ["daemon_whisper"],
+        }
+        if lower in shortcuts:
+            for target in shortcuts[lower]:
+                # Try exact then prefix
+                if target in self.inventory:
+                    return target
+                target_matches = [k for k in keys if k.lower().startswith(target.lower())]
+                if target_matches:
+                    return target_matches[0]
+
+        # Multi-prefix tiebreak: prefer health_packet
+        if prefix_matches:
+            preferred = [k for k in prefix_matches if "health_packet" in k]
+            if preferred:
+                return preferred[0]
+            return prefix_matches[0]
+
+        # Substring fallback
+        substring_matches = [k for k in keys if lower in k.lower()]
+        if substring_matches:
+            return substring_matches[0]
+
+        return None
     
     def can_use_item(self, item):
         """Check if the player can use this item based on class restrictions."""
@@ -225,9 +284,7 @@ class Player:
     def heal(self, amount):
         """Heal the player by a certain amount. Returns actual HP gained."""
         old_health = self.health
-        self.health += amount
-        if self.health > self.max_health:
-            self.health = self.max_health
+        self.health = min(self.health + amount, self.max_health)
         actual_heal = self.health - old_health
         debug_log(f"Player healed {actual_heal}, health now {self.health}/{self.max_health}.")
         return actual_heal
@@ -263,8 +320,8 @@ class Player:
         old_max = self.max_health
         self.permanent_health_boost += amount
         self.max_health += amount
-        # Also heal the player by the same amount
-        self.health += amount
+        # Also heal the player by the same amount, capped at new max
+        self.health = min(self.health + amount, self.max_health)
         debug_log(f"Player max health increased by {amount} ({old_max} -> {self.max_health})")
         return self.max_health
         

@@ -46,6 +46,10 @@ class CommandHandler:
             "/usr": "usr_lib_arcane",
             "/usr/lib": "usr_lib_arcane",
             "/usr/lib/arcane": "usr_lib_arcane",
+            "/usr/share": "usr_share_games",
+            "/usr/share/games": "usr_share_games",
+            "/usr/share/games/cowsay": "cowsay_secret",
+            "/cowsay": "cowsay_secret",
             "/opt": "opt_mage_tower",
             "/opt/tower": "opt_mage_tower",
             "/opt/mage_tower": "opt_mage_tower",
@@ -77,9 +81,12 @@ class CommandHandler:
             "forest": "mnt_forest",
             "bin": "bin_armory",
             "armory": "bin_armory",
-            "usr": "usr_lib_arcane", 
+            "usr": "usr_lib_arcane",
             "lib": "usr_lib_arcane",
             "arcane": "usr_lib_arcane",
+            "share": "usr_share_games",
+            "games": "usr_share_games",
+            "cowsay": "cowsay_secret",
             "opt": "opt_mage_tower",
             "tower": "opt_mage_tower",
             "srv": "srv_warrior_tomb",
@@ -381,7 +388,8 @@ class CommandHandler:
             # Step 4: combat - typed attack instruction
             "step4": (
                 "[bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat. "
-                "Type: [bold]attack[/bold] to strike it."
+                "Type: [bold]attack[/bold] to strike it. "
+                "Or press [bold]TAB[/bold] to enter Selection Mode and pick an attack with [bold]1-9[/bold]."
             ),
             # Step 5: combat - Selection Mode instruction (fires after first typed attack)
             "step5": (
@@ -511,12 +519,10 @@ class CommandHandler:
         - [cyan]drop [item][/cyan]: Remove an item from your inventory
         - [cyan]use [item][/cyan]: Use consumables (potions, scrolls)
         - [cyan]equip [weapon][/cyan]: Equip a weapon for combat
-        - [cyan]examine [item][/cyan]: Examine an item in detail
         - [cyan]talk [npc][/cyan]: Talk to an NPC
         - [cyan]attack [enemy][/cyan]: Attack an enemy
-        - [cyan]find [path] -name [pattern][/cyan]: Search for files and directories
         - [cyan]ps[/cyan]: Show running processes
-        - [cyan]inventory[/cyan] or [cyan]inv[/cyan]: Show detailed inventory with rarities
+        - [cyan]inventory[/cyan]: Show detailed inventory with rarities
         - [cyan]save[/cyan]: Save your current progress
         - [cyan]quit[/cyan] or [cyan]exit[/cyan]: Quit the game (offers to save)
         
@@ -1232,7 +1238,7 @@ You can type just the beginning of an item name:
         """Handle reading a lore item"""
         content = item.get("content", "This file appears to be empty or corrupted.")
         name = item.get("name", item_id)
-        self.ui.update_output(Panel(content, title=f"[bold]{name}[/bold]"))
+        self.ui.update_output(f"[bold cyan]── {name} ──[/bold cyan]\n{content}")
         if "on_read" in item:
             self.execute_effect(item["on_read"])
 
@@ -1326,13 +1332,13 @@ You can type just the beginning of an item name:
         if "permanent_health" in effects:
             amount = effects["permanent_health"]
             new_max = self.player.increase_max_health(amount)
-            self.ui.update_output(Panel(f"[green]Your maximum health permanently increased by {amount} to {new_max}![/green]", title="Character Improvement"))
+            self.ui.update_output(f"[bold]── Character Improvement ──[/bold]\n[green]Your maximum health permanently increased by {amount} to {new_max}![/green]")
         
         # Damage boosts
         if "permanent_damage" in effects:
             amount = effects["permanent_damage"]
             new_damage = self.player.increase_damage(amount)
-            self.ui.update_output(Panel(f"[green]Your base damage permanently increased by {amount} to {new_damage}![/green]", title="Character Improvement"))
+            self.ui.update_output(f"[bold]── Character Improvement ──[/bold]\n[green]Your base damage permanently increased by {amount} to {new_damage}![/green]")
         
         # Process on_use effects if any
         if "on_use" in item:
@@ -1343,7 +1349,7 @@ You can type just the beginning of an item name:
         # Learn the spell
         if self.player.learn_spell(item):
             spell_name = item.get("name", "Unknown Spell")
-            self.ui.update_output(Panel(f"[green]You learned the {spell_name} spell![/green]", title="Spell Learned"))
+            self.ui.update_output(f"[bold]── Spell Learned ──[/bold]\n[green]You learned the {spell_name} spell![/green]")
             
             # Apply any immediate status effects if defined
             if "status_effect" in item:
@@ -1354,7 +1360,7 @@ You can type just the beginning of an item name:
                 
                 # Add the status effect
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
-                self.ui.update_output(Panel(f"[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]", title="Status Effect"))
+                self.ui.update_output(f"[bold]── Status Effect ──[/bold]\n[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
         else:
             self._show_error(f"[red]You don't have the ability to learn this spell.[/red]")
             
@@ -1437,8 +1443,8 @@ You can type just the beginning of an item name:
         if details:
             content += "\n" + "\n".join(details)
         
-        self.ui.update_output(Panel(content, title=f"[bold]{title}[/bold]"))
-        
+        self.ui.update_output(f"[bold cyan]── {title} ──[/bold cyan]\n{content}")
+
         # Execute any special effects defined for examining this item
         if "on_examine" in item:
             self.execute_effect(item["on_examine"])
@@ -1462,33 +1468,37 @@ You can type just the beginning of an item name:
             self._show_error(f"[bold red]Error: NPC data not found for {npc_id}[/bold red]")
             return
         
+        npc_name = npc.get("name", npc_id)
+
         # Get dialogue options
         dialogues = npc.get("dialogues", [])
         if not dialogues:
-            self.ui.update_output(Panel(f"[yellow]{npc_id} has nothing to say.[/yellow]", title="Conversation"))
+            self.ui.update_output(
+                f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
+                f"[italic dim]\"...\"[/italic dim]\n"
+                f"[dim]({npc_name} has nothing to say right now.)[/dim]"
+            )
             return
-        
+
         # Select a dialogue based on conditions or randomly
-        # For now, just pick a random one
         dialogue = random.choice(dialogues)
-        
-        # Display the dialogue with typewriter effect
-        npc_name = npc.get("name", npc_id)
-        dialogue_text = f"[bold yellow]{npc_name}:[/bold yellow] {dialogue}"
-        
+        dialogue_text = (
+            f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
+            f"[italic yellow]\"{dialogue}\"[/italic yellow]"
+        )
+
         # Use typewriter effect for NPC dialogue
         output_callback = create_typewriter_output_func(
-            lambda text: self.ui.update_output(f"[dim cyan]>>> Conversation in progress...[/dim cyan]\n\n{text}")
+            lambda text: self.ui.update_output(text)
         )
-        
+
         try:
             TypewriterPresets.DIALOGUE.type_text_sync(dialogue_text, output_callback)
-            # Final output with conversation styling
-            self.ui.update_output(f"[bold]Conversation[/bold]\n\n{dialogue_text}")
+            # Ensure final state shows full text
+            self.ui.update_output(dialogue_text)
         except Exception as e:
-            # Fallback to instant display if typewriter fails
             debug_log(f"Typewriter effect failed for NPC {npc_id}: {e}")
-            self.ui.update_output(f"[bold]Conversation[/bold]\n\n{dialogue_text}")
+            self.ui.update_output(dialogue_text)
         
         # Execute any special effects defined for talking to this NPC
         if "on_talk" in npc:
@@ -1522,7 +1532,7 @@ You can type just the beginning of an item name:
         items = self.player.get_inventory_items()
         
         if not items:
-            self.ui.update_output(Panel("[italic]Your inventory is empty.[/italic]", title="Inventory"))
+            self.ui.update_output("[bold cyan]── Inventory ──[/bold cyan]\n[italic]Your inventory is empty.[/italic]")
             return
         
         # Import rarity system
@@ -1553,7 +1563,7 @@ You can type just the beginning of an item name:
             
             inventory_content += f"  {formatted_item}\n    [dim]{description}[/dim]\n"
     
-        self.ui.update_output(Panel(inventory_content.rstrip(), title="Inventory"))
+        self.ui.update_output(f"[bold cyan]── Inventory ──[/bold cyan]\n{inventory_content.rstrip()}")
     
     def show_map(self):
         """Display an enhanced map of known locations with status indicators"""
@@ -1793,14 +1803,19 @@ You can type just the beginning of an item name:
             debug_log("equip command called with no weapon specified")
             self.ui.update_output("[bold red]No weapon specified. Use 'equip [weapon]'[/bold red]")
             return
-        
-        debug_log(f"Player attempting to equip weapon: {weapon_id}")
-        
+
+        original_input = weapon_id
+        resolved = self.player.resolve_inventory_item(weapon_id)
+        if resolved:
+            weapon_id = resolved
+
+        debug_log(f"Player attempting to equip weapon: {weapon_id} (from input: {original_input})")
+
         if not self.player.has_item(weapon_id):
-            debug_log(f"Player doesn't have weapon {weapon_id} in inventory")
-            self.ui.update_output(f"[bold red]You don't have {weapon_id} in your inventory.[/bold red]")
+            debug_log(f"Player doesn't have weapon {original_input} in inventory")
+            self.ui.update_output(f"[bold red]You don't have {original_input} in your inventory.[/bold red]")
             return
-        
+
         # Get weapon data
         weapon = self.player.get_item_from_inventory(weapon_id)
         weapon_type = weapon.get("type")
@@ -2111,6 +2126,10 @@ And you, spirit, are free.
 
     def _resolve_item_shortcut(self, item_input, location="room"):
         """Resolve item shortcuts and partial matches to actual item IDs."""
+        # Inventory lookups go through player's resolver (handles instance suffixes)
+        if location == "inventory":
+            return self.player.resolve_inventory_item(item_input)
+
         # Define common shortcuts
         shortcuts = {
             # Consumables

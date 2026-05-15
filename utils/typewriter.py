@@ -9,8 +9,23 @@ When DISABLE_ANIMATIONS is True, text appears instantly.
 import time
 import asyncio
 import os
+import threading
 from typing import Optional, Callable
-from config.dev_config import DISABLE_ANIMATIONS
+import config.dev_config as _dev_cfg
+
+# Module-level skip flag — set True to make any active typewriter render
+# remaining text instantly. Cleared automatically when a render starts.
+_skip_event = threading.Event()
+
+
+def request_skip():
+    """Signal any in-progress typewriter to fast-forward to the end."""
+    _skip_event.set()
+
+
+def clear_skip():
+    """Reset the skip flag."""
+    _skip_event.clear()
 
 class TypewriterEffect:
     """Handles typewriter-style text display with animation controls."""
@@ -33,7 +48,7 @@ class TypewriterEffect:
         
     def get_char_delay(self, char: str, next_char: Optional[str] = None) -> float:
         """Calculate delay after typing a character."""
-        if DISABLE_ANIMATIONS:
+        if _dev_cfg.DISABLE_ANIMATIONS:
             return 0.0
             
         base_delay = 1.0 / self.chars_per_second
@@ -51,50 +66,54 @@ class TypewriterEffect:
     def type_text_sync(self, text: str, output_callback: Callable[[str], None]):
         """
         Type text with typewriter effect (synchronous).
-        
+
         Args:
             text: Text to display
             output_callback: Function to call with each character update
         """
-        if DISABLE_ANIMATIONS:
-            # Instantly display full text in dev mode
+        clear_skip()
+        if _dev_cfg.DISABLE_ANIMATIONS:
             output_callback(text)
             return
-            
+
         current_text = ""
         for i, char in enumerate(text):
+            if _skip_event.is_set():
+                output_callback(text)
+                return
             current_text += char
             output_callback(current_text)
-            
-            # Calculate delay for this character
+
             next_char = text[i + 1] if i + 1 < len(text) else None
             delay = self.get_char_delay(char, next_char)
-            
+
             if delay > 0:
                 time.sleep(delay)
     
     async def type_text_async(self, text: str, output_callback: Callable[[str], None]):
         """
         Type text with typewriter effect (asynchronous).
-        
+
         Args:
-            text: Text to display  
+            text: Text to display
             output_callback: Function to call with each character update
         """
-        if DISABLE_ANIMATIONS:
-            # Instantly display full text in dev mode
+        clear_skip()
+        if _dev_cfg.DISABLE_ANIMATIONS:
             output_callback(text)
             return
-            
+
         current_text = ""
         for i, char in enumerate(text):
+            if _skip_event.is_set():
+                output_callback(text)
+                return
             current_text += char
             output_callback(current_text)
-            
-            # Calculate delay for this character
+
             next_char = text[i + 1] if i + 1 < len(text) else None
             delay = self.get_char_delay(char, next_char)
-            
+
             if delay > 0:
                 await asyncio.sleep(delay)
 

@@ -22,7 +22,7 @@ from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError, UISt
 from src.events import event_bus, EventType
 from src.game_states import GameState, UIState
 from src.state_manager import state_manager
-from utils.typewriter import TypewriterPresets, create_typewriter_output_func
+from utils.typewriter import TypewriterPresets, create_typewriter_output_func, request_skip as request_typewriter_skip
 from config.dev_config import SKIP_INTRO
 
 from src.ui.panels.inventory_panel import InventoryPanel
@@ -32,6 +32,9 @@ from src.ui.panels.room_strip import RoomStrip
 from src.ui.panels.entity_strip import EntityStrip
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
+from src.ui.screens.settings_screen import SettingsScreen
+from src.ui.command_suggester import CommandSuggester
+from config.settings_manager import SettingsManager
 
 import logging
 import os
@@ -46,7 +49,9 @@ class TextualGameUI(App):
     """Enhanced Textual-based game UI with improved combat system."""
 
     CSS_PATH = os.path.join(os.path.dirname(__file__), "ui.css")
+    ENABLE_COMMAND_PALETTE = False
     BINDINGS = [
+        ("ctrl+p", "open_settings", "Settings"),
         ("l", "toggle_log_viewer", "Show/Hide Logs"),
         ("f5", "restart_game", "Restart Game"),
     ]
@@ -59,6 +64,8 @@ class TextualGameUI(App):
         # Initialize state BEFORE calling super().__init__()
         # Note: Game state is now managed by StateManager singleton
         # Store view data (dicts) instead of backend objects
+        self._settings_manager = SettingsManager()
+        self._settings_manager.load()
         self._player_view = {}  # StatsView dict
         self._inventory_view = {}  # InventoryView dict
         self._room_view = {}  # RoomView dict
@@ -68,6 +75,8 @@ class TextualGameUI(App):
         self._available_attacks = []  # Attack list from combat view data
         self._combat_hint_shown = False  # Track if selection mode hint was shown
         self._player_ref = None  # Set by game engine after player creation; used for tutorial checks
+        self._world_ref = None   # Set by game engine; used by autocomplete suggester
+        self._room_aliases_ref: dict = {}  # Populated from CommandHandler for cd autocomplete
 
         super().__init__(*args, **kwargs)
         self.ui_state = UIState.INITIALIZING
@@ -124,6 +133,10 @@ class TextualGameUI(App):
             self._combat_panel.border_title = "⚔️ Combat"
 
             self.ui_state = UIState.READY
+            self._settings_manager.register_themes(self)
+            self._settings_manager.apply_theme(self._settings_manager.settings["theme"])
+            self._settings_manager.set_text_speed(self._settings_manager.settings["text_speed"])
+            self._settings_manager.set_reduce_motion(self._settings_manager.settings["reduce_motion"])
             self._update_all_panels_to_defaults()
 
             # Display title screen unless SKIP_INTRO is enabled
@@ -133,8 +146,16 @@ class TextualGameUI(App):
                 # Skip animations - show menu immediately
                 self.update_output("[cyan]1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: [/cyan]")
 
+            # Attach context-aware autocomplete to the input field
+            input_widget = self.query_one("#input-field", Input)
+            input_widget.suggester = CommandSuggester(
+                get_player=lambda: self._player_ref,
+                get_world=lambda: self._world_ref,
+                get_aliases=lambda: self._room_aliases_ref,
+            )
+
             # Focus input field
-            self.query_one("#input-field").focus()
+            input_widget.focus()
 
             event_bus.emit_event(EventType.UI_READY, {}, "TextualGameUI")
             logger.info("TextualGameUI mounted successfully")
@@ -350,6 +371,11 @@ class TextualGameUI(App):
                 {"command": "quit", "game_state": state_manager.current_state},
                 "TextualGameUI"
             )
+            return
+
+        # Any key during MENU intro typewriter fast-forwards the prologue
+        if state_manager.current_state == GameState.MENU:
+            request_typewriter_skip()
 
     def on_input_blurred(self, event: Input.Blurred) -> None:
         """Handle when the input field loses focus (TAB pressed)."""
@@ -371,6 +397,10 @@ class TextualGameUI(App):
     # =====================================
     # DEV TOOLS ACTIONS
     # =====================================
+
+    def action_open_settings(self) -> None:
+        """Open the settings modal."""
+        self.push_screen(SettingsScreen(self._settings_manager))
 
     def action_toggle_log_viewer(self) -> None:
         """Toggle the log viewer modal."""
@@ -852,11 +882,13 @@ Succeed, and the filesystem breathes again.
 '''
 
         title_text = Text(title_ascii, style="bold green", justify="center")
+        skip_hint = Text("\n[press any key to skip intro]\n", style="dim italic")
         menu_text = Text("\n1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: ", style="cyan")
 
         # Display title and story with typewriter effect
         initial_display = Text()
         initial_display.append_text(title_text)
+        initial_display.append_text(skip_hint)
         self.update_output(initial_display)
 
         def display_story_with_typewriter():
@@ -865,6 +897,7 @@ Succeed, and the filesystem breathes again.
                 def story_callback(text: str):
                     combined_display = Text()
                     combined_display.append_text(title_text)
+                    combined_display.append_text(skip_hint)
                     combined_display.append_text(Text.from_markup(text))
                     self.call_from_thread(self.update_output, combined_display)
 
