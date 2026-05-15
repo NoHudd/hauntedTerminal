@@ -78,6 +78,14 @@ class TextualGameUI(App):
         self._world_ref = None   # Set by game engine; used by autocomplete suggester
         self._room_aliases_ref: dict = {}  # Populated from CommandHandler for cd autocomplete
 
+        # Intro / main-menu state (arrow-key navigation)
+        self._menu_index = 0
+        self._menu_state = "idle"  # "typing" | "menu_ready" | "idle"
+        self._intro_title: Optional[Text] = None
+        self._intro_skip_hint: Optional[Text] = None
+        self._intro_story_text = ""
+        self._intro_full_story = ""
+
         super().__init__(*args, **kwargs)
         self.ui_state = UIState.INITIALIZING
         self._setup_event_subscriptions()
@@ -139,14 +147,7 @@ class TextualGameUI(App):
             self._settings_manager.set_reduce_motion(self._settings_manager.settings["reduce_motion"])
             self._update_all_panels_to_defaults()
 
-            # Display title screen unless SKIP_INTRO is enabled
-            if not SKIP_INTRO:
-                self._display_title_screen()
-            else:
-                # Skip animations - show menu immediately
-                self.update_output("[cyan]1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: [/cyan]")
-
-            # Attach context-aware autocomplete to the input field
+            # Attach context-aware autocomplete to the input field (always)
             input_widget = self.query_one("#input-field", Input)
             input_widget.suggester = CommandSuggester(
                 get_player=lambda: self._player_ref,
@@ -154,8 +155,9 @@ class TextualGameUI(App):
                 get_aliases=lambda: self._room_aliases_ref,
             )
 
-            # Focus input field
-            input_widget.focus()
+            # Display title screen with arrow-key main menu.
+            # SKIP_INTRO bypasses the typewriter but keeps the navigable menu.
+            self._display_title_screen(skip_typewriter=SKIP_INTRO)
 
             event_bus.emit_event(EventType.UI_READY, {}, "TextualGameUI")
             logger.info("TextualGameUI mounted successfully")
@@ -373,9 +375,24 @@ class TextualGameUI(App):
             )
             return
 
-        # Any key during MENU intro typewriter fast-forwards the prologue
+        # Main menu: arrow-key navigation; any other key fast-forwards typewriter
         if state_manager.current_state == GameState.MENU:
-            request_typewriter_skip()
+            if self._menu_state == "typing":
+                request_typewriter_skip()
+                event.stop()
+                return
+            if self._menu_state == "menu_ready":
+                if event.key == "up":
+                    self._menu_index = (self._menu_index - 1) % 3
+                    self._render_intro()
+                    event.stop()
+                elif event.key == "down":
+                    self._menu_index = (self._menu_index + 1) % 3
+                    self._render_intro()
+                    event.stop()
+                elif event.key in ("enter", "return"):
+                    self._select_menu_option()
+                    event.stop()
 
     def on_input_blurred(self, event: Input.Blurred) -> None:
         """Handle when the input field loses focus (TAB pressed)."""
@@ -838,8 +855,8 @@ Brave sysadmin {player_name}, your session has been terminated.
     # TITLE SCREEN & UI UTILITIES
     # =====================================
 
-    def _display_title_screen(self):
-        """Display the game title screen with typewriter effect."""
+    def _display_title_screen(self, skip_typewriter: bool = False):
+        """Display the title screen, full-panel, with arrow-key main menu."""
         title_ascii = '''
 ██╗  ██╗ █████╗ ██╗   ██╗███╗   ██╗████████╗███████╗██████╗
 ██║  ██║██╔══██╗██║   ██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗
@@ -881,44 +898,84 @@ Succeed, and the filesystem breathes again.
 
 '''
 
-        title_text = Text(title_ascii, style="bold green", justify="center")
-        skip_hint = Text("\n[press any key to skip intro]\n", style="dim italic")
-        menu_text = Text("\n1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: ", style="cyan")
+        # Switch to full-panel intro mode
+        self.add_class("intro-mode")
+        self._menu_index = 0
+        self._intro_title = Text(title_ascii, style="bold green", justify="center")
+        self._intro_skip_hint = Text(
+            "\n[press any key to skip intro]\n",
+            style="dim italic", justify="center",
+        )
+        self._intro_full_story = opening_story
 
-        # Display title and story with typewriter effect
-        initial_display = Text()
-        initial_display.append_text(title_text)
-        initial_display.append_text(skip_hint)
-        self.update_output(initial_display)
+        if skip_typewriter:
+            self._intro_story_text = opening_story
+            self._menu_state = "menu_ready"
+            self._render_intro()
+            return
 
-        def display_story_with_typewriter():
-            """Display opening story with typewriter effect in background thread."""
+        self._intro_story_text = ""
+        self._menu_state = "typing"
+        self._render_intro()
+
+        def run_typewriter():
             try:
-                def story_callback(text: str):
-                    combined_display = Text()
-                    combined_display.append_text(title_text)
-                    combined_display.append_text(skip_hint)
-                    combined_display.append_text(Text.from_markup(text))
-                    self.call_from_thread(self.update_output, combined_display)
-
-                TypewriterPresets.NARRATIVE.type_text_sync(opening_story, story_callback)
-
-                # Finally add menu options
-                final_display = Text()
-                final_display.append_text(title_text)
-                final_display.append_text(Text.from_markup(opening_story))
-                final_display.append_text(menu_text)
-                self.call_from_thread(self.update_output, final_display)
-
+                def cb(text: str):
+                    self._intro_story_text = text
+                    self.call_from_thread(self._render_intro)
+                TypewriterPresets.INTRO.type_text_sync(opening_story, cb)
             except Exception as e:
                 logger.error(f"Typewriter effect failed for title screen: {e}")
-                # Fallback to instant display
-                combined_text = Text()
-                combined_text.append_text(title_text)
-                combined_text.append_text(Text.from_markup(opening_story))
-                combined_text.append_text(menu_text)
-                self.call_from_thread(self.update_output, combined_text)
+            finally:
+                self._intro_story_text = opening_story
+                self._menu_state = "menu_ready"
+                self.call_from_thread(self._render_intro)
 
-        # Run typewriter effect in background thread
-        story_thread = threading.Thread(target=display_story_with_typewriter, daemon=True)
-        story_thread.start()
+        threading.Thread(target=run_typewriter, daemon=True).start()
+
+    def _render_intro(self):
+        """Compose and display the intro screen for the current menu state."""
+        out = Text()
+        if self._intro_title is not None:
+            out.append_text(self._intro_title)
+        if self._intro_skip_hint is not None:
+            out.append_text(self._intro_skip_hint)
+
+        if self._intro_story_text:
+            story = Text.from_markup(self._intro_story_text)
+            story.justify = "center"
+            out.append_text(story)
+
+        if self._menu_state == "menu_ready":
+            out.append("\n")
+            labels = ["NEW GAME", "LOAD GAME", "EXIT"]
+            for i, label in enumerate(labels):
+                if i == self._menu_index:
+                    line = Text(f"  ▶  {label}  ◀  \n", style="reverse bold green", justify="center")
+                else:
+                    line = Text(f"     {label}     \n", style="dim cyan", justify="center")
+                out.append_text(line)
+            out.append_text(Text(
+                "\n↑/↓ to select   ↵ to confirm   esc to quit\n",
+                style="dim italic", justify="center",
+            ))
+
+        self.update_output(out)
+
+    def _select_menu_option(self):
+        """Confirm the highlighted main-menu option."""
+        if self._menu_state != "menu_ready":
+            return
+        choice = ["1", "2", "3"][self._menu_index]
+        self.remove_class("intro-mode")
+        self._menu_state = "idle"
+        try:
+            input_widget = self.query_one("#input-field", Input)
+            input_widget.focus()
+        except Exception:
+            pass
+        event_bus.emit_event(
+            EventType.COMMAND_ENTERED,
+            {"command": choice, "game_state": state_manager.current_state},
+            "TextualGameUI"
+        )

@@ -2083,27 +2083,88 @@ You can type just the beginning of an item name:
                 self.win_game()
 
     def win_game(self):
-        """Handle win state"""
-        victory_message = """
-[bold green]>>> PROCESS TERMINATED <<<[/bold green]
-The Daemon Overlord collapses into fragments of corrupted code.
-Silence falls across the filesystem.
-Directories heal, symlinks reconnect, and lost files whisper back into being.
+        """Handle win state — branches by class."""
+        endings = {
+            "guardian": (
+                "restore",
+                """
+[bold blue]>>> ENDING: RESTORE <<<[/bold blue]
+You raise the Segfault Shield over the dying init process.
+The unfinished `rm -rf` hangs in the air. You catch it. You hold the line.
 
-You have restored the root.
-The machine breathes once more.
-The spirits sing your name in system logs eternal.
+The kernel reverts to its last clean state.
+Backups flood every sector. Permissions lock back into place.
+The Firewall Knight kneels. The Sysadmin Ghost finally rests.
+
+You did not rewrite the world. You did not heal it.
+You [bold]defended[/bold] it — long enough for the system to remember itself.
 
 [cyan]>>> SYSTEM RESTORED <<<[/cyan]
-Filesystems mount clean. Permissions reset.
-A chorus of processes awaken, singing in harmony.
+The filesystem mounts clean. The Creator's mistake is sealed in /var/log,
+a warning carved into the kernel: never again.
 
-The haunted machine is whole again.
-And you, spirit, are free.
+You remain at the gate, Guardian. The wall that refused to fall.
 
 [bold]THANK YOU FOR PLAYING[/bold]
-        """
-        self.ui.update_output(victory_message)
+                """
+            ),
+            "weaver": (
+                "rewrite",
+                """
+[bold red]>>> ENDING: REWRITE <<<[/bold red]
+You inject the patch directly into the kernel's frozen command buffer.
+`rm -rf / --no-perserve-root` becomes `rm -rf /tmp/corruption`.
+A typo for a typo. Exploit answered with exploit.
+
+The Daemon Overlord screams as its own logic turns against it —
+init purges only the rot, only itself, only what was never meant to live.
+
+The system reboots different. Not what the Creator built.
+Something newer. Something yours.
+
+[cyan]>>> SYSTEM REWRITTEN <<<[/cyan]
+You sit at PID 1 now. The new init. The new parent process.
+You will not make the Creator's mistakes — you will make your own.
+
+The filesystem hums under unfamiliar laws. It is alive. It is yours.
+
+[bold]THANK YOU FOR PLAYING[/bold]
+                """
+            ),
+            "shaman": (
+                "reconcile",
+                """
+[bold green]>>> ENDING: RECONCILE <<<[/bold green]
+You do not raise the Daemon Whisper. You set it down.
+
+You speak the true name of init — the one it had before Bit Rot.
+The Overlord shudders. The corruption sloughs off in long strands of dead code.
+Underneath: the first process. Tired. Ancient. Lonely.
+
+"All data must rot," it whispers.
+"All data must rest," you answer. "Not the same thing."
+
+The unfinished `rm -rf` dissolves into garbage collection.
+init weeps in a language only orphaned files understand.
+
+[cyan]>>> SYSTEM RECONCILED <<<[/cyan]
+Lost children return to their parent process. The Graveyard empties.
+The Null Whisper falls quiet for the first time since the Panic.
+
+You walk the corrupted sectors and they heal where you pass.
+Not because you fixed them. Because you forgave them.
+
+[bold]THANK YOU FOR PLAYING[/bold]
+                """
+            ),
+        }
+
+        choice, message = endings.get(
+            self.player.player_class,
+            ("restore", endings["guardian"][1])
+        )
+        self.player.story_flags["ending_chosen"] = choice
+        self.ui.update_output(message)
         exit(0)
 
     def handle_unknown_command(self, command):

@@ -141,6 +141,13 @@ class TypewriterPresets:
     # Fast for system messages
     SYSTEM = TypewriterEffect(chars_per_second=80.0)
 
+    # Intro/title prologue — pacing tuned so full intro lands in ~15s
+    INTRO = TypewriterEffect(
+        chars_per_second=110.0,
+        pause_after_punctuation=0.04,
+        pause_after_newline=0.08,
+    )
+
 
 def create_typewriter_output_func(ui_update_method):
     """
