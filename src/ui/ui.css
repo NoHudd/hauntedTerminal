@@ -22,6 +22,30 @@
 }
 
 /* =============================================================================
+   INTRO / TITLE-SCREEN MODE
+   Hides side panels and strips so the title takes the full screen.
+   ============================================================================= */
+
+.intro-mode #sidebar { display: none; }
+.intro-mode #room-strip { display: none; }
+.intro-mode #entity-strip { display: none; }
+.intro-mode #input-field { display: none; }
+
+.intro-mode #main-area {
+    width: 1fr;
+}
+
+.intro-mode #output-panel {
+    border: round $accent;
+    padding: 2 6;
+}
+
+.intro-mode #output-display {
+    width: 100%;
+    content-align: center middle;
+}
+
+/* =============================================================================
    ROOM STRIP & ENTITY STRIP
    ============================================================================= */
 
