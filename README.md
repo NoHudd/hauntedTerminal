@@ -5,8 +5,8 @@ A narrative-driven text adventure where you play as a Sysadmin Spirit navigating
 
 ---
 
-<!-- Main Menu Screenshot -->
-![HFSE Main Menu](./main_menu.svg)
+<!-- Intro Screenshot -->
+![HFSE Intro](./Intro.png)
 *The terminal interface of Haunted Filesystem Experience*
 
 ---
@@ -42,9 +42,10 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
 - **Story Flags**: Track narrative progression through key story beats
 
 ### World & Content
-- **16 Explorable Rooms**: From `/home/lost+found` to `/boot/kernel` - The Core
-- **31 Unique Items**: Weapons, armor, consumables, crafting materials, and lore fragments
-- **8 NPCs**: Including the Firewall Knight, Forge Master, and the mysterious Null Whisper
+- **19 Explorable Rooms**: From `/home/lost+found` to `/boot/kernel` - The Core
+- **43 Unique Items**: Weapons, armor, consumables, crafting materials, trinkets, keys, and lore fragments
+- **13 NPCs**: Including the Firewall Knight, Forge Master, and the mysterious Null Whisper
+- **19 Enemies**: From corrupted processes to the Daemon Overlord himself
 - **Environmental Effects**: Heat damage in `/tmp`, void pull in `/dev/null`
 - **Dynamic Loot**: Item rarity based on directory depth (common in `/home`, legendary in `/root`)
 
@@ -121,29 +122,34 @@ If you prefer to set things up manually:
 ### Navigation
 - `ls` - List items, NPCs, and exits in current directory
 - `ls -a` - Reveal hidden files and directories
-- `cd [room_name]` - Move to a different directory
-- `look` - Examine your surroundings in detail
+- `cd [path]` - Move to a different directory (`cd /var` or `cd var`)
+- `pwd` - Show current directory
 - `map` - Show available locations
+- `find` - Search for items, NPCs, or rooms
 
 ### Interaction
 - `cat [filename]` - Read file contents (lore fragments, logs, etc.)
 - `take [item]` - Pick up an item
-- `use [item]` - Use a consumable or equip a weapon
-- `talk [npc]` - Speak with NPCs for hints and lore
+- `drop [item]` - Remove an item from inventory
+- `use [item]` - Use a consumable
+- `equip [weapon]` - Equip a weapon for combat
 - `examine [item]` - Inspect an item's properties
+- `talk [npc]` - Speak with NPCs for hints and lore
 
 ### Combat
 - `attack [enemy]` - Initiate combat
 - `[attack_name]` - Use class-specific abilities in combat
 - `use [item]` - Use consumables during combat
-- `flee` - Attempt to escape combat
+- `flee` - Attempt to escape combat (in-combat only)
 
 ### System
 - `inventory` / `inv` - View your items
-- `stats` - Check your health, damage, level, and cycles
+- `keys` - Show key progression system
+- `ps` - Show running processes
+- `shortcuts` - List item shortcuts and typing tips
 - `help` - Display available commands
 - `save` - Save your progress
-- `quit` - Exit the game
+- `quit` / `exit` - Exit the game (offers to save)
 
 ---
 
@@ -279,7 +285,7 @@ Items spawn based on directory depth:
 
 While playing HFSE, you'll naturally learn:
 
-- **Command-line navigation**: `cd`, `ls`, `cat`, `ls -a`
+- **Command-line navigation**: `cd`, `ls`, `ls -a`, `pwd`, `cat`, `find`
 - **File system structure**: Understanding Unix directory hierarchy
 - **Hidden files**: The significance of dot files (`.bash_profile`, `.moo`)
 - **System concepts**: Processes, daemons, /dev/null, /proc, init, permissions
@@ -453,7 +459,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [x] Harvesting Cycles (XP) progression
 - [x] Item persistence and rarity system
 - [x] Story flags and narrative progression
-- [x] 8 NPCs with dialogues and lore
+- [x] 13 NPCs with dialogues and lore
 - [x] 3 character classes with unique abilities
 - [x] Environmental effects and zone mechanics
 - [ ] Phase 5: Easter egg implementation (.moo → bovine → milk)
