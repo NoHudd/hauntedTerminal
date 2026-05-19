@@ -134,11 +134,16 @@ class ViewBuilder:
             room_data = rooms.get(room_id, {})
 
             # Convert exit IDs to simple paths for the exits panel
-            # Shows what the user needs to type (e.g., "/var")
+            # Shows what the user needs to type (e.g., "/var").
+            # Filter out hidden rooms — they only appear after `ls -a` discovery.
             exit_ids = room_data.get('exits', [])
             exit_commands = []
+            get_room_state = getattr(world, 'get_room_state', None)
             for exit_id in exit_ids:
-                # Get the simple path from the mapping, fallback to room_id
+                if get_room_state is not None:
+                    state = get_room_state(exit_id) or {}
+                    if state.get('hidden', False):
+                        continue
                 path = ROOM_ID_TO_PATH.get(exit_id, exit_id)
                 exit_commands.append(path)
 

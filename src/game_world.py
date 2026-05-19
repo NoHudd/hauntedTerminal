@@ -280,35 +280,68 @@ class GameWorld:
     def _place_items_class_based(self, player_class):
         """Place items based on player class preferences and zone affinity."""
         debug_log(f"Executing class-based placement for {player_class}")
-        
+
         class_info = self.class_data[player_class]
         preferred_zones = class_info.get("preferred_zones", [])
         loot_preferences = class_info.get("loot_preference", [])
         power_scaling = class_info.get("power_scaling", "balanced")
-        
+
+        # Place keys first so loot pass doesn't compete for room slots.
+        self._place_keys()
+
         # Get class-specific rarity weights based on power scaling
         rarity_weights = self._get_class_rarity_weights(power_scaling)
-        
+
         # Organize rooms by zones
         rooms_by_zone = self._organize_rooms_by_zone()
-        
+
         # Place items zone by zone
         total_placed = 0
         for zone, zone_rooms in rooms_by_zone.items():
             zone_multiplier = 2.0 if zone in preferred_zones else 1.0
             items_placed = self._place_items_in_zone(
-                zone, zone_rooms, player_class, rarity_weights, 
+                zone, zone_rooms, player_class, rarity_weights,
                 loot_preferences, zone_multiplier
             )
             total_placed += items_placed
             debug_log(f"Placed {items_placed} items in {zone} zone (multiplier: {zone_multiplier})")
-        
+
         debug_log(f"Class-based placement complete: {total_placed} items placed")
-        
+
         # Ensure home_grove has at least one health potion for better player experience
         self._ensure_home_grove_basics()
-        
+
         return total_placed
+
+    def _place_keys(self):
+        """Scatter unplaced keys across non-locked rooms so progression items
+        spread out instead of monopolizing the random-loot pool."""
+        unplaced_keys = [
+            item_id for item_id, item_data in self.items.items()
+            if item_data.get("type", "").lower() == "key"
+            and item_id not in self.item_locations
+        ]
+        if not unplaced_keys:
+            return
+
+        # Eligible rooms: unlocked, not home_grove (starter rooms keep their fixed items)
+        eligible_rooms = [
+            room_id for room_id in self.rooms.keys()
+            if not self.room_states.get(room_id, {}).get("locked", False)
+            and room_id != "home_grove"
+        ]
+        if not eligible_rooms:
+            return
+
+        random.shuffle(unplaced_keys)
+        random.shuffle(eligible_rooms)
+
+        # Spread keys across distinct rooms first, then double up if more keys than rooms.
+        for i, key_id in enumerate(unplaced_keys):
+            room_id = eligible_rooms[i % len(eligible_rooms)]
+            self.item_locations[key_id] = room_id
+            self.item_spawn_counts[key_id] = 1
+            debug_log(f"Scattered key {key_id} into room {room_id}")
     
     def _ensure_home_grove_basics(self):
         """Ensure home_grove has essential consumables for good player experience."""
@@ -709,25 +742,26 @@ class GameWorld:
             debug_log(f"No rooms available for placement in {zone} zone after filtering home_grove")
             return 0
 
+        # Retry until target reached. Cap total attempts so a saturated zone
+        # (all rooms at max_items_per_room, or no item/rarity match) can't loop forever.
         items_placed = 0
-        for _ in range(target_items):
-            # Select random room from zone
-            room_id = random.choice(zone_rooms_filtered)
+        max_attempts = target_items * 4
+        attempts = 0
+        while items_placed < target_items and attempts < max_attempts:
+            attempts += 1
+            if not suitable_items:
+                break
 
-            # Get allowed rarities for this specific room
+            room_id = random.choice(zone_rooms_filtered)
             room_data = self.rooms.get(room_id, {})
             allowed_rarities = self._get_allowed_rarities_for_room(room_id, room_data)
 
-            # Select random item based on rarity weights, allowed rarities, and directory depth
             item_id, item_data = self._select_weighted_item(suitable_items, rarity_weights, allowed_rarities, room_id)
-
             if not item_id:
-                break
+                continue
 
-            # Place the item
             if self._place_item_in_room(item_id, item_data, room_id):
                 items_placed += 1
-                # Remove from suitable items only if it's not a consumable (allow multiple consumables)
                 item_type = item_data.get("type", "")
                 if item_type not in ["consumable", "enhancement"]:
                     suitable_items = [(id, data) for id, data in suitable_items if id != item_id]
@@ -737,28 +771,31 @@ class GameWorld:
     def _get_suitable_items_for_zone(self, zone, player_class, loot_preferences):
         """Get items suitable for a zone and class."""
         suitable_items = []
-        
+
         for item_id, item_data in self.items.items():
             # Skip already placed items
             if item_id in self.item_locations:
                 continue
-                
+
+            # Keys are placed via _place_keys, not through zone loot — otherwise
+            # they monopolize core/root and starve other zones.
+            if item_data.get("type", "").lower() == "key":
+                continue
+
             # Check class restrictions
             if not self._item_suitable_for_class(item_data, player_class):
                 continue
-                
-            # Check loot preferences - allow consumables and general items for all classes
-            item_type = item_data.get("type", "").lower()
-            if loot_preferences and not self._item_matches_preferences(item_data, loot_preferences):
-                # Allow consumables, keys, and lore items regardless of class preferences
-                if item_type not in ["consumable", "key", "lore", "enhancement"]:
-                    continue
-                
-            # Check zone restrictions (if any)
-            allowed_zones = item_data.get("allowed_zones", [])
-            if allowed_zones and zone not in allowed_zones:
-                continue
-                
+
+            # Loot preferences act as a soft bias, not a hard filter. Most gear
+            # (weapons, armor, trinkets, consumables, lore) should be reachable
+            # by any class; preference can later weight selection if needed.
+            # Only hard-restricted items (with explicit allowed_classes) are gated.
+
+            # NOTE: allowed_zones check moved to _item_fits_room — item zones
+            # use directory prefixes (bin, usr, var) while room zones are story
+            # categories (core, safe, void), so per-room prefix matching is
+            # the only way the filter ever lets items through.
+
             suitable_items.append((item_id, item_data))
         
         debug_log(f"Found {len(suitable_items)} suitable items for {zone} zone and {player_class} class")
@@ -809,11 +846,16 @@ class GameWorld:
             items_by_rarity[rarity].append((item_id, item_data))
 
         # Select rarity based on weights
-        available_rarities = [r for r in rarity_weights.keys() if r in items_by_rarity]
+        all_available = [r for r in rarity_weights.keys() if r in items_by_rarity]
 
-        # Apply rarity filter if provided
+        # Apply rarity filter if provided. Fall back to all-available if the
+        # filter empties the pool — sparse zones (only rare/epic candidates)
+        # shouldn't silently place nothing.
         if allowed_rarities:
-            available_rarities = [r for r in available_rarities if r in allowed_rarities]
+            filtered = [r for r in all_available if r in allowed_rarities]
+            available_rarities = filtered if filtered else all_available
+        else:
+            available_rarities = all_available
 
         if not available_rarities:
             return None, None
@@ -856,8 +898,8 @@ class GameWorld:
             # 2-3 enemy rooms: Epic and rare (and lower)
             return ['common', 'uncommon', 'rare', 'epic']
         elif enemy_count == 1:
-            # 1 enemy rooms: Common only
-            return ['common']
+            # 1 enemy rooms: Common + uncommon for variety
+            return ['common', 'uncommon']
         elif zone == 'safe':
             # Safe zones: Uncommon (and common)
             return ['common', 'uncommon']
@@ -887,10 +929,28 @@ class GameWorld:
 
         # health_packet is already guaranteed in home_grove via the room YAML
 
-    def _place_item_in_room(self, item_id, item_data, room_id, max_items_per_room=3):
+    def _item_fits_room(self, item_data, room_id) -> bool:
+        """Check item's allowed_rooms / allowed_zones constraints against a room.
+        Zones are matched against the room_id's directory prefix (var_dungeon → 'var')."""
+        allowed_rooms = item_data.get("allowed_rooms", [])
+        if allowed_rooms and room_id not in allowed_rooms:
+            return False
+        allowed_zones = item_data.get("allowed_zones", [])
+        if allowed_zones:
+            room_prefix = room_id.split("_", 1)[0]
+            room_zone = self.rooms.get(room_id, {}).get("zone", "")
+            if room_prefix not in allowed_zones and room_zone not in allowed_zones:
+                return False
+        return True
+
+    def _place_item_in_room(self, item_id, item_data, room_id, max_items_per_room=5):
         """Place a specific item in a specific room."""
         # Check if room is locked
         if self.room_states.get(room_id, {}).get("locked", False):
+            return False
+
+        # Check item's own zone/room constraints
+        if not self._item_fits_room(item_data, room_id):
             return False
 
         # Check per-room item limit
@@ -903,11 +963,11 @@ class GameWorld:
         if item_id in self.item_locations:
             debug_log(f"Item {item_id} already placed in {self.item_locations[item_id]}, skipping dynamic placement")
             return False
-            
+
         # Place the item
         self.item_locations[item_id] = room_id
         self.item_spawn_counts[item_id] = self.item_spawn_counts.get(item_id, 0) + 1
-        
+
         debug_log(f"Placed {item_id} in room {room_id}")
         return True
     

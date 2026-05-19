@@ -12,6 +12,7 @@ Author: Duhon Young
 """
 
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.widgets import Header, Footer, Static, Input, RichLog
 from textual.containers import Container, VerticalScroll, Horizontal, Vertical
 from textual.reactive import var
@@ -51,9 +52,9 @@ class TextualGameUI(App):
     CSS_PATH = os.path.join(os.path.dirname(__file__), "ui.css")
     ENABLE_COMMAND_PALETTE = False
     BINDINGS = [
-        ("ctrl+p", "open_settings", "Settings"),
-        ("l", "toggle_log_viewer", "Show/Hide Logs"),
-        ("f5", "restart_game", "Restart Game"),
+        Binding("ctrl+p", "open_settings", "Settings", key_display="ctrl + p"),
+        Binding("l", "toggle_log_viewer", "Show/Hide Logs", key_display="L"),
+        Binding("f5", "restart_game", "Restart Game", key_display="F5"),
     ]
 
     # =====================================
@@ -242,8 +243,15 @@ class TextualGameUI(App):
         # Reset UI state on game over/restart
         self._reset_ui_state()
 
-        # State is managed by StateManager, not UI
-        self.display_game_over()
+        # CommandHandler triggers the particle animation (2.5s).
+        # Defer the static game-over screen so it doesn't get overwritten by animation frames.
+        # Dynamic read — settings_manager mutates dev_cfg.DISABLE_ANIMATIONS at runtime.
+        import config.dev_config as _dev_cfg
+        delay = 0.0 if _dev_cfg.DISABLE_ANIMATIONS else 2.6
+        if delay > 0:
+            self.set_timer(delay, self.display_game_over)
+        else:
+            self.display_game_over()
 
     def _on_player_created(self, event):
         """Handle player created event."""
@@ -343,6 +351,15 @@ class TextualGameUI(App):
         # Unbind combat hotkeys
         self._unbind_combat_hotkeys()
 
+        # Force-focus input so user isn't stranded in Selection Mode after combat.
+        try:
+            self.query_one("#input-field", Input).focus()
+        except Exception as e:
+            logger.debug(f"Could not refocus input post-combat: {e}")
+
+        # Reset combat hint flag so it can show again next combat session.
+        self._combat_hint_shown = False
+
         logger.debug("Combat ended handling complete")
 
     # =====================================
@@ -367,6 +384,9 @@ class TextualGameUI(App):
     def on_key(self, event):
         """Handle key press events."""
         if event.key == "escape":
+            # Defer to active modal screen (e.g., Settings) — its own ESC binding handles dismiss.
+            if len(self.screen_stack) > 1:
+                return
             # Emit quit command to use existing confirmation flow
             event_bus.emit_event(
                 EventType.COMMAND_ENTERED,
@@ -539,15 +559,14 @@ class TextualGameUI(App):
                         attack_name = attack_data.get('name', 'Attack')
                         cd_remaining = attack_data.get('cooldown_remaining', 0)
 
-                        # Show cooldown message
-                        cooldown_msg = (
-                            f"[bold yellow]⏱️ {attack_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]\n"
-                            f"[dim]Choose another attack or wait...[/dim]"
-                        )
-                        self.update_output(cooldown_msg)
-
-                        # Restore combat log after 2 seconds
-                        self.set_timer(2.0, self._update_combat_main_output)
+                        # Push cooldown notice to combat log so panel stays intact.
+                        self._combat_log.append({
+                            "actor": "system",
+                            "message": f"⏱️ {attack_name} on cooldown ({cd_remaining}t)"
+                        })
+                        if len(self._combat_log) > 10:
+                            self._combat_log.pop(0)
+                        self._update_combat_main_output()
 
                         logger.debug(f"Hotkey [{hotkey_number}] - {attack_name} on cooldown for {cd_remaining} turns")
                     else:
@@ -576,7 +595,25 @@ class TextualGameUI(App):
         """Update the main output display."""
         self._check_ready()
         self._add_to_history(content)
+
+        # During combat, preserve combat panel: append to log instead of replacing.
+        if state_manager.is_in_combat() and self._combat_view:
+            self._combat_log.append({"actor": "system", "message": content})
+            if len(self._combat_log) > 10:
+                self._combat_log.pop(0)
+            self._update_combat_main_output()
+            return
+
         self.output_content = content
+
+    def update_output_renderable(self, renderable) -> None:
+        """Push a Rich Renderable (Panel, Group, Table) directly to the output
+        widget. Used for content that benefits from auto-width box drawing."""
+        self._check_ready()
+        try:
+            self.query_one("#output-display").update(renderable)
+        except Exception as e:
+            logger.debug(f"update_output_renderable failed: {e}")
 
     def append_output(self, content: str) -> None:
         """Append content to the current output display."""
@@ -715,7 +752,9 @@ Brave sysadmin {player_name}, your session has been terminated.
         output_lines.extend([
             "",
             "[bold cyan]💡 COMBAT CONTROLS:[/bold cyan]",
-            "[dim]• Use number keys (1-9) for quick attacks[/dim]",
+            "[dim]• Press [bold]TAB[/bold] to enter Selection Mode (then 1-9 to attack)[/dim]",
+            "[dim]• Press [bold]TAB[/bold] again to return to typing[/dim]",
+            "[dim]• Type 'attack' or an attack name to strike[/dim]",
             "[dim]• Type 'use [item]' to use healing items[/dim]",
             "[dim]• Type 'flee' to attempt escape[/dim]",
             "",
@@ -723,7 +762,9 @@ Brave sysadmin {player_name}, your session has been terminated.
         ])
 
         content_text = "\n".join(output_lines)
-        self.update_output(content_text)
+        # Bypass update_output's combat-routing to avoid recursion.
+        self._add_to_history(content_text)
+        self.output_content = content_text
 
     def _get_dynamic_hotkey_display(self):
         """Generate dynamic hotkey display based on available attacks."""
@@ -745,17 +786,28 @@ Brave sysadmin {player_name}, your session has been terminated.
                 attack_name = attack_data.get('name', attack_data.get('id', 'Unknown'))
                 on_cooldown = attack_data.get('on_cooldown', False)
 
-                if not on_cooldown:
-                    # Calculate total damage
-                    bonus_damage = attack_data.get('bonus_damage', 0)
-                    total_damage = base_damage + bonus_damage
-                    accuracy = attack_data.get('accuracy', 100)
+                # Calculate total damage and gather metadata
+                bonus_damage = attack_data.get('bonus_damage', 0)
+                total_damage = base_damage + bonus_damage
+                accuracy = attack_data.get('accuracy', 100)
+                cooldown = attack_data.get('cooldown', 0)
+                atk_type = attack_data.get('type', '')
+                type_icon = {"physical": "⚔️", "magical": "✨", "nature": "🌿"}.get(atk_type, "•")
+                cd_label = f"CD {cooldown}t" if cooldown > 0 else "no CD"
 
-                    hotkey_lines.append(f"[cyan][{hotkey_num}][/cyan] {attack_name} - [yellow]{total_damage} dmg[/yellow] ([dim]{accuracy}% hit[/dim])")
+                if not on_cooldown:
+                    hotkey_lines.append(
+                        f"[cyan][{hotkey_num}][/cyan] {type_icon} {attack_name} — "
+                        f"[yellow]{total_damage} dmg[/yellow] "
+                        f"([dim]{accuracy}% hit · {cd_label}[/dim])"
+                    )
                     hotkey_num += 1
                 else:
                     cooldown_remaining = attack_data.get('cooldown_remaining', 0)
-                    hotkey_lines.append(f"[dim][{hotkey_num}] {attack_name} (cooldown: {cooldown_remaining}t)[/dim]")
+                    hotkey_lines.append(
+                        f"[dim][{hotkey_num}] {type_icon} {attack_name} — "
+                        f"on cooldown ({cooldown_remaining}t left)[/dim]"
+                    )
                     hotkey_num += 1
 
             if hotkey_num == 1:
@@ -822,22 +874,21 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _show_floating_number(self, amount: int, effect_type: str, actor: str):
         """Show floating damage/heal numbers with visual feedback."""
+        # Floating number pop in combat panel for both directions.
+        try:
+            self._combat_panel.show_damage_pop(amount, actor, effect_type)
+            self.set_timer(0.7, self._combat_panel.clear_damage_pop)
+        except Exception as e:
+            logger.debug(f"Damage pop failed: {e}")
+
         if effect_type == "damage":
-            # Flash the border red briefly for damage
-            if actor == "enemy":  # Enemy damaged player
+            # Border flash red when enemy hits player.
+            if actor == "enemy":
                 self.add_class("panel-update")
                 self.set_timer(0.3, lambda: self.remove_class("panel-update"))
-
-            # Don't append to output during combat - the combat log handles this
-            # Visual feedback is enough (border flash)
-
         elif effect_type == "heal":
-            # Flash green for healing
             self.add_class("status-blessed")
             self.set_timer(0.5, lambda: self.remove_class("status-blessed"))
-
-            # Don't append to output during combat - the combat log handles this
-            # Visual feedback is enough (border flash)
 
     # =====================================
     # PANEL UPDATE UTILITIES

@@ -12,7 +12,7 @@ import math
 import threading
 from typing import Callable, List, Tuple, Optional
 from dataclasses import dataclass
-from config.dev_config import DISABLE_ANIMATIONS
+import config.dev_config as _dev_cfg
 
 
 # Particle character sets
@@ -221,8 +221,9 @@ class GameOverAnimation:
             duration: How long the particle animation runs
             fps: Frames per second for animation
         """
-        if DISABLE_ANIMATIONS:
-            # Skip animation, show final result immediately
+        if _dev_cfg.DISABLE_ANIMATIONS:
+            # Skip animation, show final result immediately.
+            # Dynamic read so settings toggled at runtime are respected.
             output_callback(self._get_final_frame())
             return
 

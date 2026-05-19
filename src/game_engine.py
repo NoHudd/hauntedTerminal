@@ -362,6 +362,12 @@ class ImprovedGameEngine:
         # Update UI panels after combat
         self._update_ui_panels()
 
+        # On flee, CommandHandler relocates player + emits ROOM_ENTERED itself.
+        # Emitting here would fire check_for_enemies on the room they just fled,
+        # restarting combat before the flee handler can mark the enemy fled.
+        if event.data.get("fled", False):
+            return
+
         # Emit ROOM_ENTERED to refresh exits panel and restore full UI state
         if self.world and self.player:
             # Build room view for current room
@@ -631,26 +637,90 @@ class ImprovedGameEngine:
         # Show tutorial introduction with ECHO asking for name
         self._show_tutorial_introduction()
     
+    _CLASS_ICONS = {
+        "guardian": "🛡 ",
+        "weaver":   "✨",
+        "shaman":   "🌿",
+    }
+
     def _show_class_selection(self):
-        """Display class selection screen, driven by classes.yaml."""
+        """Display class selection as auto-sized Rich Panels stacked vertically.
+        Rich handles box drawing + width, so emoji widths and panel resizing
+        never break the borders."""
         try:
             from src.data_loader import load_class_data
+            from rich.panel import Panel
+            from rich.console import Group
+            from rich.text import Text
+            from rich.align import Align
+            from rich.rule import Rule
+
             classes = load_class_data()
 
-            lines = ["\n[bold cyan]Choose Your Spirit Class:[/bold cyan]\n"]
+            renderables = [
+                Text(""),
+                Align.center(Text("⚙  CHOOSE YOUR SPIRIT CLASS  ⚙", style="bold cyan")),
+                Rule(style="cyan"),
+                Text(""),
+            ]
+
             for i, (class_id, cls) in enumerate(classes.items(), 1):
                 d = cls.get("display", {})
                 color = d.get("color", "white")
                 hp_color = d.get("hp_color", "white")
                 dmg_color = d.get("dmg_color", "white")
-                lines.append(f"[bold {color}]{i}. {cls['name']}[/bold {color}]")
-                lines.append(cls.get("description", ""))
-                lines.append(f"   • [{hp_color}]{d.get('hp_label', '')}[/{hp_color}]")
-                lines.append(f"   • [{dmg_color}]{d.get('dmg_label', '')}[/{dmg_color}]")
-                lines.append(f"   • [dim]Starter Weapon: {d.get('weapon_name', '')}[/dim]\n")
+                icon = self._CLASS_ICONS.get(class_id, "•")
+                name = cls.get("name", class_id).upper()
+                tagline = cls.get("description", "").split(" - ", 1)
+                tagline_main = tagline[0] if tagline else ""
+                tagline_sub = tagline[1] if len(tagline) > 1 else ""
+                hp = d.get("hp_label", "")
+                dmg = d.get("dmg_label", "")
+                weapon = d.get("weapon_name", "")
+                pref = ", ".join(cls.get("preferred_zones", []) or [])
 
-            lines.append(f"[bold white]Enter your choice (1–{len(classes)}):[/bold white]")
-            self.ui.update_output("\n".join(lines))
+                body = Text()
+                body.append(tagline_main + "\n", style="italic")
+                if tagline_sub:
+                    body.append(tagline_sub + "\n", style="dim")
+                body.append("\n")
+                body.append("❤  ", style="red")
+                body.append(hp + "\n", style=hp_color)
+                body.append("⚔  ", style="yellow")
+                body.append(dmg + "\n", style=dmg_color)
+                body.append("🗡 ", style="white")
+                body.append("Weapon: ", style="dim")
+                body.append(weapon + "\n")
+                if pref:
+                    body.append("🗺 ", style="white")
+                    body.append("Zones: ", style="dim")
+                    body.append(pref)
+
+                panel = Panel(
+                    body,
+                    title=f"[bold {color}][{i}]  {icon} {name}[/bold {color}]",
+                    title_align="left",
+                    border_style=color,
+                    padding=(1, 2),
+                    expand=True,
+                )
+                renderables.append(panel)
+                renderables.append(Text(""))
+
+            renderables.append(
+                Text(f"Enter your choice (1–{len(classes)}):", style="bold white")
+            )
+
+            group = Group(*renderables)
+            if hasattr(self.ui, "update_output_renderable"):
+                self.ui.update_output_renderable(group)
+            else:
+                # Fallback for non-Textual UIs — render to console string.
+                from rich.console import Console
+                con = Console(record=True, width=100)
+                con.print(group)
+                self.ui.update_output(con.export_text(styles=True))
+
             state_manager.set_state(GameState.WAITING_FOR_CLASS)
 
         except Exception as e:
