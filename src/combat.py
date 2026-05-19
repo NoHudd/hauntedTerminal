@@ -552,12 +552,7 @@ class CombatSession:
                 self._request_player_action()
                 return
             else:
-                # End sequential combat mode when fleeing
-                if combat_system.in_sequential_combat:
-                    combat_system.end_sequential_combat(self.player.player_id)
-                    self.ui.update_output("[bold magenta]You fled from the sequential encounter![/bold magenta]")
-                else:
-                    self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
+                self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
                 self._end_combat(fled=True)
                 return
         
