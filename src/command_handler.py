@@ -128,6 +128,7 @@ class CommandHandler:
             "keys": self.show_keys,
             "inventory": self.show_inventory,
             "inv": self.show_inventory,
+            "journal": self.show_journal,
             "save": self.save_game,
             "quit": self.quit_game,
             "exit": self.quit_game
@@ -271,6 +272,12 @@ class CommandHandler:
             },
             "mnt_forest": {
                 "proc_secrets": "Process information chamber (try 'ps' command)"
+            },
+            "usr_share_games": {
+                "cowsay_secret": "The Bovine Sanctuary (hidden cowsay temple)"
+            },
+            "root": {
+                "archive": "The dusty Archive (forgotten data)"
             }
         }
         
@@ -523,6 +530,7 @@ class CommandHandler:
         - [cyan]attack [enemy][/cyan]: Attack an enemy
         - [cyan]ps[/cyan]: Show running processes
         - [cyan]inventory[/cyan]: Show detailed inventory with rarities
+        - [cyan]journal[/cyan]: Show story memories you've restored
         - [cyan]save[/cyan]: Save your current progress
         - [cyan]quit[/cyan] or [cyan]exit[/cyan]: Quit the game (offers to save)
         
@@ -712,11 +720,15 @@ You can type just the beginning of an item name:
                 item = self.world.get_item(item_id)
                 description = self.get_formatted_item_description(item)
                 output.append(f"  {item_id}", style="green")
-                output.append(f" - {description}\n")
-                
+                output.append(f" - {description}")
+                # Hint for cat-only lore so players know how to interact.
+                if item and item.get("type") == "lore" and not item.get("takeable", True):
+                    output.append("  [dim italic](readable — try `cat`)[/dim italic]", style="cyan")
+                output.append("\n")
+
                 if item and item.get("type") == "weapon":
                     weapon_found = True
-                    
+
             has_content = True
         
         # Show NPCs
@@ -931,6 +943,7 @@ You can type just the beginning of an item name:
                 # Execute any special effects defined for this item
                 if "on_read" in item:
                     self.execute_effect(item["on_read"])
+                self._trigger_story_flag(item)
             else:
                 self._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         elif self.player.has_item(filename) or self._find_item_in_inventory_by_name(filename):
@@ -946,6 +959,7 @@ You can type just the beginning of an item name:
                 # Execute any special effects defined for this item
                 if "on_read" in item:
                     self.execute_effect(item["on_read"])
+                self._trigger_story_flag(item)
             else:
                 self._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         else:
@@ -1241,6 +1255,81 @@ You can type just the beginning of an item name:
         self.ui.update_output(f"[bold cyan]── {name} ──[/bold cyan]\n{content}")
         if "on_read" in item:
             self.execute_effect(item["on_read"])
+        self._trigger_story_flag(item)
+
+    # Human-readable descriptions for story flags shown in journal/autosave feedback.
+    STORY_FLAG_TITLES = {
+        "identity_retrieved":   "Identity Retrieved",
+        "typo_discovered":      "The Creator's Typo",
+        "sudo_trial_complete":  "Sudo Trial Complete",
+        "mirror_confronted":    "Mirror Confronted",
+        "sudo_quest_active":    "Sudo Quest Active",
+        "bovine_encountered":   "Bovine Sanctuary Found",
+        "milk_claimed":         "Milk of Motherboard Claimed",
+        "ending_chosen":        "Ending Chosen",
+    }
+
+    STORY_FLAG_DESCRIPTIONS = {
+        "identity_retrieved":  "You read your own .bash_profile and remembered who you were.",
+        "typo_discovered":     "The system_err.log revealed: the apocalypse was caused by a typo.",
+        "sudo_trial_complete": "You proved worthy of sudo privileges.",
+        "mirror_confronted":   "You faced your reflection in the Mirror Sector.",
+        "sudo_quest_active":   "The sudo quest is in progress.",
+        "bovine_encountered":  "You entered the hidden Bovine Sanctuary.",
+        "milk_claimed":        "You claimed the legendary Milk of Motherboard.",
+        "ending_chosen":       "You chose your ending.",
+    }
+
+    def _trigger_story_flag(self, item):
+        """Set the item's story_flag on the player, show feedback, and auto-save."""
+        flag = item.get("story_flag")
+        if not flag:
+            return
+        if self.player.get_story_flag(flag):
+            return
+
+        self.player.set_story_flag(flag, True)
+        title = self.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
+        self.ui.update_output(
+            f"\n[bold magenta]✦ Memory restored: {title} ✦[/bold magenta]\n"
+            f"[dim]Saving progress...[/dim]"
+        )
+
+        # Auto-save: story beats act as save points.
+        try:
+            from src.save import save_manager
+            world_state = self.world.get_state()
+            save_manager.save_game(self.player, world_state)
+            self.ui.update_output("[dim green]✓ Progress saved.[/dim green]")
+        except Exception as e:
+            debug_log(f"Auto-save after story flag {flag} failed: {e}")
+            self.ui.update_output(f"[dim yellow]⚠ Auto-save failed: {e}[/dim yellow]")
+
+    def show_journal(self):
+        """Display story progression — list of discovered flags with descriptions."""
+        flags = self.player.story_flags or {}
+        # Filter to flags that are truthy (True or non-empty value for ending_chosen)
+        discovered = [k for k, v in flags.items() if v]
+
+        output = Text()
+        output.append("📖 JOURNAL\n", style="bold cyan")
+        output.append("=" * 50 + "\n", style="dim")
+
+        if not discovered:
+            output.append("\n[italic]No memories restored yet. Explore the filesystem and `cat` any lore files you find.[/italic]")
+            self.ui.update_output(output)
+            return
+
+        for flag in discovered:
+            title = self.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
+            desc = self.STORY_FLAG_DESCRIPTIONS.get(flag, "")
+            output.append(f"\n✦ {title}\n", style="bold magenta")
+            if desc:
+                output.append(f"  {desc}\n", style="dim")
+
+        total = len(self.STORY_FLAG_TITLES)
+        output.append(f"\n[dim]Progress: {len(discovered)}/{total} memories restored.[/dim]")
+        self.ui.update_output(output)
 
     def _handle_consumable_item(self, item_id, item):
         """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
@@ -1506,12 +1595,15 @@ You can type just the beginning of an item name:
     
     def attack_enemy(self, enemy_id):
         """Attack an enemy in the current room"""
-        if not enemy_id:
-            self._show_error("[bold red]No enemy specified. Use 'attack [enemy]'[/bold red]")
-            return
-
         current_room = self.player.current_room
-        enemies_in_room = self.world.get_enemies_in_room(current_room)
+        enemies_in_room = self.world.get_enemies_in_room(current_room) or []
+
+        # No arg: default to first enemy in room
+        if not enemy_id:
+            if not enemies_in_room:
+                self._show_error("[bold red]Nothing to attack here.[/bold red]")
+                return
+            enemy_id = enemies_in_room[0]
 
         if enemy_id not in enemies_in_room:
             self._show_error(f"[bold red]Cannot find {enemy_id} in this directory.[/bold red]")
@@ -1524,7 +1616,7 @@ You can type just the beginning of an item name:
             return
         
         # Start combat
-        self.combat(enemy_id, enemy)
+        self.start_combat([(enemy_id, enemy)])
     
     
     def show_inventory(self):
@@ -1738,8 +1830,8 @@ You can type just the beginning of an item name:
 
     def _on_combat_ended(self, event):
         """Handle combat ended event - cleanup and state management."""
-        if event.data.get("session") != self.current_combat_session:
-            return  # Not our combat session
+        if self.current_combat_session is None:
+            return  # No active session to clean up
 
         victory = event.data.get("victory", False)
         defeat = event.data.get("defeat", False)
@@ -1765,22 +1857,24 @@ You can type just the beginning of an item name:
 
             # Force player back to previous room when fleeing
             if self.player.previous_room:
-                debug_log(f"Player fled from {fled_from_room} back to {self.player.previous_room}")
-                self.ui.update_output(f"[bold magenta]You were forced back to {self.player.previous_room}![/bold magenta]")
+                prev_room = self.player.previous_room
+                debug_log(f"Player fled from {fled_from_room} back to {prev_room}")
+                self.ui.update_output(f"[bold magenta]You were forced back to {prev_room}![/bold magenta]")
 
                 # Move player to previous room
-                self.player.move_to(self.player.previous_room)
+                self.player.move_to(prev_room)
 
-                # Emit room changed event for UI updates
+                # Emit ROOM_ENTERED so UI re-themes panels and clears combat styling.
+                room_view = ViewBuilder.build_room_view(self.world, prev_room)
                 event_bus.emit_event(
-                    EventType.ROOM_CHANGED,
-                    {"player_name": self.player.name, "from_room": fled_from_room, "to_room": self.player.current_room},
+                    EventType.ROOM_ENTERED,
+                    {"room": room_view.to_dict(), "player_name": self.player.name},
                     "CommandHandler"
                 )
 
                 # Show new room info
-                self.pwd()
-                self.ls()
+                self.display_location()
+                return
             else:
                 debug_log("Player fled but no previous room available")
                 self.ui.update_output("[yellow]You fled but couldn't find your way back...[/yellow]")
@@ -2183,7 +2277,35 @@ Not because you fixed them. Because you forgave them.
         ]
         selected_response = random.choice(responses)
         self._show_error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
+
+        # If tutorial active, re-show the current step instead of the generic hint.
+        ts = getattr(self.player, "tutorial_state", {}) or {}
+        if not ts.get("completed", False):
+            current_step = self._get_current_tutorial_step()
+            if current_step:
+                self.show_tutorial_hint(current_step)
+                return
+
         self.ui.update_output("[yellow]Hint: Try using standard commands like 'ls', 'cd', 'cat', or type 'help'.[/yellow]")
+
+    def _get_current_tutorial_step(self):
+        """Return the hint key for the step the player is currently expected to perform."""
+        ts = self.player.tutorial_state or {}
+        if not ts.get("first_ls", False):
+            return "step1"
+        if not ts.get("took_weapon", False):
+            return "step2"
+        if not ts.get("equipped_weapon", False):
+            return "step3"
+        if not ts.get("combat_typed", False):
+            return "step4"
+        if not ts.get("selection_mode_used", False):
+            return "step5"
+        if not ts.get("navigation_ls", False):
+            return "step6"
+        if not ts.get("navigation_moved", False):
+            return "step6b"
+        return None
 
     def _resolve_item_shortcut(self, item_input, location="room"):
         """Resolve item shortcuts and partial matches to actual item IDs."""

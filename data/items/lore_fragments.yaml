@@ -16,6 +16,7 @@ lore_fragments:
     hidden: true  # Requires ls -a to see
     usable: false
     readable: true
+    takeable: false  # Read in place — story beat triggers on cat
     story_flag: "identity_retrieved"
     content: |
       # .bash_profile - Sysadmin Spirit Configuration
@@ -43,6 +44,7 @@ lore_fragments:
     persistence: "persistent"
     usable: false
     readable: true
+    takeable: false  # Read in place — story beat triggers on cat
     story_flag: "typo_discovered"
     content: |
       [CRITICAL] Emotion.exe encountered an unhandled exception: LONELINESS.
