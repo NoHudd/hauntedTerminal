@@ -11,6 +11,8 @@ DEFAULTS = {
     "theme": "default",
     "text_speed": "normal",
     "reduce_motion": False,
+    "hints": True,  # in-game inline affordances (→ take/cat/cd)
+    "seen_selection_mode": False,  # combat selection-mode modal: show once ever
 }
 
 # Palette definitions: name → (primary, success, error, warning, accent)
@@ -109,6 +111,16 @@ class SettingsManager:
         import config.dev_config as dev_cfg
         dev_cfg.DISABLE_ANIMATIONS = enabled
         dev_cfg.SKIP_INTRO = enabled
+
+    def set_hints(self, enabled: bool) -> None:
+        """Toggle in-game inline affordance hints (→ take/cat/cd in listings)."""
+        self.settings["hints"] = enabled
+        import config.dev_config as dev_cfg
+        dev_cfg.SHOW_HINTS = enabled
+
+    def apply_all(self) -> None:
+        """Push loaded settings into runtime config. Call once after load()."""
+        self.set_hints(self.settings.get("hints", True))
 
     def save(self) -> None:
         """Write current settings to JSON file."""

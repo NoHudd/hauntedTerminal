@@ -17,22 +17,30 @@ State (rooms, stats, inventory) still flows through the event bus, unchanged.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 
 class GameOutput:
     """A text sink that either forwards live or accumulates."""
 
-    def __init__(self, forward: Callable[[str], None] | None = None) -> None:
+    def __init__(self, forward: Callable[[Any], None] | None = None) -> None:
         self._forward = forward
         self.messages: list[str] = []
 
-    def write(self, content: str) -> None:
-        """Emit one line of narrative/command output."""
-        text = str(content)
+    def write(self, content: Any) -> None:
+        """Emit one line of output.
+
+        content may be a plain/markup string OR a Rich renderable (e.g.
+        rich.text.Text built with per-span styles). On the live path the object
+        is forwarded intact so the UI can render its styles — stringifying here
+        was a Phase 2b regression that flattened Text colors (ls/map/keys/journal
+        rendered without their per-item styling). The accumulate path stores a
+        string since tests only assert on plain text.
+        """
         if self._forward is not None:
-            self._forward(text)
+            self._forward(content)
         else:
-            self.messages.append(text)
+            self.messages.append(str(content))
 
     def drain(self) -> list[str]:
         """Return accumulated output (forward-unset mode), then clear."""

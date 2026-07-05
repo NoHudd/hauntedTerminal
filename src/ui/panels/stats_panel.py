@@ -4,7 +4,7 @@ StatsPanel widget — renders player stats in the sidebar.
 
 from textual.widgets import Static
 
-from src.ui.panels import create_health_bar
+from src.ui.panels import class_icon, create_health_bar
 
 
 class StatsPanel(Static):
@@ -18,9 +18,10 @@ class StatsPanel(Static):
         stats_lines = []
 
         player_name = player_view.get('player_name', 'Unknown')
-        stats_lines.append(f"[bold green]🛡️ {player_name.upper()}[/bold green]")
-
         player_class = player_view.get('player_class', 'Unknown')
+        stats_lines.append(
+            f"[bold green]{class_icon(player_class)}  {player_name.upper()}[/bold green]"
+        )
         stats_lines.append(f"Class: {player_class.title()}")
 
         health = player_view.get('health', 0)
@@ -54,9 +55,10 @@ class StatsPanel(Static):
         stats_lines = []
 
         player_name = player_view.get('player_name', 'Unknown')
-        stats_lines.append(f"[bold green]🛡️ {player_name.upper()}[/bold green]")
-
         player_class = player_view.get('player_class', 'Unknown')
+        stats_lines.append(
+            f"[bold green]{class_icon(player_class)}  {player_name.upper()}[/bold green]"
+        )
         stats_lines.append(f"Class: {player_class.title()}")
 
         if combat_view:
@@ -72,15 +74,15 @@ class StatsPanel(Static):
 
                 health_status = ""
                 if health_percent <= 0.15:
-                    health_status = " [red blink]💀 CRITICAL[/red blink]"
+                    health_status = " [red blink]CRITICAL[/red blink]"
                 elif health_percent <= 0.3:
-                    health_status = " [red]⚠️ LOW[/red]"
+                    health_status = " [red]LOW[/red]"
                 elif health_percent >= 1.0:
-                    health_status = " [green]✨ FULL[/green]"
+                    health_status = " [green]FULL[/green]"
 
                 stats_lines.extend([
                     "",
-                    f"[{health_color}]❤️ HP: {health}/{max_health}[/]{health_status}",
+                    f"[{health_color}]HP: {health}/{max_health}[/]{health_status}",
                     enhanced_health_bar,
                 ])
 
@@ -88,14 +90,6 @@ class StatsPanel(Static):
         stats_lines.extend([
             "",
             f"[cyan]Base ATK: {base_attack}[/]",
-        ])
-
-        stats_lines.extend([
-            "",
-            "[bold yellow]CONTROLS:[/bold yellow]",
-            "[dim]1-9 - Quick attacks[/dim]",
-            "[dim]use [item] - Use item[/dim]",
-            "[dim]flee - Escape[/dim]",
         ])
 
         self.update("\n".join(stats_lines))

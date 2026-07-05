@@ -656,7 +656,7 @@ class ImprovedGameEngine:
         self._show_tutorial_introduction()
     
     _CLASS_ICONS = {
-        "guardian": "🛡 ",
+        "guardian": "🛡",
         "weaver":   "✨",
         "shaman":   "🌿",
     }
@@ -706,17 +706,17 @@ class ImprovedGameEngine:
                 body.append(hp + "\n", style=hp_color)
                 body.append("⚔  ", style="yellow")
                 body.append(dmg + "\n", style=dmg_color)
-                body.append("🗡 ", style="white")
+                body.append("🗡  ", style="white")
                 body.append("Weapon: ", style="dim")
                 body.append(weapon + "\n")
                 if pref:
-                    body.append("🗺 ", style="white")
+                    body.append("🗺  ", style="white")
                     body.append("Zones: ", style="dim")
                     body.append(pref)
 
                 panel = Panel(
                     body,
-                    title=f"[bold {color}][{i}]  {icon} {name}[/bold {color}]",
+                    title=f"[bold {color}][{i}]  {icon}  {name}[/bold {color}]",
                     title_align="left",
                     border_style=color,
                     padding=(1, 2),

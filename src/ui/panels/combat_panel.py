@@ -5,7 +5,7 @@ or a dim "No enemies" message while exploring.
 
 from textual.widgets import Static
 
-from src.ui.panels import create_health_bar
+from src.ui.panels import class_icon, create_health_bar
 
 
 class CombatPanel(Static):
@@ -44,19 +44,20 @@ class CombatPanel(Static):
         player_health = combat_view.get('player_health', 0)
         player_max_health = combat_view.get('player_max_health', 100)
         player_name = player_view.get('player_name', 'You') if player_view else 'You'
+        player_class = player_view.get('player_class', '') if player_view else ''
 
         enemy_bar = create_health_bar(enemy_health, enemy_max_health, 12)
         player_bar = create_health_bar(player_health, player_max_health, 12)
 
         lines = [
-            f"[bold red]💀 {enemy_name.upper()}[/bold red]",
+            f"[bold red]💀  {enemy_name.upper()}[/bold red]",
             f"HP: {enemy_health}/{enemy_max_health}",
             enemy_bar,
         ]
         if self._pop_text and self._pop_target == "enemy":
             lines.append(self._pop_text)
         lines.append("")
-        lines.append(f"[bold green]🛡️ {player_name.upper()}[/bold green]")
+        lines.append(f"[bold green]{class_icon(player_class)}  {player_name.upper()}[/bold green]")
         lines.append(f"HP: {player_health}/{player_max_health}")
         lines.append(player_bar)
         if self._pop_text and self._pop_target == "player":

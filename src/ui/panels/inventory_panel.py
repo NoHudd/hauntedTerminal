@@ -111,12 +111,14 @@ class InventoryPanel(Static):
 
     def _get_item_type_icon(self, item_type: str) -> str:
         """Get an appropriate icon for item type."""
+        # Plain glyphs (no U+FE0F variation selector, which jams against the
+        # following text in many terminals).
         icons = {
-            "weapon": "⚔️",
+            "weapon": "🗡",
             "consumable": "🧪",
             "script": "📜",
-            "key": "🗝️",
-            "armor": "🛡️",
+            "key": "🗝",
+            "armor": "🛡",
             "tool": "🔧",
             "misc": "📦",
         }

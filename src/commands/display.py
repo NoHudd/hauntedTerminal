@@ -210,7 +210,7 @@ class KeysCommand(Command):
             for key in player_keys:
                 output.append(f"  • {key}\n", style="green")
         else:
-            output.append("\n[dim]No keys currently in inventory.[/dim]\n")
+            output.append("\nNo keys currently in inventory.\n", style="dim")
 
         output.append("\n💡 PROGRESSION HINTS:\n", style="bold magenta")
         output.append(

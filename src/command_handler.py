@@ -227,16 +227,16 @@ class CommandHandler:
         selected_dialogue = dialogues[dialogue_index]
         npc_name = npc_data.get("name", npc_id)
         
-        # Format and display the automatic dialogue
-        output = Text()
-        output.append(f"\n[bold cyan]🗨️  {npc_name} speaks:[/bold cyan]\n")
-        output.append(f"[italic cyan]\"{selected_dialogue}\"[/italic cyan]\n")
-        
+        # Format and display the automatic dialogue (markup string so styles render)
+        output = (
+            f"\n[bold cyan]🗨️  {npc_name} speaks:[/bold cyan]\n"
+            f"[italic cyan]\"{selected_dialogue}\"[/italic cyan]\n"
+        )
         if context == "post_combat":
-            output.append(f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]")
+            output += f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
         else:
-            output.append(f"\n[dim]Use 'talk {npc_id}' to converse further with the {npc_name}.[/dim]")
-        
+            output += f"\n[dim]Use 'talk {npc_id}' to converse further with the {npc_name}.[/dim]"
+
         self.output.write(output)
         debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
     
@@ -603,21 +603,20 @@ class CommandHandler:
         if not enemies:
             return False, None
         
-        output = Text()
-        output.append("[bold red]⚠️  COMBAT REQUIRED  ⚠️[/bold red]\n\n")
-        output.append("Hostile entities are present! You must defeat all enemies before exploring.\n\n")
-        
-        output.append("Corrupted Entities:\n", style="bold red") 
+        lines = [
+            "[bold red]⚠️  COMBAT REQUIRED  ⚠️[/bold red]\n",
+            "Hostile entities are present! You must defeat all enemies before exploring.\n",
+            "[bold red]Corrupted Entities:[/bold red]",
+        ]
         for enemy_id in enemies:
             enemy = self.world.get_enemy(enemy_id, self.player.player_class)
             if enemy:
                 name = enemy.get("name", enemy_id)
                 health = enemy.get("health", "??")
-                output.append(f"  {enemy_id}", style="red")
-                output.append(f" - {name} (HP: {health})\n")
-        
-        output.append("\nUse [cyan]attack [enemy][/cyan] to engage in combat.")
-        return True, output
+                lines.append(f"  [red]{enemy_id}[/red] - {name} (HP: {health})")
+
+        lines.append("\nUse [cyan]attack [enemy][/cyan] to engage in combat.")
+        return True, "\n".join(lines)
 
     @staticmethod
     def _normalize_item_name(s: str) -> str:

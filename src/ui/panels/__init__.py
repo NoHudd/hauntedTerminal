@@ -1,5 +1,18 @@
 """UI panels package."""
 
+# Class -> name-tag glyph. Plain emoji (no U+FE0F variation selector, which
+# collides with adjacent text in many terminals). See docs/UX_REDESIGN.md.
+CLASS_ICONS = {
+    "guardian": "🛡",
+    "weaver": "✨",
+    "shaman": "🌿",
+}
+
+
+def class_icon(player_class: str) -> str:
+    """Glyph for a class name tag; falls back to a neutral marker."""
+    return CLASS_ICONS.get((player_class or "").lower(), "◆")
+
 
 def create_health_bar(current: int, maximum: int, length: int = 12) -> str:
     """Create an enhanced health bar with gradient styling."""
