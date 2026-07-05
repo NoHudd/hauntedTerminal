@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import random
+from src import rng
 import yaml
 import os
 from utils.debug_tools import debug_log
@@ -333,8 +334,8 @@ class GameWorld:
         if not eligible_rooms:
             return
 
-        random.shuffle(unplaced_keys)
-        random.shuffle(eligible_rooms)
+        rng.shuffle(unplaced_keys)
+        rng.shuffle(eligible_rooms)
 
         # Spread keys across distinct rooms first, then double up if more keys than rooms.
         for i, key_id in enumerate(unplaced_keys):
@@ -464,7 +465,7 @@ class GameWorld:
             
             # Select a rarity based on weights
             try:
-                selected_rarity = random.choices(weighted_rarities, weights=weights, k=1)[0]
+                selected_rarity = rng.choices(weighted_rarities, weights=weights, k=1)[0]
                 debug_log(f"Random selection chose rarity: {selected_rarity}")
             except IndexError:
                 debug_log("IndexError during rarity selection - no more valid rarities")
@@ -479,7 +480,7 @@ class GameWorld:
                 continue
             
             # Select a random item of the chosen rarity
-            item_id, item_data = random.choice(items_by_rarity[selected_rarity])
+            item_id, item_data = rng.choice(items_by_rarity[selected_rarity])
             debug_log(f"Selected item {item_id} from rarity {selected_rarity}")
             
             # Remove this item from the pool to avoid multiple placements
@@ -535,7 +536,7 @@ class GameWorld:
             return False
         
         # Select a random room from eligible rooms
-        chosen_room_id = random.choice(eligible_rooms)
+        chosen_room_id = rng.choice(eligible_rooms)
         debug_log(f"Selected room {chosen_room_id} for item {item_id}")
         
         # Place the item in the chosen room
@@ -752,7 +753,7 @@ class GameWorld:
             if not suitable_items:
                 break
 
-            room_id = random.choice(zone_rooms_filtered)
+            room_id = rng.choice(zone_rooms_filtered)
             room_data = self.rooms.get(room_id, {})
             allowed_rarities = self._get_allowed_rarities_for_room(room_id, room_data)
 
@@ -873,10 +874,10 @@ class GameWorld:
         else:
             weights = [rarity_weights[r] for r in available_rarities]
 
-        selected_rarity = random.choices(list(available_rarities), weights=list(weights), k=1)[0]
+        selected_rarity = rng.choices(list(available_rarities), weights=list(weights), k=1)[0]
 
         # Select random item from rarity
-        return random.choice(items_by_rarity[selected_rarity])
+        return rng.choice(items_by_rarity[selected_rarity])
 
     def _count_items_in_room(self, room_id: str) -> int:
         """Count how many items are currently in a room."""
@@ -1098,7 +1099,11 @@ class GameWorld:
         # Apply class-based scaling if player class is provided
         if player_class:
             enemy = self.scale_enemy_stats(enemy, player_class)
-            
+
+        # Apply difficulty-mode scaling (enemy HP/damage) on top of class scaling.
+        from src import difficulty
+        enemy = difficulty.scale_enemy(enemy)
+
         return enemy
     
     def get_npc(self, npc_id):

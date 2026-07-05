@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import yaml
 import random
+from src import rng
 from utils.debug_tools import debug_log
 from src.events import event_bus, EventType
 from src.ui.view_builder import ViewBuilder
@@ -119,7 +120,7 @@ class CombatSystem:
         else:
             debug_log(f"Attack '{attack_id}' has accuracy: {attack_accuracy}%")
 
-        if random.randint(1, 100) > attack_accuracy:
+        if rng.randint(1, 100) > attack_accuracy:
             debug_log(f"Attack '{attack_id}' (Name: {attack_data.get('name', attack_id)}) MISSED!")
             return {
                 "success": False,
@@ -670,6 +671,9 @@ class CombatSession:
             is_boss = self.enemy_data.get("boss_room", False) or self.enemy_data.get("boss_enemy", False)
             if is_boss:
                 base_cycles *= 3
+            # Scale XP by difficulty mode (easier = faster leveling).
+            from src import difficulty
+            base_cycles = difficulty.scale_xp(base_cycles)
 
             old_level = self.player.level
             self.player.harvest_cycles(base_cycles)

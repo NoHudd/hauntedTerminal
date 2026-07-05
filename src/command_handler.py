@@ -2,6 +2,7 @@
 import os
 import re
 import random
+from src import rng
 import logging
 from rich.text import Text
 from src.combat import combat_system, CombatSession
@@ -1057,7 +1058,7 @@ class CommandHandler:
 
         if "add_status_effect" in effect:
             status_data = effect["add_status_effect"]
-            effect_id = status_data.get("id", "effect_" + str(random.randint(1000, 9999)))
+            effect_id = status_data.get("id", "effect_" + str(rng.randint(1000, 9999)))
             effect_name = status_data.get("name", "Effect")
             effect_duration = status_data.get("duration", 3)
             self.player.add_status_effect(effect_id, status_data, effect_duration)
@@ -1276,7 +1277,7 @@ Not because you fixed them. Because you forgave them.
             "A ghostly whisper suggests trying a different approach.",
             "The Helper Script would advise using standard commands instead."
         ]
-        selected_response = random.choice(responses)
+        selected_response = rng.choice(responses)
         self._show_error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
 
         # If tutorial active, re-show the current step instead of the generic hint.

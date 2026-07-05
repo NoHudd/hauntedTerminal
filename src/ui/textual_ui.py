@@ -147,6 +147,7 @@ class TextualGameUI(App):
             self._settings_manager.set_text_speed(self._settings_manager.settings["text_speed"])
             self._settings_manager.set_reduce_motion(self._settings_manager.settings["reduce_motion"])
             self._settings_manager.set_hints(self._settings_manager.settings["hints"])
+            self._settings_manager.set_difficulty(self._settings_manager.settings["difficulty"])
             self._update_all_panels_to_defaults()
 
             # Attach context-aware autocomplete to the input field (always)
