@@ -8,6 +8,7 @@ working unchanged.
 """
 from __future__ import annotations
 
+from src.commands.actions import AttackCommand, UseCommand
 from src.commands.base import Command
 from src.commands.discovery import FindCommand, PsCommand
 from src.commands.display import (
@@ -17,10 +18,13 @@ from src.commands.display import (
     MapCommand,
 )
 from src.commands.info import HelpCommand, PwdCommand, ShortcutsCommand
+from src.commands.navigation import CdCommand, LsCommand
 from src.commands.items import (
+    CatCommand,
     DropCommand,
     EquipCommand,
     ExamineCommand,
+    TakeCommand,
     TalkCommand,
 )
 from src.commands.system import QuitCommand, SaveCommand
@@ -43,6 +47,12 @@ MIGRATED: tuple[type[Command], ...] = (
     EquipCommand,
     ExamineCommand,
     TalkCommand,
+    TakeCommand,
+    CatCommand,
+    LsCommand,
+    CdCommand,
+    UseCommand,
+    AttackCommand,
 )
 
 

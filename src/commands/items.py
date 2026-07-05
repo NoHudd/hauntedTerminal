@@ -26,6 +26,152 @@ def _first(args: list[str]) -> str:
     return args[0] if args else ""
 
 
+class TakeCommand(Command):
+    name = "take"
+
+    def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
+        item_id = _first(args)
+        if not item_id:
+            debug_log("take command called with no item specified")
+            ctx._show_error("[bold red]No item specified. Use 'take [item]'[/bold red]")
+            return
+
+        current_room = ctx.player.current_room
+
+        has_enemies, enemy_output = ctx._check_enemies_blocking_exploration(current_room)
+        if has_enemies:
+            ctx.output.write(enemy_output)
+            return
+
+        actual_item_id = ctx._resolve_item_shortcut(item_id, "room")
+        if not actual_item_id:
+            debug_log(f"Item {item_id} not found in room after shortcut resolution")
+            ctx._show_error(
+                f"[bold red]Cannot find {item_id} in this directory.[/bold red]"
+            )
+            return
+
+        debug_log(
+            f"Player attempting to take item: {actual_item_id} (from input: {item_id})"
+        )
+        items_in_room = ctx.world.get_items_in_room(current_room)
+
+        if actual_item_id not in items_in_room:
+            debug_log(f"Item {actual_item_id} not found in room {current_room}")
+            ctx._show_error(
+                f"[bold red]Cannot find {item_id} in this directory.[/bold red]"
+            )
+            return
+
+        item = ctx.world.get_item(actual_item_id)
+        if not item:
+            debug_log(f"Error: Item data not found for {actual_item_id}")
+            ctx._show_error(
+                f"[bold red]Error: Item data not found for {item_id}[/bold red]"
+            )
+            return
+
+        if not item.get("takeable", True):
+            debug_log(f"Item {actual_item_id} is not takeable")
+            ctx._show_error(f"[bold red]You cannot take {item_id}.[/bold red]")
+            return
+
+        if not ctx.player.can_use_item(item):
+            class_restriction = ctx._get_class_restriction_text(item)
+            debug_log(
+                f"Item {actual_item_id} is class-restricted, player class "
+                f"{ctx.player.player_class} not allowed"
+            )
+            ctx._show_error(
+                f"[bold red]Only {class_restriction} spirits can wield {item_id}. "
+                "Your essence is incompatible.[/bold red]"
+            )
+            return
+
+        success = ctx.player.add_to_inventory(actual_item_id, item)
+        if success:
+            debug_log(f"Player took item {actual_item_id} from room {current_room}")
+            ctx.world.remove_item_from_room(actual_item_id)
+
+            from src.rarity import RaritySystem
+
+            item_name = item.get("name", actual_item_id)
+            rarity = item.get("rarity", "common")
+            formatted_name = RaritySystem.format_item_name_with_rarity(
+                item_name, rarity, show_emoji=False
+            )
+            ctx.output.write(f"Added {formatted_name} to your inventory.")
+
+            inventory_view = ViewBuilder.build_inventory_view(ctx.player)
+            event_bus.emit_event(
+                EventType.PLAYER_INVENTORY_CHANGED,
+                inventory_view.to_dict(),
+                "CommandHandler",
+            )
+
+            if "on_take" in item:
+                debug_log(f"Executing on_take effect for {item_id}")
+                ctx.execute_effect(item["on_take"])
+
+            if (
+                not ctx.player.tutorial_state.get("took_weapon", False)
+                and item.get("type") == "weapon"
+            ):
+                ctx.player.tutorial_state["took_weapon"] = True
+                ctx.show_tutorial_hint("step3", actual_item_id)
+        else:
+            debug_log(f"Failed to add {actual_item_id} to inventory")
+            ctx._show_error(
+                f"[bold red]Could not add {item_id} to inventory.[/bold red]"
+            )
+
+
+class CatCommand(Command):
+    name = "cat"
+
+    def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
+        filename = _first(args)
+        if not filename:
+            ctx._show_error("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
+            return
+
+        current_room = ctx.player.current_room
+        items_in_room = ctx.world.get_items_in_room(current_room)
+
+        item_id = ctx._find_item_by_name_or_id(filename, items_in_room)
+
+        if item_id:
+            item = ctx.world.get_item(item_id)
+            if item:
+                self._render(ctx, item, item_id)
+            else:
+                ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
+        elif ctx.player.has_item(filename) or ctx._find_item_in_inventory_by_name(filename):
+            item_id_inv = ctx._find_item_in_inventory_by_name(filename) or filename
+            item = ctx.player.get_item_from_inventory(item_id_inv)
+            if item:
+                self._render(ctx, item, item_id_inv)
+            else:
+                ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
+        else:
+            ctx._show_error(
+                f"[bold red]Cannot find {filename} in this directory or your "
+                "inventory.[/bold red]"
+            )
+
+    @staticmethod
+    def _render(ctx: "CommandHandler", item: dict, item_id: str) -> None:
+        item_name = item.get("name", item_id)
+        content = item.get(
+            "content",
+            item.get("description", "This file appears to be empty or corrupted."),
+        )
+        ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
+        if "on_read" in item:
+            ctx.execute_effect(item["on_read"])
+        ctx._trigger_story_flag(item)
+
+
 class DropCommand(Command):
     name = "drop"
 
