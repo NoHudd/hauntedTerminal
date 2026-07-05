@@ -424,15 +424,17 @@ class Player:
     def from_dict(cls, data):
         """Create a player instance from a dictionary."""
         player = cls(data.get("name", ""), data.get("player_class", "guardian"), data.get("current_room", "home_grove"))
-        player.health = data["health"]
-        player.max_health = data["max_health"]
+        # Use .get() with defaults so a legacy or partial save can't KeyError
+        # here (previously data["health"]/["inventory"]/["equipped_weapon"] did).
+        player.health = data.get("health", player.max_health)
+        player.max_health = data.get("max_health", player.max_health)
         player.total_damage = data.get("total_damage", player.total_damage)
         player.permanent_health_boost = data.get("permanent_health_boost", 0)
         player.permanent_damage_boost = data.get("permanent_damage_boost", 0)
         player.previous_room = data.get("previous_room", None)  # Load previous room
         player.spells = data.get("spells", [])
-        player.inventory = data["inventory"]
-        player.equipped_weapon = data["equipped_weapon"]
+        player.inventory = data.get("inventory", {})
+        player.equipped_weapon = data.get("equipped_weapon", None)
         # Restore player_id if it exists, otherwise keep the generated one
         if "player_id" in data:
             player.player_id = data["player_id"]
