@@ -1,0 +1,30 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Only lint the rewrite package + tests; legacy src/ is out of scope for now.
+include = ["engine/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+# Scope strict typing to the new engine; legacy src/ is untyped and out of scope.
+files = ["engine"]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "yaml"
+ignore_missing_imports = true
+
+# Legacy game code is untyped and out of scope for strict checking. Treat it as
+# Any at the engine boundary rather than following into it.
+[[tool.mypy.overrides]]
+module = "src.*"
+ignore_missing_imports = true
+follow_imports = "skip"
