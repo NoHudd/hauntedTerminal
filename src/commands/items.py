@@ -10,6 +10,7 @@ show_tutorial_hint, check_for_enemies) remain on the handler.
 from __future__ import annotations
 
 import random
+from src import rng
 from typing import TYPE_CHECKING
 
 from src.commands.base import Command
@@ -328,7 +329,7 @@ class TalkCommand(Command):
             )
             return
 
-        dialogue = random.choice(dialogues)
+        dialogue = rng.choice(dialogues)
         dialogue_text = (
             f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
             f'[italic yellow]"{dialogue}"[/italic yellow]'
