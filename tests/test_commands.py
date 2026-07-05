@@ -182,6 +182,20 @@ def test_cd_and_pwd_track_room(session: GameSession) -> None:
     assert "root" in _text(session.submit("pwd"))
 
 
+def test_ls_hints_toggle(session: GameSession) -> None:
+    import config.dev_config as dev_cfg
+
+    dev_cfg.SHOW_HINTS = True
+    on = _text(session.submit("ls"))
+    assert "→ take" in on and "→ cd" in on and "Where you can go" in on
+
+    dev_cfg.SHOW_HINTS = False
+    off = _text(session.submit("ls"))
+    assert "→ take" not in off and "Where you can go" not in off
+
+    dev_cfg.SHOW_HINTS = True  # restore default
+
+
 def test_cat_reads_room_file(session: GameSession) -> None:
     # home_grove contains readme_txt_corrupt; cat must render it, not error.
     out = _text(session.submit("cat readme_txt_corrupt"))

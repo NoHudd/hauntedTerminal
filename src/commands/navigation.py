@@ -11,9 +11,10 @@ from typing import TYPE_CHECKING
 
 from rich.text import Text
 
+import config.dev_config as dev_cfg
 from src.commands.base import Command
 from src.events import EventType, event_bus
-from src.ui.view_builder import ViewBuilder
+from src.ui.view_builder import ROOM_ID_TO_PATH, ViewBuilder
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -28,6 +29,9 @@ class LsCommand(Command):
         output = Text()
         has_content = False
         show_hidden = "-a" in args
+        # In-game hints: inline "→ take/cat/talk/cd" affordances (Settings toggle,
+        # default on). Read live so the toggle takes effect immediately.
+        hints = getattr(dev_cfg, "SHOW_HINTS", True)
 
         has_enemies, enemy_output = ctx._check_enemies_blocking_exploration(room_id)
         if has_enemies:
@@ -37,17 +41,29 @@ class LsCommand(Command):
         items = ctx.world.get_items_in_room(room_id) or []
         weapon_found = False
         if items:
+            from src.rarity import RaritySystem
+
             output.append("Files:\n", style="bold green")
             for item_id in items:
                 item = ctx.world.get_item(item_id)
                 description = ctx.get_formatted_item_description(item)
-                output.append(f"  {item_id}", style="green")
-                output.append(f" - {description}")
-                if item and item.get("type") == "lore" and not item.get("takeable", True):
-                    output.append(
-                        "  [dim italic](readable — try `cat`)[/dim italic]", style="cyan"
+                # Color the file by rarity so value reads at a glance. Common maps
+                # to white in the rarity system, which is invisible against the
+                # description text, so give commons a visible green; higher tiers
+                # keep their rarity color (rare=blue, legendary=yellow, unique=red).
+                rarity = item.get("rarity", "common") if item else "common"
+                item_color = RaritySystem.get_rarity_color(rarity)
+                if item_color in ("white", "bright_white", "default"):
+                    item_color = "green"
+                output.append(f"  {item_id}", style=f"bold {item_color}")
+                output.append(f" - {description}\n")
+                if hints:
+                    readable = (
+                        item and item.get("type") == "lore"
+                        and not item.get("takeable", True)
                     )
-                output.append("\n")
+                    verb = "cat" if readable else "take"
+                    output.append(f"     → {verb} {item_id}\n", style="dim cyan")
 
                 if item and item.get("type") == "weapon":
                     weapon_found = True
@@ -70,6 +86,8 @@ class LsCommand(Command):
                     )
                     output.append(f"  {npc_id}", style="yellow")
                     output.append(f" - {description}\n")
+                    if hints:
+                        output.append(f"     → talk {npc_id}\n", style="dim cyan")
             has_content = True
 
         enemies = ctx.world.get_enemies_in_room(room_id) or []
@@ -108,6 +126,21 @@ class LsCommand(Command):
                             f"\n[bold green]Discovered hidden directory: "
                             f"{hidden_room_id}![/bold green]\n"
                         )
+
+        # Where you can go: actionable exit list (fills the screen with the one
+        # thing a novice most needs — how to leave). Hints-gated.
+        if hints:
+            exits = ctx.world.get_exits(room_id) or []
+            if exits:
+                if has_content:
+                    output.append("\n")
+                output.append("Where you can go:\n", style="bold cyan")
+                for exit_room in exits:
+                    # Show the filesystem path (cd /var) — matches the exits strip
+                    # and teaches real path navigation. Falls back to the room id.
+                    path = ROOM_ID_TO_PATH.get(exit_room, exit_room)
+                    output.append(f"  → cd {path}\n", style="dim cyan")
+                has_content = True
 
         if not has_content:
             output.append("No files, processes, or entities found.")

@@ -139,13 +139,14 @@ class TextualGameUI(App):
             # Set panel titles
             self._inv_panel.border_title = "📦 Inventory"
             self._stats_panel.border_title = "📊 Stats"
-            self._combat_panel.border_title = "⚔️ Combat"
+            self._combat_panel.border_title = "⚔ Combat"
 
             self.ui_state = UIState.READY
             self._settings_manager.register_themes(self)
             self._settings_manager.apply_theme(self._settings_manager.settings["theme"])
             self._settings_manager.set_text_speed(self._settings_manager.settings["text_speed"])
             self._settings_manager.set_reduce_motion(self._settings_manager.settings["reduce_motion"])
+            self._settings_manager.set_hints(self._settings_manager.settings["hints"])
             self._update_all_panels_to_defaults()
 
             # Attach context-aware autocomplete to the input field (always)
@@ -416,9 +417,16 @@ class TextualGameUI(App):
 
     def on_input_blurred(self, event: Input.Blurred) -> None:
         """Handle when the input field loses focus (TAB pressed)."""
-        # Existing: show CombatModeHintScreen once per session
-        if state_manager.is_in_combat() and not self._combat_hint_shown:
+        # Show the selection-mode hint modal once ever (persisted), not every
+        # session — after the first combat it never interrupts again.
+        if (
+            state_manager.is_in_combat()
+            and not self._combat_hint_shown
+            and not self._settings_manager.settings.get("seen_selection_mode", False)
+        ):
             self._combat_hint_shown = True
+            self._settings_manager.settings["seen_selection_mode"] = True
+            self._settings_manager.save()
             self.push_screen(CombatModeHintScreen())
 
         # Tutorial: detect Selection Mode usage during tutorial combat
@@ -562,7 +570,7 @@ class TextualGameUI(App):
                         # Push cooldown notice to combat log so panel stays intact.
                         self._combat_log.append({
                             "actor": "system",
-                            "message": f"⏱️ {attack_name} on cooldown ({cd_remaining}t)"
+                            "message": f"⏱ {attack_name} on cooldown ({cd_remaining}t)"
                         })
                         if len(self._combat_log) > 10:
                             self._combat_log.pop(0)
@@ -723,9 +731,11 @@ Brave sysadmin {player_name}, your session has been terminated.
 
         output_lines = []
 
-        # Combat log section
         if self._combat_log:
-            output_lines.append("[bold yellow]⚔️ COMBAT LOG ⚔️[/bold yellow]")
+            # Mid-combat: show only outcomes. Controls live in the footer; the
+            # attack list was shown at combat start. Keeps the log readable
+            # instead of re-dumping the full controls block every turn.
+            output_lines.append("[bold yellow]⚔ COMBAT LOG ⚔[/bold yellow]")
             output_lines.append("=" * 40)
 
             _ACTOR_FORMAT = {
@@ -740,26 +750,20 @@ Brave sysadmin {player_name}, your session has been terminated.
                 output_lines.append(f"[{color}]{icon} {message}[/{color}]")
 
             output_lines.append("=" * 40)
+            output_lines.append(
+                "[dim]Attacks: number keys in the footer · "
+                "type 'use <item>' or 'flee'[/dim]"
+            )
         else:
+            # Combat start: introduce the fight and show attack options once.
             output_lines.extend([
-                "[bold yellow]⚔️ BATTLE STARTED ⚔️[/bold yellow]",
+                "[bold yellow]⚔ BATTLE STARTED ⚔[/bold yellow]",
                 "=" * 40,
-                "[white]Combat actions will appear here...[/white]",
-                "=" * 40
+                "[dim]Press [bold]TAB[/bold] for selection mode, or type an attack. "
+                "'flee' to escape.[/dim]",
+                "",
+                self._get_dynamic_hotkey_display(),
             ])
-
-        # Tutorial and hotkey display
-        output_lines.extend([
-            "",
-            "[bold cyan]💡 COMBAT CONTROLS:[/bold cyan]",
-            "[dim]• Press [bold]TAB[/bold] to enter Selection Mode (then 1-9 to attack)[/dim]",
-            "[dim]• Press [bold]TAB[/bold] again to return to typing[/dim]",
-            "[dim]• Type 'attack' or an attack name to strike[/dim]",
-            "[dim]• Type 'use [item]' to use healing items[/dim]",
-            "[dim]• Type 'flee' to attempt escape[/dim]",
-            "",
-            self._get_dynamic_hotkey_display()
-        ])
 
         content_text = "\n".join(output_lines)
         # Bypass update_output's combat-routing to avoid recursion.
@@ -792,7 +796,7 @@ Brave sysadmin {player_name}, your session has been terminated.
                 accuracy = attack_data.get('accuracy', 100)
                 cooldown = attack_data.get('cooldown', 0)
                 atk_type = attack_data.get('type', '')
-                type_icon = {"physical": "⚔️", "magical": "✨", "nature": "🌿"}.get(atk_type, "•")
+                type_icon = {"physical": "⚔", "magical": "✨", "nature": "🌿"}.get(atk_type, "•")
                 cd_label = f"CD {cooldown}t" if cooldown > 0 else "no CD"
 
                 if not on_cooldown:

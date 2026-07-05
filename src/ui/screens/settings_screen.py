@@ -66,6 +66,7 @@ class SettingsScreen(ModalScreen):
         current_theme = s.get("theme", "default")
         current_speed = s.get("text_speed", "normal")
         current_motion = s.get("reduce_motion", False)
+        current_hints = s.get("hints", True)
 
         with Container(id="settings-content"):
             yield Static("⚙️  Settings", id="settings-title")
@@ -91,6 +92,10 @@ class SettingsScreen(ModalScreen):
             yield Static("[dim]Skip intro & all animations[/dim]")
             yield Switch(value=current_motion, id="reduce-motion-switch")
 
+            yield Label("In-game hints", classes="settings-label")
+            yield Static("[dim]Show → take/cat/cd command hints while exploring[/dim]")
+            yield Switch(value=current_hints, id="hints-switch")
+
             yield Static(
                 "[dim]🔊 Sound Volume — coming soon[/dim]",
                 classes="settings-disabled",
@@ -114,9 +119,11 @@ class SettingsScreen(ModalScreen):
             self._manager.set_text_speed(key)
 
     def on_switch_changed(self, event: Switch.Changed) -> None:
-        """Handle reduce motion toggle."""
+        """Handle toggles."""
         if event.switch.id == "reduce-motion-switch":
             self._manager.set_reduce_motion(event.value)
+        elif event.switch.id == "hints-switch":
+            self._manager.set_hints(event.value)
 
     def action_dismiss(self) -> None:
         """ESC closes and saves."""

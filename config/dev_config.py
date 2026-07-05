@@ -38,6 +38,10 @@ except ImportError:
     DISABLE_ANIMATIONS = True
     DEBUG_LOG_FILE = "debug.log"
 
+# Runtime-mutable UX flags (not part of settings.py). SettingsManager updates
+# these live; the domain reads them (e.g. LsCommand for in-game hints).
+SHOW_HINTS = True  # inline "→ take/cat/cd" affordances in room listings
+
 # Export all for backward compatibility
 __all__ = [
     'DEV_MODE',
