@@ -30,10 +30,28 @@ def _text(lines: list[str]) -> str:
 
 # --- registry ---------------------------------------------------------------
 
-def test_registry_builds_without_duplicates() -> None:
+ALL_VERBS = (
+    "help", "shortcuts", "pwd", "journal", "inventory", "inv", "keys", "map",
+    "find", "ps", "save", "quit", "exit", "drop", "equip", "examine", "talk",
+    "take", "cat", "ls", "cd", "use", "attack",
+)
+
+
+def test_registry_covers_every_verb() -> None:
     registry = build_registry()
-    for name in ("help", "shortcuts", "pwd", "journal", "inventory", "inv", "keys", "map"):
+    for name in ALL_VERBS:
         assert name in registry
+
+
+def test_legacy_dispatch_is_empty() -> None:
+    # Phase 3 complete: no verb should remain on the legacy dict.
+    from src.commands import build_registry  # noqa: F401
+    s = GameSession()
+    try:
+        s.new_game("T", "guardian")
+        assert s.engine.cmd_handler.commands == {}
+    finally:
+        s.close()
 
 
 def test_inventory_alias_matches(session: GameSession) -> None:
@@ -129,3 +147,45 @@ def test_examine_missing_item_errors(session: GameSession) -> None:
 
 def test_talk_missing_npc_errors(session: GameSession) -> None:
     assert "Cannot find" in _text(session.submit("talk ghost_npc_xyz"))
+
+
+def test_take_without_item_errors(session: GameSession) -> None:
+    assert "No item specified" in _text(session.submit("take"))
+
+
+def test_take_missing_item_errors(session: GameSession) -> None:
+    assert "Cannot find" in _text(session.submit("take ghost_item_xyz"))
+
+
+def test_cat_without_file_errors(session: GameSession) -> None:
+    assert "No file specified" in _text(session.submit("cat"))
+
+
+def test_use_without_item_errors(session: GameSession) -> None:
+    assert "No item specified" in _text(session.submit("use"))
+
+
+def test_attack_nothing_here_errors(session: GameSession) -> None:
+    # home_grove has no enemies at start.
+    assert "Nothing to attack" in _text(session.submit("attack"))
+
+
+def test_ls_lists_room_contents(session: GameSession) -> None:
+    out = _text(session.submit("ls"))
+    # home_grove has files; must render a section header, not error.
+    assert "Error" not in out
+    assert "Files:" in out or "No files" in out
+
+
+def test_cd_and_pwd_track_room(session: GameSession) -> None:
+    session.submit("cd root")
+    assert "root" in _text(session.submit("pwd"))
+
+
+def test_cat_reads_room_file(session: GameSession) -> None:
+    # home_grove contains readme_txt_corrupt; cat must render it, not error.
+    out = _text(session.submit("cat readme_txt_corrupt"))
+    assert "Cannot find" not in out
+    assert "Error" not in out  # would appear if the command raised
+    # Renders "[bold]<name>[/bold]\n\n<content>"
+    assert "[bold]" in out and out.strip()
