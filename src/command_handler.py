@@ -396,12 +396,12 @@ class CommandHandler:
             # Step 6: navigation ls instruction
             "step6": (
                 "[bold green]ECHO>[/bold green] Let's move. "
-                "Type: [bold]ls[/bold] again — exits show at the bottom of the room listing."
+                "Type: [bold]ls[/bold] again — 'Where you can go' lists the exits."
             ),
             # Step 6b: navigation move instruction
             "step6b": (
                 "[bold green]ECHO>[/bold green] See those paths? "
-                "Type one — like [bold]/var[/bold] — and you'll move there. "
+                "Type [bold]cd[/bold] and one — like [bold]cd /var[/bold] — and you'll move there. "
                 "That's how the whole filesystem works."
             ),
             # Step 7: tutorial complete cheat-sheet
@@ -409,6 +409,8 @@ class CommandHandler:
                 f"[bold green]ECHO> Tutorial complete, {player_name}.[/bold green]\n"
                 f"Quick reminder:\n"
                 f"  • [bold]ls[/bold] — scan a room\n"
+                f"  • [bold]cd /path[/bold] — move (e.g. cd /var)\n"
+                f"  • [bold]cat[/bold] — read a file\n"
                 f"  • [bold]take / equip[/bold] — grab and ready items\n"
                 f"  • [bold]attack[/bold] or TAB + number — fight enemies\n"
                 f"  • [bold]flee[/bold] — escape a fight\n"

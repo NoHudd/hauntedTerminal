@@ -182,6 +182,17 @@ def test_cd_and_pwd_track_room(session: GameSession) -> None:
     assert "root" in _text(session.submit("pwd"))
 
 
+def test_tutorial_prescribed_commands_work(session: GameSession) -> None:
+    # Following the tutorial's own instructions must never hit an unknown
+    # command (regression: step6b once taught bare '/var', which doesn't move).
+    for cmd in ("ls", "take segfault_shield", "equip segfault_shield"):
+        out = _text(session.submit(cmd))
+        assert "Unknown command" not in out and "digital void" not in out, cmd
+    before = session.player.current_room
+    session.submit("cd /var")
+    assert session.player.current_room != before, "cd /var (tutorial nav) must move"
+
+
 def test_ls_hints_toggle(session: GameSession) -> None:
     import config.dev_config as dev_cfg
 
