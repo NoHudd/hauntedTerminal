@@ -117,21 +117,13 @@ class GameWorld:
         base_health = enemy_data.get("health", 50)
         base_damage = enemy_data.get("damage", 10)
         
-        # Apply scaling based on class type
-        if power_scaling == "aggressive":  # Weaver - make enemies tougher
-            health_multiplier = 1.15  # +15% health
-            damage_multiplier = 1.05  # +5% damage
-            debug_log(f"Scaling enemy for aggressive class: health x{health_multiplier}, damage x{damage_multiplier}")
-            
-        elif power_scaling == "defensive":  # Guardian - make enemies easier
-            health_multiplier = 0.90  # -10% health  
-            damage_multiplier = 0.85  # -15% damage
-            debug_log(f"Scaling enemy for defensive class: health x{health_multiplier}, damage x{damage_multiplier}")
-            
-        else:  # balanced - Shaman gets standard stats
-            health_multiplier = 1.0
-            damage_multiplier = 1.0
-            debug_log(f"No scaling applied for balanced class")
+        # Per-class enemy scaling is neutralized: it previously made enemies
+        # TOUGHER for the fragile "aggressive" class (Weaver) and EASIER for the
+        # tanky "defensive" class (Guardian), compounding class imbalance. All
+        # classes now face the same enemies; challenge comes from the global
+        # difficulty mode instead. (power_scaling kept for loot flavor.)
+        health_multiplier = 1.0
+        damage_multiplier = 1.0
         
         # Apply scaling
         scaled_enemy["health"] = max(1, int(base_health * health_multiplier))
