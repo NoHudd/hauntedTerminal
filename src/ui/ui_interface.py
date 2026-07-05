@@ -21,11 +21,20 @@ class UIProtocol(Protocol):
         ...
     
     def update_output(self, content: str) -> None:
-        """Update the main output display."""
+        """Update the main output display. content may be a markup string or a
+        Rich renderable (e.g. rich.text.Text)."""
         ...
-    
+
     def append_output(self, content: str) -> None:
         """Append content to the current output display."""
+        ...
+
+    def display_message(self, message: str) -> None:
+        """Show a one-off message (used by the engine for prompts/notices)."""
+        ...
+
+    def update_output_renderable(self, renderable) -> None:
+        """Push a Rich renderable (Panel/Table/Group) straight to the output."""
         ...
     
     def update_inventory(self, content: str) -> None:
