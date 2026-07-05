@@ -5,6 +5,7 @@ import random
 import logging
 from rich.text import Text
 from src.combat import combat_system, CombatSession
+from src.commands import build_registry
 from src.events import event_bus, EventType
 from src.game_states import GameState
 from src.state_manager import state_manager
@@ -112,37 +113,24 @@ class CommandHandler:
             "core": "core"
         }
         
-        # Command dispatcher dictionary for easy command handling
+        # Migrated verbs (Phase 3 command-pattern). Checked before the legacy
+        # dict below; verbs move here one at a time. See src/commands/.
+        self.command_registry = build_registry()
+
+        # Command dispatcher dictionary for easy command handling (legacy;
+        # shrinks as verbs migrate into command_registry).
         self.commands = {
-            "help": self.show_help,
-            "shortcuts": self.show_item_shortcuts,
             "ls": self.list_directory,
             "cd": self.change_directory,
-            "pwd": self.show_current_directory,
             "cat": self.read_file,
-            "map": self.show_map,
             "take": self.take_item,
-            "drop": self.drop_item,
             "use": self.use_item,
-            "equip": self.equip_weapon,
-            "examine": self.examine_item,
-            "talk": self.talk_to_npc,
             "attack": self.attack_enemy,
-            "find": self.find_command,
-            "ps": self.ps_command,
-            "keys": self.show_keys,
-            "inventory": self.show_inventory,
-            "inv": self.show_inventory,
-            "journal": self.show_journal,
-            "save": self.save_game,
-            "quit": self.quit_game,
-            "exit": self.quit_game
         }
-        
+
         # Commands that accept an argument (required or optional)
         self.commands_with_args = {
-            "cd", "cat", "take", "drop", "use", "equip", "examine", "talk", "attack",
-            "ls", "find", "ps"
+            "cd", "cat", "take", "use", "attack", "ls"
         }
         
         debug_log(f"Registered {len(self.commands)} commands")
@@ -501,9 +489,13 @@ class CommandHandler:
         args = cmd_parts[1:] if len(cmd_parts) > 1 else []
         
         debug_log(f"Processing command: '{cmd}' with args: {args}")
-        
-        # Use the command dispatcher to handle commands
-        if cmd in self.commands:
+
+        # Migrated command-pattern verbs take precedence and receive the full
+        # argument list (the legacy path below only forwarded the first token).
+        if cmd in self.command_registry:
+            debug_log(f"Executing migrated command '{cmd}' with args {args}")
+            self.command_registry[cmd].execute(self, args)
+        elif cmd in self.commands:
             if cmd in self.commands_with_args:
                 arg = args[0] if args else ""
                 debug_log(f"Executing command '{cmd}' with arg '{arg}'")
@@ -514,71 +506,6 @@ class CommandHandler:
         else:
             debug_log(f"Unknown command: '{cmd}'")
             self.handle_unknown_command(command)
-    
-    def show_help(self):
-        """Display help information"""
-        help_text = """
-        [bold]Available Commands:[/bold]
-        - [cyan]help[/cyan]: Display this help message
-        - [cyan]shortcuts[/cyan]: Show item shortcuts and typing tips
-        - [cyan]ls[/cyan]: List files and directories
-        - [cyan]cd [directory][/cyan]: Change to specified directory
-        - [cyan]pwd[/cyan]: Show current directory
-        - [cyan]cat [file][/cyan]: Read the contents of a file
-        - [cyan]map[/cyan]: Show available locations
-        - [cyan]keys[/cyan]: Show key progression system
-        - [cyan]take [item][/cyan]: Add an item to your inventory
-        - [cyan]drop [item][/cyan]: Remove an item from your inventory
-        - [cyan]use [item][/cyan]: Use consumables (potions, scrolls)
-        - [cyan]equip [weapon][/cyan]: Equip a weapon for combat
-        - [cyan]talk [npc][/cyan]: Talk to an NPC
-        - [cyan]attack [enemy][/cyan]: Attack an enemy
-        - [cyan]ps[/cyan]: Show running processes
-        - [cyan]inventory[/cyan]: Show detailed inventory with rarities
-        - [cyan]journal[/cyan]: Show story memories you've restored
-        - [cyan]save[/cyan]: Save your current progress
-        - [cyan]quit[/cyan] or [cyan]exit[/cyan]: Quit the game (offers to save)
-        
-        [bold]Navigation Tips:[/bold]
-        - Use filesystem paths: [yellow]cd /var[/yellow], [yellow]cd /home[/yellow], [yellow]cd /bin[/yellow]
-        - Or simple names: [yellow]cd var[/yellow], [yellow]cd home[/yellow], [yellow]cd bin[/yellow]
-        """
-        help_content = f"[bold]Help[/bold]\n\n{help_text}"
-        self.output.write(help_content)
-    
-    def show_item_shortcuts(self):
-        """Display available item shortcuts and typing tips."""
-        shortcuts_text = """[bold cyan]Item Shortcuts & Typing Tips:[/bold cyan]
-
-[bold]Health & Healing:[/bold]
-- [yellow]hp[/yellow] or [yellow]heal[/yellow] → health_packet
-- [yellow]health[/yellow] or [yellow]packet[/yellow] → health_packet
-- [yellow]cache[/yellow] → stable_cache
-- [yellow]buffer[/yellow] → overflowing_buffer
-
-[bold]Weapons:[/bold]
-- [yellow]shield[/yellow] → segfault_shield (Guardian)
-- [yellow]pointer[/yellow] → null_pointer (Weaver)
-- [yellow]whisper[/yellow] → daemon_whisper (Shaman)
-
-[bold]Other Items:[/bold]
-- [yellow]backup[/yellow] → legacy_backup
-- [yellow]seed[/yellow] → sudo_seed
-
-[bold]Partial Matching:[/bold]
-You can type just the beginning of an item name:
-- [yellow]health_p[/yellow] → health_packet
-- [yellow]segfault[/yellow] → segfault_shield
-
-[bold cyan]Usage Examples:[/bold cyan]
-- [green]take hp[/green] (instead of take health_packet)
-- [green]use heal[/green] (instead of use health_packet)
-- [green]take shield[/green] (instead of take segfault_shield)"""
-        self.output.write(shortcuts_text)
-    
-    def show_current_directory(self):
-        """Display the current directory (room) name"""
-        self.output.write(f"Current directory: [bold]{self.player.current_room}[/bold]")
     
     def get_atmospheric_description(self, room_id):
         """Get enhanced atmospheric description for key locations"""
@@ -1081,37 +1008,6 @@ You can type just the beginning of an item name:
             debug_log(f"Failed to add {actual_item_id} to inventory")
             self._show_error(f"[bold red]Could not add {item_id} to inventory.[/bold red]")
     
-    def drop_item(self, item_id):
-        """Drop an item from inventory into the current room"""
-        if not item_id:
-            self._show_error("[bold red]No item specified. Use 'drop [item]'[/bold red]")
-            return
-
-        if not self.player.has_item(item_id):
-            self._show_error(f"[bold red]You don't have {item_id} in your inventory.[/bold red]")
-            return
-
-        # Get item data
-        item = self.player.get_item_from_inventory(item_id)
-
-        # Check if item is droppable
-        if item.get("droppable", True) == False:
-            self._show_error(f"[bold red]You cannot drop {item_id}. It's too important.[/bold red]")
-            return
-        
-        # Remove from inventory and add to room
-        success = self.player.remove_from_inventory(item_id)
-        if success:
-            current_room = self.player.current_room
-            self.world.add_item_to_room(item_id, current_room)
-            self.output.write(f"Dropped [green]{item_id}[/green] in the current directory.")
-            
-            # Execute any special effects defined for dropping this item
-            if "on_drop" in item:
-                self.execute_effect(item["on_drop"])
-        else:
-            self._show_error(f"[bold red]Could not drop {item_id}.[/bold red]")
-    
     def use_item(self, item_id):
         """Use an item from inventory"""
         if not item_id:
@@ -1310,32 +1206,6 @@ You can type just the beginning of an item name:
             debug_log(f"Auto-save after story flag {flag} failed: {e}")
             self.output.write(f"[dim yellow]⚠ Auto-save failed: {e}[/dim yellow]")
 
-    def show_journal(self):
-        """Display story progression — list of discovered flags with descriptions."""
-        flags = self.player.story_flags or {}
-        # Filter to flags that are truthy (True or non-empty value for ending_chosen)
-        discovered = [k for k, v in flags.items() if v]
-
-        output = Text()
-        output.append("📖 JOURNAL\n", style="bold cyan")
-        output.append("=" * 50 + "\n", style="dim")
-
-        if not discovered:
-            output.append("\n[italic]No memories restored yet. Explore the filesystem and `cat` any lore files you find.[/italic]")
-            self.output.write(output)
-            return
-
-        for flag in discovered:
-            title = self.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
-            desc = self.STORY_FLAG_DESCRIPTIONS.get(flag, "")
-            output.append(f"\n✦ {title}\n", style="bold magenta")
-            if desc:
-                output.append(f"  {desc}\n", style="dim")
-
-        total = len(self.STORY_FLAG_TITLES)
-        output.append(f"\n[dim]Progress: {len(discovered)}/{total} memories restored.[/dim]")
-        self.output.write(output)
-
     def _handle_consumable_item(self, item_id, item):
         """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
         item_name = item.get("name", item_id)
@@ -1458,146 +1328,6 @@ You can type just the beginning of an item name:
         else:
             self._show_error(f"[red]You don't have the ability to learn this spell.[/red]")
             
-    def examine_item(self, item_id):
-        """Examine an item in detail"""
-        if not item_id:
-            self._show_error("[bold red]No item specified. Use 'examine [item]'[/bold red]")
-            return
-
-        # Check if item is in inventory
-        if self.player.has_item(item_id):
-            item = self.player.get_item_from_inventory(item_id)
-            source = "inventory"
-        else:
-            # Check if item is in the current room
-            current_room = self.player.current_room
-            items_in_room = self.world.get_items_in_room(current_room)
-
-            if item_id in items_in_room:
-                item = self.world.get_item(item_id)
-                source = "room"
-            else:
-                self._show_error(f"[bold red]Cannot find {item_id} in this directory or your inventory.[/bold red]")
-                return
-        
-        # Import rarity system
-        from src.rarity import RaritySystem
-        
-        # Display item details with rarity
-        item_name = item.get("name", item_id)
-        rarity = item.get("rarity", "common")
-        formatted_name = RaritySystem.format_item_name_with_rarity(item_name, rarity, show_emoji=False)
-        
-        title = f"Examining: {formatted_name}"
-        description = item.get("description", "No detailed description available.")
-        
-        # Add additional details if available
-        details = []
-        
-        # Add rarity information
-        details.append(f"[bold]Rarity:[/bold] [{RaritySystem.get_rarity_color(rarity)}]{rarity.title()}[/{RaritySystem.get_rarity_color(rarity)}]")
-        
-        # Add item type and damage
-        item_type = item.get("type", "unknown")
-        details.append(f"[bold]Type:[/bold] {item_type.title()}")
-        
-        if item_type == "weapon":
-            damage = item.get("damage", 0)
-            if damage > 0:
-                details.append(f"[bold]Damage:[/bold] {damage}")
-        elif item_type == "consumable":
-            healing = item.get("healing", 0)
-            if healing > 0:
-                details.append(f"[bold]Healing:[/bold] {healing} HP")
-        
-        # Add usage information
-        if item.get("usable", False):
-            details.append("[green]This item can be used.[/green]")
-        if item.get("consumed_on_use", False) or item.get("consumable", False):
-            details.append("[yellow]This item will be consumed when used.[/yellow]")
-        if not item.get("takeable", True):
-            details.append("[red]This item cannot be taken.[/red]")
-        if not item.get("droppable", True):
-            details.append("[red]This item cannot be dropped once taken.[/red]")
-        
-        # Add class restrictions
-        if "class_restriction" in item:
-            allowed_classes = item["class_restriction"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
-            details.append(f"[bold]Class Restriction:[/bold] {', '.join(allowed_classes).title()}")
-        elif "allowed_classes" in item:
-            allowed_classes = item["allowed_classes"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
-            details.append(f"[bold]Allowed Classes:[/bold] {', '.join(allowed_classes).title()}")
-        
-        # Combine all information
-        content = f"{description}\n"
-        if details:
-            content += "\n" + "\n".join(details)
-        
-        self.output.write(f"[bold cyan]── {title} ──[/bold cyan]\n{content}")
-
-        # Execute any special effects defined for examining this item
-        if "on_examine" in item:
-            self.execute_effect(item["on_examine"])
-    
-    def talk_to_npc(self, npc_id):
-        """Talk to an NPC in the current room"""
-        if not npc_id:
-            self._show_error("[bold red]No NPC specified. Use 'talk [npc]'[/bold red]")
-            return
-
-        current_room = self.player.current_room
-        npcs_in_room = self.world.get_npcs_in_room(current_room)
-
-        if npc_id not in npcs_in_room:
-            self._show_error(f"[bold red]Cannot find {npc_id} in this directory.[/bold red]")
-            return
-
-        # Get NPC data
-        npc = self.world.get_npc(npc_id)
-        if not npc:
-            self._show_error(f"[bold red]Error: NPC data not found for {npc_id}[/bold red]")
-            return
-        
-        npc_name = npc.get("name", npc_id)
-
-        # Get dialogue options
-        dialogues = npc.get("dialogues", [])
-        if not dialogues:
-            self.output.write(
-                f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
-                f"[italic dim]\"...\"[/italic dim]\n"
-                f"[dim]({npc_name} has nothing to say right now.)[/dim]"
-            )
-            return
-
-        # Select a dialogue based on conditions or randomly
-        dialogue = random.choice(dialogues)
-        dialogue_text = (
-            f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
-            f"[italic yellow]\"{dialogue}\"[/italic yellow]"
-        )
-
-        # Use typewriter effect for NPC dialogue
-        output_callback = create_typewriter_output_func(
-            lambda text: self.output.write(text)
-        )
-
-        try:
-            TypewriterPresets.DIALOGUE.type_text_sync(dialogue_text, output_callback)
-            # Ensure final state shows full text
-            self.output.write(dialogue_text)
-        except Exception as e:
-            debug_log(f"Typewriter effect failed for NPC {npc_id}: {e}")
-            self.output.write(dialogue_text)
-        
-        # Execute any special effects defined for talking to this NPC
-        if "on_talk" in npc:
-            self.execute_effect(npc["on_talk"])
-    
     def attack_enemy(self, enemy_id):
         """Attack an enemy in the current room"""
         current_room = self.player.current_room
@@ -1624,199 +1354,6 @@ You can type just the beginning of an item name:
         self.start_combat([(enemy_id, enemy)])
     
     
-    def show_inventory(self):
-        """Display the player's inventory with rarity colors and sorting"""
-        items = self.player.get_inventory_items()
-        
-        if not items:
-            self.output.write("[bold cyan]── Inventory ──[/bold cyan]\n[italic]Your inventory is empty.[/italic]")
-            return
-        
-        # Import rarity system
-        from src.rarity import RaritySystem
-        
-        inventory_content = "[bold]Inventory:[/bold]\n"
-        
-        # Sort items by rarity (highest to lowest), then by name
-        sorted_items = sorted(
-            [(item_id, self.player.get_item_from_inventory(item_id)) for item_id in items],
-            key=lambda x: (-RaritySystem.get_rarity_order(x[1].get("rarity", "common")) if x[1] else 0, x[1].get("name", x[0]) if x[1] else x[0])
-        )
-        
-        for item_id, item in sorted_items:
-            if item is None:
-                # Handle case where item might be in inventory but doesn't have proper data
-                inventory_content += f"  [green]{item_id}[/green]\n"
-                continue
-            
-            # Check if this item is equipped
-            is_equipped = (item_id == self.player.equipped_weapon)
-            
-            # Format with rarity system
-            formatted_item = RaritySystem.format_inventory_item(item_id, item, is_equipped)
-            
-            # Use the formatted description
-            description = self.get_formatted_item_description(item)
-            
-            inventory_content += f"  {formatted_item}\n    [dim]{description}[/dim]\n"
-    
-        self.output.write(f"[bold cyan]── Inventory ──[/bold cyan]\n{inventory_content.rstrip()}")
-    
-    def show_map(self):
-        """Display an enhanced map of known locations with status indicators"""
-        visited_rooms = [room_id for room_id, state in self.world.room_states.items() if state.get("visited", False)]
-        
-        # Only show rooms that are accessible from visited rooms (not hidden from visited areas)
-        discovered_rooms = []
-        for visited_room in visited_rooms:
-            exits = self.world.get_exits(visited_room)
-            for exit_room in exits:
-                room_state = self.world.get_room_state(exit_room)
-                if (exit_room not in visited_rooms and 
-                    room_state and not room_state.get("hidden", False)):
-                    discovered_rooms.append(exit_room)
-        
-        # Remove duplicates
-        discovered_rooms = list(set(discovered_rooms))
-
-        if not visited_rooms and not discovered_rooms:
-            self.output.write("[italic]Your map is empty. Explore to discover locations.[/italic]")
-            return
-
-        output = Text()
-        output.append("🗺️  SYSTEM MAP\n", style="bold cyan")
-        output.append("=" * 50 + "\n", style="dim")
-        
-        # Show visited rooms
-        if visited_rooms:
-            output.append("\n✅ EXPLORED AREAS:\n", style="bold green")
-            for room_id in sorted(visited_rooms):
-                status_indicator = self._get_room_status_indicator(room_id)
-                if room_id == self.player.current_room:
-                    output.append(f"  ➤ {room_id} {status_indicator} [bold cyan](YOU ARE HERE)[/bold cyan]\n")
-                else:
-                    output.append(f"  • {room_id} {status_indicator}\n", style="green")
-        
-        # Show discovered but unvisited rooms
-        unvisited_discovered = [room for room in discovered_rooms if room not in visited_rooms]
-        if unvisited_discovered:
-            output.append("\n🔍 DISCOVERED AREAS:\n", style="bold yellow")
-            for room_id in sorted(unvisited_discovered):
-                status_indicator = self._get_room_status_indicator(room_id)
-                output.append(f"  • {room_id} {status_indicator}\n", style="yellow")
-        
-        # Show key inventory
-        keys = self._get_player_keys()
-        if keys:
-            output.append("\n🔑 YOUR KEYS:\n", style="bold blue")
-            for key_id in keys:
-                output.append(f"  • {key_id}\n", style="blue")
-        
-        # Show hint
-        output.append(f"\n[dim]💡 Use 'ls -a', 'find', and 'ps' to discover hidden areas![/dim]")
-        
-        self.output.write(output)
-
-    def find_command(self, args=""):
-        """Implement find command for discovering hidden areas."""
-        if not args:
-            self.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
-            return
-        
-        # Parse find command arguments
-        parts = args.split()
-        if len(parts) >= 3 and parts[1] == "-name":
-            path = parts[0]
-            pattern = parts[2]
-            
-            # Specific discovery: find /dev -name null
-            if path == "/dev" and pattern == "null":
-                if self.player.current_room == "bin_armory":
-                    if self.world.discover_room("dev_null_void"):
-                        self.output.write("[bold green]Found: /dev/null_void[/bold green]")
-                        self.output.write("A mysterious void where deleted data accumulates...")
-                        self.output.write("[yellow]You can now access it with: cd dev_null_void[/yellow]")
-                    else:
-                        self.output.write("[dim]Found: /dev/null_void (already discovered)[/dim]")
-                else:
-                    self.output.write("[red]find: '/dev': No such file or directory[/red]")
-            else:
-                self.output.write(f"[red]find: '{path}': No such file or directory[/red]")
-        else:
-            self.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
-
-    def ps_command(self, args=""):
-        """Implement ps command for discovering process-related areas."""
-        if self.player.current_room == "mnt_forest":
-            lines = ["PID  PPID  CMD", "  1     0  /sbin/init", " 42     1  [mount_daemon]", "127     1  /proc/secrets_handler", "..."]
-            if self.world.discover_room("proc_secrets"):
-                lines += ["\n[bold green]Discovered hidden process chamber: proc_secrets[/bold green]",
-                          "The secrets_handler process reveals a hidden chamber...",
-                          "[yellow]You can now access it with: cd proc_secrets[/yellow]"]
-            else:
-                lines.append("\n[dim]Process chamber already discovered: proc_secrets[/dim]")
-        else:
-            lines = ["PID  PPID  CMD", "  1     0  /sbin/init", " 23     1  [kthreadd]", " 42     1  [ksoftirqd/0]"]
-        self.output.write("\n".join(lines))
-
-    def show_keys(self):
-        """Display key progression and unlock information."""
-        output = Text()
-        output.append("🔑 KEY PROGRESSION SYSTEM\n", style="bold cyan")
-        output.append("=" * 50 + "\n", style="dim")
-        
-        # Define key progression chain
-        key_info = {
-            "lib_key": {
-                "name": "Library Key",
-                "found_in": "usr_lib_arcane",
-                "unlocks": ["var_dungeon"],
-                "description": "Unlocks the Variable Dungeon"
-            },
-            "tmp_key": {
-                "name": "Temporary Key", 
-                "found_in": "var_dungeon",
-                "unlocks": ["tmp_hidden_chamber"],
-                "description": "Unlocks the hidden temporary chamber"
-            },
-            "opt_key": {
-                "name": "Optional Key",
-                "found_in": "tmp_hidden_chamber", 
-                "unlocks": ["opt_mage_tower", "srv_warrior_tomb"],
-                "description": "Unlocks class-restricted areas"
-            }
-        }
-        
-        # Show progression status
-        output.append("📋 PROGRESSION STATUS:\n", style="bold yellow")
-        
-        for key_id, info in key_info.items():
-            has_key = self.player.has_item(key_id)
-            key_symbol = "✅" if has_key else "❌"
-            
-            output.append(f"\n{key_symbol} {info['name']} ({key_id})\n", style="bold" if has_key else "dim")
-            output.append(f"   📍 Found in: {info['found_in']}\n", style="green" if has_key else "dim")
-            output.append(f"   🚪 Unlocks: {', '.join(info['unlocks'])}\n", style="blue" if has_key else "dim")
-            output.append(f"   💡 {info['description']}\n", style="italic")
-        
-        # Show current keys in inventory
-        player_keys = self._get_player_keys()
-        if player_keys:
-            output.append("\n🎒 KEYS IN INVENTORY:\n", style="bold green")
-            for key in player_keys:
-                output.append(f"  • {key}\n", style="green")
-        else:
-            output.append("\n[dim]No keys currently in inventory.[/dim]\n")
-        
-        # Show progression hints
-        output.append("\n💡 PROGRESSION HINTS:\n", style="bold magenta")
-        output.append("1. Start by exploring usr_lib_arcane to find the lib_key\n", style="dim")
-        output.append("2. Use lib_key to unlock var_dungeon and find tmp_key\n", style="dim")
-        output.append("3. Use tmp_key to access tmp_hidden_chamber and find opt_key\n", style="dim")
-        output.append("4. Use opt_key to access class-restricted end-game areas\n", style="dim")
-        
-        self.output.write(output)
-
     def start_combat(self, enemies_queue):
         """
         Start combat with queue of enemies.
@@ -1896,71 +1433,6 @@ You can type just the beginning of an item name:
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)
 
-    def equip_weapon(self, weapon_id):
-        """Equip a weapon from inventory."""
-        if not weapon_id:
-            debug_log("equip command called with no weapon specified")
-            self.output.write("[bold red]No weapon specified. Use 'equip [weapon]'[/bold red]")
-            return
-
-        original_input = weapon_id
-        resolved = self.player.resolve_inventory_item(weapon_id)
-        if resolved:
-            weapon_id = resolved
-
-        debug_log(f"Player attempting to equip weapon: {weapon_id} (from input: {original_input})")
-
-        if not self.player.has_item(weapon_id):
-            debug_log(f"Player doesn't have weapon {original_input} in inventory")
-            self.output.write(f"[bold red]You don't have {original_input} in your inventory.[/bold red]")
-            return
-
-        # Get weapon data
-        weapon = self.player.get_item_from_inventory(weapon_id)
-        weapon_type = weapon.get("type")
-        
-        # Check if it's actually a weapon
-        is_weapon = weapon_type == "weapon" or "weapon" in str(weapon_type) if weapon_type else False
-        if not is_weapon:
-            debug_log(f"Item {weapon_id} is not a weapon")
-            self.output.write(f"[bold red]{weapon_id} is not a weapon.[/bold red]")
-            return
-            
-        # Check class restrictions
-        if not self.player.can_use_item(weapon):
-            class_restriction = self._get_class_restriction_text(weapon)
-            debug_log(f"Weapon {weapon_id} has class restriction: {class_restriction}, player is: {self.player.player_class}")
-            self.output.write(f"[bold red]This weapon can only be used by {class_restriction} class.[/bold red]")
-            return
-        
-        # Get old weapon info before equipping the new one
-        old_weapon_id = self.player.equipped_weapon
-        old_damage = self.player.calculate_damage()
-        
-        success = self.player.equip_weapon(weapon_id)
-        if success:
-            weapon_name = weapon.get("name", weapon_id)
-            self.output.write(f"You have equipped [green]{weapon_name}[/green].")
-            self._show_damage_change(old_damage, self.player.calculate_damage())
-
-            if not self.player.tutorial_state.get("equipped_weapon", False):
-                self.player.tutorial_state["equipped_weapon"] = True
-                self.world.spawn_tutorial_enemy("home_grove")
-                self.show_tutorial_hint("step4")
-                self.check_for_enemies()
-
-            # Emit event to update UI stats panel with view data
-            stats_view = ViewBuilder.build_stats_view(self.player)
-            event_bus.emit_event(
-                EventType.PLAYER_STATS_CHANGED,
-                stats_view.to_dict(),
-                "CommandHandler"
-            )
-
-        else:
-            debug_log(f"Failed to equip weapon {weapon_id}")
-            self.output.write(f"[bold red]Failed to equip {weapon_id}.[/bold red]")
-    
     def _handle_combat_command(self, command):
         """Handle commands during combat."""
         debug_log(f"Handling combat command: {command}")
@@ -2387,46 +1859,6 @@ Not because you fixed them. Because you forgave them.
                 return " or ".join(val) if isinstance(val, list) else str(val)
         return "unknown"
 
-    def save_game(self):
-        """Save the current game state."""
-        try:
-            from src.save import save_manager
-            
-            # Get current world state
-            world_state = self.world.get_state()
-            
-            # Save the game
-            save_path = save_manager.save_game(self.player, world_state)
-            
-            self.output.write(f"[bold green]✓ Game saved successfully![/bold green]")
-            self.output.write(f"[dim]Save location: {save_path}[/dim]")
-            debug_log(f"Game saved to: {save_path}")
-            
-        except Exception as e:
-            debug_log(f"Failed to save game: {e}")
-            self.output.write(f"[bold red]✗ Failed to save game: {e}[/bold red]")
-
-    def quit_game(self):
-        """Handle quit and exit commands with optional save."""
-        # Check if player has made progress (not at starting health/room)
-        has_progress = (
-            self.player.health != self.player.max_health or 
-            self.player.current_room != "home_grove" or 
-            len(self.player.inventory) > 0 or
-            self.player.equipped_weapon is not None
-        )
-        
-        if has_progress:
-            self.output.write("[bold yellow]You have unsaved progress![/bold yellow]")
-            self.output.write("Would you like to save before quitting?")
-            self.output.write("[bold white]Options:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
-            
-            # Set quit confirmation mode
-            self._in_quit_confirmation = True
-        else:
-            # No significant progress, just quit
-            self._perform_quit()
-
     def _handle_quit_confirmation(self, choice):
         """Handle player's choice in quit confirmation."""
         choice = choice.lower().strip()
@@ -2434,7 +1866,7 @@ Not because you fixed them. Because you forgave them.
         if choice == 'y':
             # Save and quit
             self.output.write("[cyan]Saving game...[/cyan]")
-            self.save_game()
+            self.command_registry["save"].execute(self, [])
             self._perform_quit()
             
         elif choice == 'n':
