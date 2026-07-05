@@ -9,6 +9,7 @@ and frontend view models, maintaining clean separation of concerns.
 from typing import List, Optional
 import logging
 
+from src.room_paths import ROOM_ID_TO_PATH
 from src.ui.view_models import (
     StatsView,
     InventoryItemView,
@@ -21,29 +22,8 @@ from src.ui.view_models import (
 
 logger = logging.getLogger(__name__)
 
-# Mapping from room IDs to the simplest command to navigate there
-# These are the shortest, most intuitive paths for users to type
-ROOM_ID_TO_PATH = {
-    "home_grove": "/home",
-    "var_dungeon": "/var",
-    "mnt_forest": "/mnt",
-    "bin_armory": "/bin",
-    "usr_lib_arcane": "/usr",
-    "opt_mage_tower": "/opt",
-    "srv_warrior_tomb": "/srv",
-    "tmp_hidden_chamber": "/tmp",
-    "proc_secrets": "/proc",
-    "etc_hidden_configs": "/etc",
-    "dev_null_void": "/dev",
-    "ghost_hidden": "/ghost",
-    "archive": "/archive",
-    "deprecated_dir": "/deprecated",
-    "root": "/",
-    "core": "/core",
-    "cowsay_secret": "/cowsay",
-    "mirror_sector": "/mirror",
-    "usr_share_games": "/usr/share/games",
-}
+# ROOM_ID_TO_PATH now lives in src/room_paths.py (domain content). Re-exported
+# above for existing importers.
 
 
 class ViewBuilder:

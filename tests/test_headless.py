@@ -21,6 +21,22 @@ from src.game_states import GameState
 CLASSES = ["guardian", "weaver", "shaman"]
 
 
+def test_headless_ui_satisfies_protocol() -> None:
+    # The headless adapter must implement every UIProtocol method so it can
+    # stand in for the real UI (keeps the abstraction honest).
+    from engine.headless import HeadlessUI
+    from src.ui.ui_interface import UIProtocol
+
+    ui = HeadlessUI()
+    assert UIProtocol is not None  # imported contract we check against
+    for name in (
+        "run", "shutdown", "update_output", "append_output", "display_message",
+        "update_output_renderable", "update_inventory", "update_stats",
+        "update_exits", "update_player_name", "clear_console", "display_game_over",
+    ):
+        assert callable(getattr(ui, name, None)), f"HeadlessUI missing {name}"
+
+
 @pytest.fixture
 def session() -> Iterator[GameSession]:
     s = GameSession()

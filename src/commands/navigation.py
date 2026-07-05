@@ -14,7 +14,8 @@ from rich.text import Text
 import config.dev_config as dev_cfg
 from src.commands.base import Command
 from src.events import EventType, event_bus
-from src.ui.view_builder import ROOM_ID_TO_PATH, ViewBuilder
+from src.room_paths import ROOM_ID_TO_PATH
+from src.ui.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
