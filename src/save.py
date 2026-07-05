@@ -7,6 +7,37 @@ from src.events import event_bus, EventType
 
 logger = logging.getLogger(__name__)
 
+# Current on-disk save format version. Bump when the save schema changes and add
+# a migration step in _migrate_save so old saves keep loading (Phase 4a).
+SAVE_VERSION = 2
+
+
+def _migrate_save(save_data):
+    """Normalize any save envelope to the current version.
+
+    v1 (legacy, no "version" field) used snake_case envelope keys
+    ("timestamp", "save_date"). v2 adds "version" and camelCase envelope fields
+    ("savedAt", "saveDate") per the project's serialized-data naming convention.
+    The nested player/world payloads are intentionally left as-is (they mix
+    field names with item/flag *ids* used as map keys — see docs/REWRITE_PLAN.md).
+    """
+    if not isinstance(save_data, dict):
+        return save_data
+
+    version = save_data.get("version", 1)
+
+    if version < 2:
+        # v1 -> v2: rename envelope keys to camelCase, keep payloads.
+        save_data = dict(save_data)
+        if "savedAt" not in save_data:
+            save_data["savedAt"] = save_data.pop("timestamp", None)
+        if "saveDate" not in save_data:
+            save_data["saveDate"] = save_data.pop("save_date", "Unknown date")
+        save_data["version"] = 2
+        version = 2
+
+    return save_data
+
 class SaveManager:
     """Handles saving and loading game data."""
     
@@ -37,12 +68,13 @@ class SaveManager:
         # Create the full file path
         save_path = os.path.join(self.save_dir, save_name)
         
-        # Create save data structure
+        # Create save data structure (v2 envelope, camelCase fields).
         save_data = {
+            "version": SAVE_VERSION,
             "player": player.to_dict(),
             "world": world_state,
-            "timestamp": time.time(),
-            "save_date": time.strftime("%Y-%m-%d %H:%M:%S")
+            "savedAt": time.time(),
+            "saveDate": time.strftime("%Y-%m-%d %H:%M:%S")
         }
         
         try:
@@ -59,7 +91,7 @@ class SaveManager:
                     "save_path": save_path,
                     "save_name": save_name,
                     "player_name": player.name,
-                    "timestamp": save_data["timestamp"]
+                    "timestamp": save_data["savedAt"]
                 },
                 "SaveManager"
             )
@@ -85,7 +117,8 @@ class SaveManager:
         try:
             with open(file_path, 'r') as file:
                 save_data = json.load(file)
-            
+
+            save_data = _migrate_save(save_data)
             logger.info(f"Game loaded successfully from {filename}")
             return save_data
             
@@ -114,10 +147,11 @@ class SaveManager:
                 try:
                     with open(file_path, 'r') as file:
                         save_data = json.load(file)
-                    
+
+                    save_data = _migrate_save(save_data)
                     save_info = {
                         "filename": filename,
-                        "date": save_data.get("save_date", "Unknown date"),
+                        "date": save_data.get("saveDate", "Unknown date"),
                         "player_name": save_data.get("player", {}).get("name", "Unknown"),
                         "player_class": save_data.get("player", {}).get("player_class", "Unknown"),
                         "location": save_data.get("player", {}).get("current_room", "Unknown")
