@@ -18,12 +18,17 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     """Handles processing of player commands"""
     
-    def __init__(self, player, world, ui):
-        """Initialize with player and world references"""
+    def __init__(self, player, world, output):
+        """Initialize with player, world, and a GameOutput sink.
+
+        Phase 2b: the handler no longer holds a UI reference — it writes to
+        ``self.output`` (a src.game_output.GameOutput). The engine drains it and
+        forwards to the real UI. See docs/REWRITE_PLAN.md.
+        """
         debug_log("Initializing CommandHandler")
         self.player = player
         self.world = world
-        self.ui = ui
+        self.output = output
         self.current_combat_session = None
         self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
         self._in_game_over_mode = False  # Track if we're in game over screen mode
@@ -255,7 +260,7 @@ class CommandHandler:
         else:
             output.append(f"\n[dim]Use 'talk {npc_id}' to converse further with the {npc_name}.[/dim]")
         
-        self.ui.update_output(output)
+        self.output.write(output)
         debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
     
     def _get_discoverable_hidden_rooms(self, current_room_id):
@@ -305,7 +310,7 @@ class CommandHandler:
 
     def _show_error(self, message: str, log_message: str = None):
         """Display error to UI and log it for debugging."""
-        self.ui.update_output(message)
+        self.output.write(message)
         clean_message = re.sub(r'\[.*?\]', '', log_message or message)
         logger.error(f"Command error: {clean_message}")
 
@@ -436,7 +441,7 @@ class CommandHandler:
         }
 
         if hint_type in hints:
-            self.ui.update_output(hints[hint_type])
+            self.output.write(hints[hint_type])
 
             if hint_type == "completed":
                 self.player.tutorial_state["completed"] = True
@@ -539,7 +544,7 @@ class CommandHandler:
         - Or simple names: [yellow]cd var[/yellow], [yellow]cd home[/yellow], [yellow]cd bin[/yellow]
         """
         help_content = f"[bold]Help[/bold]\n\n{help_text}"
-        self.ui.update_output(help_content)
+        self.output.write(help_content)
     
     def show_item_shortcuts(self):
         """Display available item shortcuts and typing tips."""
@@ -569,11 +574,11 @@ You can type just the beginning of an item name:
 - [green]take hp[/green] (instead of take health_packet)
 - [green]use heal[/green] (instead of use health_packet)
 - [green]take shield[/green] (instead of take segfault_shield)"""
-        self.ui.update_output(shortcuts_text)
+        self.output.write(shortcuts_text)
     
     def show_current_directory(self):
         """Display the current directory (room) name"""
-        self.ui.update_output(f"Current directory: [bold]{self.player.current_room}[/bold]")
+        self.output.write(f"Current directory: [bold]{self.player.current_room}[/bold]")
     
     def get_atmospheric_description(self, room_id):
         """Get enhanced atmospheric description for key locations"""
@@ -594,7 +599,7 @@ You can type just the beginning of an item name:
         room = self.world.get_room(room_id)
         
         if not room:
-            self.ui.update_output("[bold red]Error: Invalid room![/bold red]")
+            self.output.write("[bold red]Error: Invalid room![/bold red]")
             return
         
         # Mark room as visited
@@ -613,7 +618,7 @@ You can type just the beginning of an item name:
         if atmospheric:
             location_content += f"\n\n{atmospheric}"
         
-        self.ui.update_output(location_content)
+        self.output.write(location_content)
     
     def get_formatted_item_description(self, item):
         """Format item description to show what it does in parentheses"""
@@ -708,7 +713,7 @@ You can type just the beginning of an item name:
         # Check for enemies first - if enemies present, block exploration
         has_enemies, enemy_output = self._check_enemies_blocking_exploration(room_id)
         if has_enemies:
-            self.ui.update_output(enemy_output)
+            self.output.write(enemy_output)
             return
         
         # Show files (items)
@@ -788,7 +793,7 @@ You can type just the beginning of an item name:
         if not has_content:
             output.append("No files, processes, or entities found.")
 
-        self.ui.update_output(output)
+        self.output.write(output)
 
         # Tutorial gating for list_directory
         ts = self.player.tutorial_state
@@ -816,7 +821,7 @@ You can type just the beginning of an item name:
         """Change to a different directory (room)"""
         if not directory:
             debug_log("cd called with no directory specified")
-            self.ui.update_output(f"Current directory: [bold]{self.player.current_room}[/bold]")
+            self.output.write(f"Current directory: [bold]{self.player.current_room}[/bold]")
             return
         
         # Check if directory is an alias and resolve to full room ID
@@ -841,7 +846,7 @@ You can type just the beginning of an item name:
             hint_message = self._get_hidden_room_hint(directory)
             self._show_error(f"[bold red]That path doesn't appear to exist.[/bold red]")
             if hint_message:
-                self.ui.update_output(f"[dim yellow]{hint_message}[/dim yellow]")
+                self.output.write(f"[dim yellow]{hint_message}[/dim yellow]")
             return
         
         # If room is locked, check if player has the right key
@@ -862,14 +867,14 @@ You can type just the beginning of an item name:
                 if "unlocks" in key_item and directory in resolved_unlocks:
                     debug_log(f"Using key {key_required} to unlock {directory} (new format)")
                     self.world.unlock_room(directory)
-                    self.ui.update_output(f"[yellow]You automatically use {key_required} to unlock {directory}.[/yellow]")
+                    self.output.write(f"[yellow]You automatically use {key_required} to unlock {directory}.[/yellow]")
                     can_move = True
                     reason = None
                 # Check if the key is usable (old format)
                 elif key_item.get("usable", False):
                     debug_log(f"Using key {key_required} to unlock {directory} (old format)")
                     self.world.unlock_room(directory)
-                    self.ui.update_output(f"[yellow]You automatically use {key_required} to unlock {directory}.[/yellow]")
+                    self.output.write(f"[yellow]You automatically use {key_required} to unlock {directory}.[/yellow]")
                     can_move = True
                     reason = None
         
@@ -884,9 +889,9 @@ You can type just the beginning of an item name:
                 class_restriction = room_state.get("class_restriction") if room_state else None
                 
                 if key_required:
-                    self.ui.update_output(f"[yellow]💡 Hint: This area requires '{key_required}' to unlock.[/yellow]")
+                    self.output.write(f"[yellow]💡 Hint: This area requires '{key_required}' to unlock.[/yellow]")
                 if class_restriction:
-                    self.ui.update_output(f"[cyan]⚔️ Class Restriction: Only {class_restriction}s can enter this area.[/cyan]")
+                    self.output.write(f"[cyan]⚔️ Class Restriction: Only {class_restriction}s can enter this area.[/cyan]")
             return
         
         # Move the player
@@ -896,7 +901,7 @@ You can type just the beginning of an item name:
         # Get the room name for a friendly entry message
         new_room = self.world.get_room(directory)
         room_name = new_room.get('name', directory) if new_room else directory
-        self.ui.update_output(f"[bold cyan]Entering {room_name}...[/bold cyan]")
+        self.output.write(f"[bold cyan]Entering {room_name}...[/bold cyan]")
         debug_log(f"Successfully moved player to {directory}")
 
         # Build room view for the new room and emit room entered event
@@ -938,7 +943,7 @@ You can type just the beginning of an item name:
                 item_name = item.get("name", item_id)
                 content = item.get("content", item.get("description", "This file appears to be empty or corrupted."))
                 file_content = f"[bold]{item_name}[/bold]\n\n{content}"
-                self.ui.update_output(file_content)
+                self.output.write(file_content)
 
                 # Execute any special effects defined for this item
                 if "on_read" in item:
@@ -954,7 +959,7 @@ You can type just the beginning of an item name:
                 item_name = item.get("name", item_id_inv)
                 content = item.get("content", item.get("description", "This file appears to be empty or corrupted."))
                 file_content = f"[bold]{item_name}[/bold]\n\n{content}"
-                self.ui.update_output(file_content)
+                self.output.write(file_content)
 
                 # Execute any special effects defined for this item
                 if "on_read" in item:
@@ -1002,7 +1007,7 @@ You can type just the beginning of an item name:
         # Check for enemies first - block item taking if enemies present
         has_enemies, enemy_output = self._check_enemies_blocking_exploration(current_room)
         if has_enemies:
-            self.ui.update_output(enemy_output)
+            self.output.write(enemy_output)
             return
 
         # Try to resolve shortcuts and partial matches
@@ -1052,7 +1057,7 @@ You can type just the beginning of an item name:
             rarity = item.get("rarity", "common")
             formatted_name = RaritySystem.format_item_name_with_rarity(item_name, rarity, show_emoji=False)
             
-            self.ui.update_output(f"Added {formatted_name} to your inventory.")
+            self.output.write(f"Added {formatted_name} to your inventory.")
 
             # Build inventory view for updated inventory and emit event
             inventory_view = ViewBuilder.build_inventory_view(self.player)
@@ -1099,7 +1104,7 @@ You can type just the beginning of an item name:
         if success:
             current_room = self.player.current_room
             self.world.add_item_to_room(item_id, current_room)
-            self.ui.update_output(f"Dropped [green]{item_id}[/green] in the current directory.")
+            self.output.write(f"Dropped [green]{item_id}[/green] in the current directory.")
             
             # Execute any special effects defined for dropping this item
             if "on_drop" in item:
@@ -1139,7 +1144,7 @@ You can type just the beginning of an item name:
         is_weapon = item_type == "weapon" or "weapon" in str(item_type) if item_type else False
         if is_weapon:
             debug_log(f"Item {actual_item_id} is a weapon, should be equipped instead of used")
-            self.ui.update_output(f"[bold yellow]{item_id} is a weapon. Use 'equip {item_id}' to equip it.[/bold yellow]")
+            self.output.write(f"[bold yellow]{item_id} is a weapon. Use 'equip {item_id}' to equip it.[/bold yellow]")
             return
             
         # Check if item is usable
@@ -1178,23 +1183,23 @@ You can type just the beginning of an item name:
                 debug_log(f"Executing generic on_use effect for item: {actual_item_id}")
                 self.execute_effect(item["on_use"])
                 item_name = item.get("name", item_id)
-                self.ui.update_output(f"You used [green]{item_name}[/green].")
+                self.output.write(f"You used [green]{item_name}[/green].")
             else:
                 debug_log(f"Item {actual_item_id} has no on_use effect")
-                self.ui.update_output(f"Nothing happens when you try to use {item_id}.")
+                self.output.write(f"Nothing happens when you try to use {item_id}.")
         
         # Check if item is consumed on use
         if item.get("consumed_on_use", False):
             debug_log(f"Item {actual_item_id} was consumed on use")
             self.player.remove_from_inventory(actual_item_id)
             item_name = item.get("name", item_id)
-            self.ui.update_output(f"The [green]{item_name}[/green] was consumed.")
+            self.output.write(f"The [green]{item_name}[/green] was consumed.")
     
     def _handle_key_item(self, item_id, item):
         """Handle the use of a key item"""
         unlocks = item.get("unlocks")
         if not unlocks:
-            self.ui.update_output(f"You examine [green]{item_id}[/green], but it doesn't seem to unlock anything here.")
+            self.output.write(f"You examine [green]{item_id}[/green], but it doesn't seem to unlock anything here.")
             return
 
         # Check if the key unlocks a room in the current location.
@@ -1208,21 +1213,21 @@ You can type just the beginning of an item name:
         for room_to_unlock in resolved_unlocks:
             if room_to_unlock in exits:
                 self.world.unlock_room(room_to_unlock)
-                self.ui.update_output(f"[yellow]You hear a click. The path to {room_to_unlock} is now open.[/yellow]")
+                self.output.write(f"[yellow]You hear a click. The path to {room_to_unlock} is now open.[/yellow]")
                 unlocked_something = True
 
         if not unlocked_something:
-            self.ui.update_output(f"You can't find a lock that [green]{item_id}[/green] fits here.")
+            self.output.write(f"You can't find a lock that [green]{item_id}[/green] fits here.")
     
     def _show_damage_change(self, old_damage: int, new_damage: int):
         """Display damage comparison after equipping a weapon."""
         delta = new_damage - old_damage
         if delta > 0:
-            self.ui.update_output(f"[green]Your total damage increased by {delta} (from {old_damage} to {new_damage}).[/green]")
+            self.output.write(f"[green]Your total damage increased by {delta} (from {old_damage} to {new_damage}).[/green]")
         elif delta < 0:
-            self.ui.update_output(f"[red]Your total damage decreased by {abs(delta)} (from {old_damage} to {new_damage}).[/red]")
+            self.output.write(f"[red]Your total damage decreased by {abs(delta)} (from {old_damage} to {new_damage}).[/red]")
         else:
-            self.ui.update_output(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
+            self.output.write(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
 
     def _handle_weapon_item(self, item_id, item):
         """Handle equipping a weapon"""
@@ -1234,11 +1239,11 @@ You can type just the beginning of an item name:
         old_damage = self.player.calculate_damage()
 
         self.player.equip_weapon(item_id, item)
-        self.ui.update_output(f"You have equipped [green]{item_id}[/green].")
+        self.output.write(f"You have equipped [green]{item_id}[/green].")
 
         if old_weapon_id and old_weapon_id != item_id and old_weapon_id in self.player.inventory:
             self.player.remove_from_inventory(old_weapon_id)
-            self.ui.update_output(f"Your old weapon ({old_weapon_id}) was removed from inventory.")
+            self.output.write(f"Your old weapon ({old_weapon_id}) was removed from inventory.")
 
         self._show_damage_change(old_damage, self.player.calculate_damage())
 
@@ -1252,7 +1257,7 @@ You can type just the beginning of an item name:
         """Handle reading a lore item"""
         content = item.get("content", "This file appears to be empty or corrupted.")
         name = item.get("name", item_id)
-        self.ui.update_output(f"[bold cyan]── {name} ──[/bold cyan]\n{content}")
+        self.output.write(f"[bold cyan]── {name} ──[/bold cyan]\n{content}")
         if "on_read" in item:
             self.execute_effect(item["on_read"])
         self._trigger_story_flag(item)
@@ -1290,7 +1295,7 @@ You can type just the beginning of an item name:
 
         self.player.set_story_flag(flag, True)
         title = self.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
-        self.ui.update_output(
+        self.output.write(
             f"\n[bold magenta]✦ Memory restored: {title} ✦[/bold magenta]\n"
             f"[dim]Saving progress...[/dim]"
         )
@@ -1300,10 +1305,10 @@ You can type just the beginning of an item name:
             from src.save import save_manager
             world_state = self.world.get_state()
             save_manager.save_game(self.player, world_state)
-            self.ui.update_output("[dim green]✓ Progress saved.[/dim green]")
+            self.output.write("[dim green]✓ Progress saved.[/dim green]")
         except Exception as e:
             debug_log(f"Auto-save after story flag {flag} failed: {e}")
-            self.ui.update_output(f"[dim yellow]⚠ Auto-save failed: {e}[/dim yellow]")
+            self.output.write(f"[dim yellow]⚠ Auto-save failed: {e}[/dim yellow]")
 
     def show_journal(self):
         """Display story progression — list of discovered flags with descriptions."""
@@ -1317,7 +1322,7 @@ You can type just the beginning of an item name:
 
         if not discovered:
             output.append("\n[italic]No memories restored yet. Explore the filesystem and `cat` any lore files you find.[/italic]")
-            self.ui.update_output(output)
+            self.output.write(output)
             return
 
         for flag in discovered:
@@ -1329,7 +1334,7 @@ You can type just the beginning of an item name:
 
         total = len(self.STORY_FLAG_TITLES)
         output.append(f"\n[dim]Progress: {len(discovered)}/{total} memories restored.[/dim]")
-        self.ui.update_output(output)
+        self.output.write(output)
 
     def _handle_consumable_item(self, item_id, item):
         """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
@@ -1346,7 +1351,7 @@ You can type just the beginning of an item name:
             k in combat_effects for k in ("player_heal_over_time", "player_mana_restore")
         ) and not special_effects
         if only_heals and self.player.health >= self.player.max_health:
-            self.ui.update_output(f"[yellow]Your health is already full. The {item_name} was not consumed.[/yellow]")
+            self.output.write(f"[yellow]Your health is already full. The {item_name} was not consumed.[/yellow]")
             return False
 
         # Apply combat_effects (the canonical effect block for consumables)
@@ -1363,14 +1368,14 @@ You can type just the beginning of an item name:
                 duration
             )
             if not message:
-                self.ui.update_output(f"You used [green]{item_name}[/green]. Healing {hot_amount} HP over {duration} turns.")
+                self.output.write(f"You used [green]{item_name}[/green]. Healing {hot_amount} HP over {duration} turns.")
 
         if "player_mana_restore" in combat_effects:
             amount = combat_effects["player_mana_restore"]
             if hasattr(self.player, "restore_mana"):
                 self.player.restore_mana(amount)
             if not message:
-                self.ui.update_output(f"You used [green]{item_name}[/green]. Restored {amount} mana.")
+                self.output.write(f"You used [green]{item_name}[/green]. Restored {amount} mana.")
 
         # Apply special_effects (e.g. permanent stat boost for sudo_seed)
         for effect in special_effects:
@@ -1385,14 +1390,14 @@ You can type just the beginning of an item name:
         # Show message or fallback
         if message:
             heal_suffix = f" ([green]+{healed} HP[/green])" if healed else ""
-            self.ui.update_output(f"{message}{heal_suffix}")
+            self.output.write(f"{message}{heal_suffix}")
         elif not combat_effects and not special_effects:
-            self.ui.update_output(f"You used [green]{item_name}[/green].")
+            self.output.write(f"You used [green]{item_name}[/green].")
 
         # Legacy on_use heal field (fallback for any old-format items)
         if "heal" in on_use_effects and not healed:
             healed = self.player.heal(on_use_effects["heal"])
-            self.ui.update_output(f"You used [green]{item_name}[/green] and restored {healed} health.")
+            self.output.write(f"You used [green]{item_name}[/green] and restored {healed} health.")
 
         # Process status effects from on_use block
         for effect_key, effect_value in (on_use_effects.items() if isinstance(on_use_effects, dict) else []):
@@ -1406,7 +1411,7 @@ You can type just the beginning of an item name:
                 effect_duration = effect_data.get("duration", 3)
                 debug_log(f"Applying status effect {effect_id} ({effect_name}) for {effect_duration} turns")
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
-                self.ui.update_output(f"[magenta]You gained the '{effect_name}' effect for {effect_duration} turns![/magenta]")
+                self.output.write(f"[magenta]You gained the '{effect_name}' effect for {effect_duration} turns![/magenta]")
 
         # Emit stats update so UI reflects the new HP/mana
         stats_view = ViewBuilder.build_stats_view(self.player)
@@ -1421,13 +1426,13 @@ You can type just the beginning of an item name:
         if "permanent_health" in effects:
             amount = effects["permanent_health"]
             new_max = self.player.increase_max_health(amount)
-            self.ui.update_output(f"[bold]── Character Improvement ──[/bold]\n[green]Your maximum health permanently increased by {amount} to {new_max}![/green]")
+            self.output.write(f"[bold]── Character Improvement ──[/bold]\n[green]Your maximum health permanently increased by {amount} to {new_max}![/green]")
         
         # Damage boosts
         if "permanent_damage" in effects:
             amount = effects["permanent_damage"]
             new_damage = self.player.increase_damage(amount)
-            self.ui.update_output(f"[bold]── Character Improvement ──[/bold]\n[green]Your base damage permanently increased by {amount} to {new_damage}![/green]")
+            self.output.write(f"[bold]── Character Improvement ──[/bold]\n[green]Your base damage permanently increased by {amount} to {new_damage}![/green]")
         
         # Process on_use effects if any
         if "on_use" in item:
@@ -1438,7 +1443,7 @@ You can type just the beginning of an item name:
         # Learn the spell
         if self.player.learn_spell(item):
             spell_name = item.get("name", "Unknown Spell")
-            self.ui.update_output(f"[bold]── Spell Learned ──[/bold]\n[green]You learned the {spell_name} spell![/green]")
+            self.output.write(f"[bold]── Spell Learned ──[/bold]\n[green]You learned the {spell_name} spell![/green]")
             
             # Apply any immediate status effects if defined
             if "status_effect" in item:
@@ -1449,7 +1454,7 @@ You can type just the beginning of an item name:
                 
                 # Add the status effect
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
-                self.ui.update_output(f"[bold]── Status Effect ──[/bold]\n[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
+                self.output.write(f"[bold]── Status Effect ──[/bold]\n[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
         else:
             self._show_error(f"[red]You don't have the ability to learn this spell.[/red]")
             
@@ -1532,7 +1537,7 @@ You can type just the beginning of an item name:
         if details:
             content += "\n" + "\n".join(details)
         
-        self.ui.update_output(f"[bold cyan]── {title} ──[/bold cyan]\n{content}")
+        self.output.write(f"[bold cyan]── {title} ──[/bold cyan]\n{content}")
 
         # Execute any special effects defined for examining this item
         if "on_examine" in item:
@@ -1562,7 +1567,7 @@ You can type just the beginning of an item name:
         # Get dialogue options
         dialogues = npc.get("dialogues", [])
         if not dialogues:
-            self.ui.update_output(
+            self.output.write(
                 f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
                 f"[italic dim]\"...\"[/italic dim]\n"
                 f"[dim]({npc_name} has nothing to say right now.)[/dim]"
@@ -1578,16 +1583,16 @@ You can type just the beginning of an item name:
 
         # Use typewriter effect for NPC dialogue
         output_callback = create_typewriter_output_func(
-            lambda text: self.ui.update_output(text)
+            lambda text: self.output.write(text)
         )
 
         try:
             TypewriterPresets.DIALOGUE.type_text_sync(dialogue_text, output_callback)
             # Ensure final state shows full text
-            self.ui.update_output(dialogue_text)
+            self.output.write(dialogue_text)
         except Exception as e:
             debug_log(f"Typewriter effect failed for NPC {npc_id}: {e}")
-            self.ui.update_output(dialogue_text)
+            self.output.write(dialogue_text)
         
         # Execute any special effects defined for talking to this NPC
         if "on_talk" in npc:
@@ -1624,7 +1629,7 @@ You can type just the beginning of an item name:
         items = self.player.get_inventory_items()
         
         if not items:
-            self.ui.update_output("[bold cyan]── Inventory ──[/bold cyan]\n[italic]Your inventory is empty.[/italic]")
+            self.output.write("[bold cyan]── Inventory ──[/bold cyan]\n[italic]Your inventory is empty.[/italic]")
             return
         
         # Import rarity system
@@ -1655,7 +1660,7 @@ You can type just the beginning of an item name:
             
             inventory_content += f"  {formatted_item}\n    [dim]{description}[/dim]\n"
     
-        self.ui.update_output(f"[bold cyan]── Inventory ──[/bold cyan]\n{inventory_content.rstrip()}")
+        self.output.write(f"[bold cyan]── Inventory ──[/bold cyan]\n{inventory_content.rstrip()}")
     
     def show_map(self):
         """Display an enhanced map of known locations with status indicators"""
@@ -1675,7 +1680,7 @@ You can type just the beginning of an item name:
         discovered_rooms = list(set(discovered_rooms))
 
         if not visited_rooms and not discovered_rooms:
-            self.ui.update_output("[italic]Your map is empty. Explore to discover locations.[/italic]")
+            self.output.write("[italic]Your map is empty. Explore to discover locations.[/italic]")
             return
 
         output = Text()
@@ -1710,12 +1715,12 @@ You can type just the beginning of an item name:
         # Show hint
         output.append(f"\n[dim]💡 Use 'ls -a', 'find', and 'ps' to discover hidden areas![/dim]")
         
-        self.ui.update_output(output)
+        self.output.write(output)
 
     def find_command(self, args=""):
         """Implement find command for discovering hidden areas."""
         if not args:
-            self.ui.update_output("[yellow]Usage: find [path] -name [pattern][/yellow]")
+            self.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
             return
         
         # Parse find command arguments
@@ -1728,17 +1733,17 @@ You can type just the beginning of an item name:
             if path == "/dev" and pattern == "null":
                 if self.player.current_room == "bin_armory":
                     if self.world.discover_room("dev_null_void"):
-                        self.ui.update_output("[bold green]Found: /dev/null_void[/bold green]")
-                        self.ui.update_output("A mysterious void where deleted data accumulates...")
-                        self.ui.update_output("[yellow]You can now access it with: cd dev_null_void[/yellow]")
+                        self.output.write("[bold green]Found: /dev/null_void[/bold green]")
+                        self.output.write("A mysterious void where deleted data accumulates...")
+                        self.output.write("[yellow]You can now access it with: cd dev_null_void[/yellow]")
                     else:
-                        self.ui.update_output("[dim]Found: /dev/null_void (already discovered)[/dim]")
+                        self.output.write("[dim]Found: /dev/null_void (already discovered)[/dim]")
                 else:
-                    self.ui.update_output("[red]find: '/dev': No such file or directory[/red]")
+                    self.output.write("[red]find: '/dev': No such file or directory[/red]")
             else:
-                self.ui.update_output(f"[red]find: '{path}': No such file or directory[/red]")
+                self.output.write(f"[red]find: '{path}': No such file or directory[/red]")
         else:
-            self.ui.update_output("[yellow]Usage: find [path] -name [pattern][/yellow]")
+            self.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
 
     def ps_command(self, args=""):
         """Implement ps command for discovering process-related areas."""
@@ -1752,7 +1757,7 @@ You can type just the beginning of an item name:
                 lines.append("\n[dim]Process chamber already discovered: proc_secrets[/dim]")
         else:
             lines = ["PID  PPID  CMD", "  1     0  /sbin/init", " 23     1  [kthreadd]", " 42     1  [ksoftirqd/0]"]
-        self.ui.update_output("\n".join(lines))
+        self.output.write("\n".join(lines))
 
     def show_keys(self):
         """Display key progression and unlock information."""
@@ -1810,7 +1815,7 @@ You can type just the beginning of an item name:
         output.append("3. Use tmp_key to access tmp_hidden_chamber and find opt_key\n", style="dim")
         output.append("4. Use opt_key to access class-restricted end-game areas\n", style="dim")
         
-        self.ui.update_output(output)
+        self.output.write(output)
 
     def start_combat(self, enemies_queue):
         """
@@ -1822,7 +1827,7 @@ You can type just the beginning of an item name:
         debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
 
         # Create combat session with enemy queue
-        self.current_combat_session = CombatSession(self.player, enemies_queue, self.ui)
+        self.current_combat_session = CombatSession(self.player, enemies_queue, self.output)
         self.current_combat_session.start()
 
         # Subscribe to combat ended event (no more COMBAT_VICTORY_CHECK)
@@ -1859,7 +1864,7 @@ You can type just the beginning of an item name:
             if self.player.previous_room:
                 prev_room = self.player.previous_room
                 debug_log(f"Player fled from {fled_from_room} back to {prev_room}")
-                self.ui.update_output(f"[bold magenta]You were forced back to {prev_room}![/bold magenta]")
+                self.output.write(f"[bold magenta]You were forced back to {prev_room}![/bold magenta]")
 
                 # Move player to previous room
                 self.player.move_to(prev_room)
@@ -1877,7 +1882,7 @@ You can type just the beginning of an item name:
                 return
             else:
                 debug_log("Player fled but no previous room available")
-                self.ui.update_output("[yellow]You fled but couldn't find your way back...[/yellow]")
+                self.output.write("[yellow]You fled but couldn't find your way back...[/yellow]")
 
     def _on_enemy_defeated(self, event):
         """Handle enemy defeated event - remove enemy from room."""
@@ -1895,7 +1900,7 @@ You can type just the beginning of an item name:
         """Equip a weapon from inventory."""
         if not weapon_id:
             debug_log("equip command called with no weapon specified")
-            self.ui.update_output("[bold red]No weapon specified. Use 'equip [weapon]'[/bold red]")
+            self.output.write("[bold red]No weapon specified. Use 'equip [weapon]'[/bold red]")
             return
 
         original_input = weapon_id
@@ -1907,7 +1912,7 @@ You can type just the beginning of an item name:
 
         if not self.player.has_item(weapon_id):
             debug_log(f"Player doesn't have weapon {original_input} in inventory")
-            self.ui.update_output(f"[bold red]You don't have {original_input} in your inventory.[/bold red]")
+            self.output.write(f"[bold red]You don't have {original_input} in your inventory.[/bold red]")
             return
 
         # Get weapon data
@@ -1918,14 +1923,14 @@ You can type just the beginning of an item name:
         is_weapon = weapon_type == "weapon" or "weapon" in str(weapon_type) if weapon_type else False
         if not is_weapon:
             debug_log(f"Item {weapon_id} is not a weapon")
-            self.ui.update_output(f"[bold red]{weapon_id} is not a weapon.[/bold red]")
+            self.output.write(f"[bold red]{weapon_id} is not a weapon.[/bold red]")
             return
             
         # Check class restrictions
         if not self.player.can_use_item(weapon):
             class_restriction = self._get_class_restriction_text(weapon)
             debug_log(f"Weapon {weapon_id} has class restriction: {class_restriction}, player is: {self.player.player_class}")
-            self.ui.update_output(f"[bold red]This weapon can only be used by {class_restriction} class.[/bold red]")
+            self.output.write(f"[bold red]This weapon can only be used by {class_restriction} class.[/bold red]")
             return
         
         # Get old weapon info before equipping the new one
@@ -1935,7 +1940,7 @@ You can type just the beginning of an item name:
         success = self.player.equip_weapon(weapon_id)
         if success:
             weapon_name = weapon.get("name", weapon_id)
-            self.ui.update_output(f"You have equipped [green]{weapon_name}[/green].")
+            self.output.write(f"You have equipped [green]{weapon_name}[/green].")
             self._show_damage_change(old_damage, self.player.calculate_damage())
 
             if not self.player.tutorial_state.get("equipped_weapon", False):
@@ -1954,7 +1959,7 @@ You can type just the beginning of an item name:
 
         else:
             debug_log(f"Failed to equip weapon {weapon_id}")
-            self.ui.update_output(f"[bold red]Failed to equip {weapon_id}.[/bold red]")
+            self.output.write(f"[bold red]Failed to equip {weapon_id}.[/bold red]")
     
     def _handle_combat_command(self, command):
         """Handle commands during combat."""
@@ -2003,7 +2008,7 @@ You can type just the beginning of an item name:
 
         if not enemies_queue:
             debug_log(f"ERROR: No valid enemy data found for room {current_room}")
-            self.ui.update_output(f"[bold red]System error: Cannot load enemy data[/bold red]")
+            self.output.write(f"[bold red]System error: Cannot load enemy data[/bold red]")
             return
 
         # Show detection message for first enemy
@@ -2024,7 +2029,7 @@ You can type just the beginning of an item name:
 [bold red]BATTLE INITIATED![/bold red]
 [dim]Prepare your commands - this corruption must be purged![/dim]
 """
-        self.ui.update_output(detection_message)
+        self.output.write(detection_message)
 
         debug_log(f"Starting combat with {len(enemies_queue)} enemies in queue")
         self.start_combat(enemies_queue)
@@ -2032,21 +2037,21 @@ You can type just the beginning of an item name:
     def execute_effect(self, effect):
         """Execute a special effect from an item or event."""
         if not isinstance(effect, dict):
-            self.ui.update_output(f"[italic]{effect}[/italic]")
+            self.output.write(f"[italic]{effect}[/italic]")
             return
 
         if "message" in effect:
-            self.ui.update_output(f"[italic cyan]{effect['message']}[/italic]")
+            self.output.write(f"[italic cyan]{effect['message']}[/italic]")
         
         if "heal" in effect:
             amount = effect["heal"]
             self.player.heal(amount)
-            self.ui.update_output(f"[green]You gained {amount} health![/green]")
+            self.output.write(f"[green]You gained {amount} health![/green]")
         
         if "damage" in effect:
             amount = effect["damage"]
             self.player.take_damage(amount)
-            self.ui.update_output(f"[red]You took {amount} damage![/red]")
+            self.output.write(f"[red]You took {amount} damage![/red]")
             if not self.player.is_alive():
                 self.game_over()
 
@@ -2056,26 +2061,26 @@ You can type just the beginning of an item name:
             effect_name = status_data.get("name", "Effect")
             effect_duration = status_data.get("duration", 3)
             self.player.add_status_effect(effect_id, status_data, effect_duration)
-            self.ui.update_output(f"[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
+            self.output.write(f"[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
 
         if "add_item" in effect:
             item_id = effect["add_item"]
             item = self.world.get_item(item_id)
             if item:
                 self.player.add_to_inventory(item_id, item)
-                self.ui.update_output(f"[green]You obtained {item.get('name', item_id)}![/green]")
+                self.output.write(f"[green]You obtained {item.get('name', item_id)}![/green]")
 
         if "remove_item" in effect:
             item_id = effect["remove_item"]
             if self.player.has_item(item_id):
                 item_name = self.player.inventory[item_id].get("name", item_id)
                 self.player.remove_from_inventory(item_id)
-                self.ui.update_output(f"[yellow]You lost {item_name}![/yellow]")
+                self.output.write(f"[yellow]You lost {item_name}![/yellow]")
 
         if "unlock" in effect:
             room_id = effect["unlock"]
             self.world.unlock_room(room_id)
-            self.ui.update_output(f"[yellow]A path to {room_id} has been unlocked![/yellow]")
+            self.output.write(f"[yellow]A path to {room_id} has been unlocked![/yellow]")
 
         if "spawn_enemy" in effect:
             enemy_id = effect["spawn_enemy"]
@@ -2084,7 +2089,7 @@ You can type just the beginning of an item name:
             if enemy:
                 self.world.enemy_locations[enemy_id] = room_id
                 if room_id == self.player.current_room:
-                    self.ui.update_output(f"[bold red]{enemy.get('name', enemy_id)} has appeared![/bold red]")
+                    self.output.write(f"[bold red]{enemy.get('name', enemy_id)} has appeared![/bold red]")
                     self.check_for_enemies()
 
     def _show_game_over_screen(self):
@@ -2102,11 +2107,7 @@ You can type just the beginning of an item name:
         def run_animation():
             """Run the particle animation in a background thread."""
             def update_display(content: str):
-                # Use thread-safe callback if available (Textual UI)
-                if hasattr(self.ui, 'call_from_thread'):
-                    self.ui.call_from_thread(self.ui.update_output, content)
-                else:
-                    self.ui.update_output(content)
+                self.output.write(content)
 
             animation.run_animation(update_display, duration=2.5, fps=12)
             debug_log("Game over animation completed, waiting for player choice")
@@ -2122,7 +2123,7 @@ You can type just the beginning of an item name:
         if choice == 'r':
             # Restart from last save
             debug_log("Player chose to restart from last save")
-            self.ui.update_output("\n[bold cyan]Attempting to restore from backup...[/bold cyan]")
+            self.output.write("\n[bold cyan]Attempting to restore from backup...[/bold cyan]")
             
             # Try to load the most recent save
             try:
@@ -2131,38 +2132,38 @@ You can type just the beginning of an item name:
                 if save_data:
                     # Import GameEngine to restart properly
                     from src.game_engine import GameEngine
-                    self.ui.update_output("[green]Backup found! Restoring system state...[/green]")
+                    self.output.write("[green]Backup found! Restoring system state...[/green]")
                     self._in_game_over_mode = False
                     # Signal to restart with save data
-                    self.ui.update_output("[bold green]System restored from backup![/bold green]\n")
+                    self.output.write("[bold green]System restored from backup![/bold green]\n")
                     return "restart_from_save"
                 else:
-                    self.ui.update_output("[bold red]No backup found. Starting new game instead...[/bold red]")
+                    self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
                     return self._handle_game_over_choice('n')
             except Exception as e:
                 debug_log(f"Failed to load save: {e}")
-                self.ui.update_output("[bold red]Backup corrupted. Starting new game instead...[/bold red]")
+                self.output.write("[bold red]Backup corrupted. Starting new game instead...[/bold red]")
                 return self._handle_game_over_choice('n')
                 
         elif choice == 'n':
             # Start new game
             debug_log("Player chose to start new game")
-            self.ui.update_output("\n[bold cyan]Initializing new system...[/bold cyan]")
-            self.ui.update_output("[green]Creating fresh filesystem...[/green]")
+            self.output.write("\n[bold cyan]Initializing new system...[/bold cyan]")
+            self.output.write("[green]Creating fresh filesystem...[/green]")
             self._in_game_over_mode = False
             return "start_new_game"
             
         elif choice == 'q':
             # Quit game
             debug_log("Player chose to quit")
-            self.ui.update_output("\n[dim]System shutdown initiated...[/dim]")
-            self.ui.update_output("[bold red]Connection terminated.[/bold red]")
+            self.output.write("\n[dim]System shutdown initiated...[/dim]")
+            self.output.write("[bold red]Connection terminated.[/bold red]")
             return "quit"
             
         else:
             # Invalid choice
-            self.ui.update_output(f"\n[bold red]Invalid option: '{choice}'[/bold red]")
-            self.ui.update_output("[bold white]Please choose:[/bold white] [green]r[/green] (restart), [yellow]n[/yellow] (new game), or [red]q[/red] (quit)")
+            self.output.write(f"\n[bold red]Invalid option: '{choice}'[/bold red]")
+            self.output.write("[bold white]Please choose:[/bold white] [green]r[/green] (restart), [yellow]n[/yellow] (new game), or [red]q[/red] (quit)")
             return None
 
     def game_over(self):
@@ -2258,7 +2259,7 @@ Not because you fixed them. Because you forgave them.
             ("restore", endings["guardian"][1])
         )
         self.player.story_flags["ending_chosen"] = choice
-        self.ui.update_output(message)
+        self.output.write(message)
         exit(0)
 
     def handle_unknown_command(self, command):
@@ -2286,7 +2287,7 @@ Not because you fixed them. Because you forgave them.
                 self.show_tutorial_hint(current_step)
                 return
 
-        self.ui.update_output("[yellow]Hint: Try using standard commands like 'ls', 'cd', 'cat', or type 'help'.[/yellow]")
+        self.output.write("[yellow]Hint: Try using standard commands like 'ls', 'cd', 'cat', or type 'help'.[/yellow]")
 
     def _get_current_tutorial_step(self):
         """Return the hint key for the step the player is currently expected to perform."""
@@ -2397,13 +2398,13 @@ Not because you fixed them. Because you forgave them.
             # Save the game
             save_path = save_manager.save_game(self.player, world_state)
             
-            self.ui.update_output(f"[bold green]✓ Game saved successfully![/bold green]")
-            self.ui.update_output(f"[dim]Save location: {save_path}[/dim]")
+            self.output.write(f"[bold green]✓ Game saved successfully![/bold green]")
+            self.output.write(f"[dim]Save location: {save_path}[/dim]")
             debug_log(f"Game saved to: {save_path}")
             
         except Exception as e:
             debug_log(f"Failed to save game: {e}")
-            self.ui.update_output(f"[bold red]✗ Failed to save game: {e}[/bold red]")
+            self.output.write(f"[bold red]✗ Failed to save game: {e}[/bold red]")
 
     def quit_game(self):
         """Handle quit and exit commands with optional save."""
@@ -2416,9 +2417,9 @@ Not because you fixed them. Because you forgave them.
         )
         
         if has_progress:
-            self.ui.update_output("[bold yellow]You have unsaved progress![/bold yellow]")
-            self.ui.update_output("Would you like to save before quitting?")
-            self.ui.update_output("[bold white]Options:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
+            self.output.write("[bold yellow]You have unsaved progress![/bold yellow]")
+            self.output.write("Would you like to save before quitting?")
+            self.output.write("[bold white]Options:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
             
             # Set quit confirmation mode
             self._in_quit_confirmation = True
@@ -2432,27 +2433,27 @@ Not because you fixed them. Because you forgave them.
         
         if choice == 'y':
             # Save and quit
-            self.ui.update_output("[cyan]Saving game...[/cyan]")
+            self.output.write("[cyan]Saving game...[/cyan]")
             self.save_game()
             self._perform_quit()
             
         elif choice == 'n':
             # Quit without saving
-            self.ui.update_output("[yellow]Quitting without saving...[/yellow]")
+            self.output.write("[yellow]Quitting without saving...[/yellow]")
             self._perform_quit()
             
         elif choice == 'c':
             # Cancel quit
-            self.ui.update_output("[green]Quit cancelled. Continue your adventure![/green]")
+            self.output.write("[green]Quit cancelled. Continue your adventure![/green]")
             self._in_quit_confirmation = False
             
         else:
             # Invalid choice
-            self.ui.update_output(f"[bold red]Invalid option: '{choice}'[/bold red]")
-            self.ui.update_output("[bold white]Please choose:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
+            self.output.write(f"[bold red]Invalid option: '{choice}'[/bold red]")
+            self.output.write("[bold white]Please choose:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
 
     def _perform_quit(self):
         """Actually quit the game."""
-        self.ui.update_output("[yellow]Goodbye! Thanks for playing The Haunted Filesystem.[/yellow]")
-        self.ui.update_output("[dim]The system spirits fade back into the digital void...[/dim]")
+        self.output.write("[yellow]Goodbye! Thanks for playing The Haunted Filesystem.[/yellow]")
+        self.output.write("[dim]The system spirits fade back into the digital void...[/dim]")
         exit(0) 

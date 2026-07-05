@@ -106,7 +106,7 @@ keys:
     takeable: true
     usable: true
     droppable: false
-    unlocks: ["etc_kernel_gate"]  # Unlocks passage past Firewall Knight
+    unlocks: ["etc_hidden_configs"]  # Unlocks passage past Firewall Knight
     rarity: unique
     allowed_zones: ["var"]  # Found in /var/log (Memory Banks)
     persistence: "persistent"

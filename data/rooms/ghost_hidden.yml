@@ -11,5 +11,5 @@ npcs:
 - guardian.bin
 enemies: []
 locked: true
-key_required: system_badge.dat
+key_required: system_badge
 hidden: true

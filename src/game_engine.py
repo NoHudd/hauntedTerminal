@@ -20,6 +20,7 @@ from typing import Optional, Dict, Any
 from src.game_world import GameWorld
 from src.player import Player
 from src.command_handler import CommandHandler
+from src.game_output import GameOutput
 from src.save import save_manager
 from src.ui.textual_ui import TextualGameUI
 from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError
@@ -61,6 +62,9 @@ class ImprovedGameEngine:
         # Non-reloadable state
         self.save_dir = "saves"
         self.ui = ui or TextualGameUI()
+        # Domain output sink: command/combat text is written here and forwarded
+        # live to the UI (Phase 2b). The domain no longer references the UI.
+        self.output = GameOutput(forward=self._forward_output)
 
         # Setup
         self._setup_directories()
@@ -310,7 +314,21 @@ class ImprovedGameEngine:
         except Exception as e:
             logger.error(f"Error handling command '{command}': {e}")
             self.ui.update_output(f"Error: {e}")
-    
+
+    def _forward_output(self, content):
+        """Render one line from the domain output sink to the UI (Phase 2b).
+
+        Thread-safe: the game-over animation writes from a background thread, so
+        use Textual's call_from_thread when the UI provides it.
+        """
+        if hasattr(self.ui, 'call_from_thread'):
+            try:
+                self.ui.call_from_thread(self.ui.update_output, content)
+                return
+            except Exception:
+                pass
+        self.ui.update_output(content)
+
     def _on_ui_ready(self, event):
         """Handle UI ready event."""
         logger.info("UI is ready, starting main menu")
@@ -429,7 +447,7 @@ class ImprovedGameEngine:
             self._load_game_data()
 
             # Create new command handler with fresh references
-            self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
+            self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()
 
             # Restart the game loop
@@ -470,7 +488,7 @@ class ImprovedGameEngine:
             self.world.set_state(world_data)
 
             # Create new command handler
-            self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
+            self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()
 
             # Update UI
@@ -563,7 +581,7 @@ class ImprovedGameEngine:
             self.world.set_state(world_data)
             
             # Create command handler
-            self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
+            self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()
 
             self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
@@ -840,7 +858,7 @@ to this haunted filesystem.[/italic]
         """Create a new player."""
         try:
             self.player = Player(name=name, player_class=player_class)
-            self.cmd_handler = CommandHandler(self.player, self.world, self.ui)
+            self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()
 
             # Set up event subscriptions for command handler

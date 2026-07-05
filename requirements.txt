@@ -1,5 +1,13 @@
 rich>=13.3.3
-pyyaml==6.0
+pyyaml>=6.0.1
 tqdm==4.65.0
 readchar==0.7
-textual==0.47.1 
+textual==0.47.1
+
+# Rewrite engine (typed content schema) — see docs/REWRITE_PLAN.md
+pydantic>=2
+
+# Dev tooling (tests + static checks)
+pytest>=8
+mypy>=1.8
+ruff>=0.5

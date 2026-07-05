@@ -270,19 +270,19 @@ class CombatSystem:
 class CombatSession:
     """Manages an active combat session using event-driven approach."""
 
-    def __init__(self, player, enemies_queue, ui):
+    def __init__(self, player, enemies_queue, output):
         """
         Initialize combat session with enemy queue.
 
         Args:
             player: Player object
             enemies_queue: List of (enemy_id, enemy_data) tuples
-            ui: UI instance
+            output: GameOutput sink (Phase 2b — no direct UI reference)
         """
         self.player = player
         self.enemies_queue = enemies_queue  # List of (enemy_id, enemy_data)
         self.current_enemy_index = 0
-        self.ui = ui
+        self.output = output
         self.is_active = True
         self.awaiting_action = False
 
@@ -361,7 +361,7 @@ class CombatSession:
 
         # Reduce cooldowns by 1 for sequential combat
         combat_system.reduce_cooldowns_by_one(self.player.player_id)
-        self.ui.update_output(f"[bold yellow]⚡ Cooldowns reduced by 1 turn![/bold yellow]")
+        self.output.write(f"[bold yellow]⚡ Cooldowns reduced by 1 turn![/bold yellow]")
 
         # Show prominent transition message
         transition_msg = f"""
@@ -371,11 +371,11 @@ class CombatSession:
 [bold red]{enemy_name}[/bold red] attacks before you can recover!
 [bold red]═══════════════════════════════════════[/bold red]
 """
-        self.ui.update_output(transition_msg)
+        self.output.write(transition_msg)
 
         # Show enemy dialogue if available
         if "dialogue" in self.enemy_data:
-            self.ui.update_output(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}")
+            self.output.write(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}")
 
         # Reset combat UI flag for new enemy
         self._combat_initialized = False
@@ -453,7 +453,7 @@ class CombatSession:
         command = event.data.get('choice', '').strip()
         
         if not command:
-            self.ui.update_output("[yellow]No command entered. Try again.[/yellow]")
+            self.output.write("[yellow]No command entered. Try again.[/yellow]")
             self._request_player_action()
             return
         
@@ -465,7 +465,7 @@ class CombatSession:
         parts = command.lower().split()
         
         if not parts:
-            self.ui.update_output("[yellow]No command entered.[/yellow]")
+            self.output.write("[yellow]No command entered.[/yellow]")
             self._request_player_action()
             return
         
@@ -482,7 +482,7 @@ class CombatSession:
                 if attack_data.get("on_cooldown", False):
                     display_name = attack_data.get("name", attack_name)
                     cd_remaining = attack_data.get("cooldown_remaining", 0)
-                    self.ui.update_output(
+                    self.output.write(
                         f"[bold yellow]⏱️ {display_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
                     )
                     self._request_player_action()
@@ -490,7 +490,7 @@ class CombatSession:
                     # Attack exists but not in available - process anyway
                     self._process_player_action("attack", attack_name)
             else:
-                self.ui.update_output(f"[red]bash: {cmd}: command not found[/red]")
+                self.output.write(f"[red]bash: {cmd}: command not found[/red]")
                 self._request_player_action()
         
         # Handle use command
@@ -507,10 +507,10 @@ class CombatSession:
                     self._process_player_action("item", resolved)
                 else:
                     item_label = item_data.get("name", resolved)
-                    self.ui.update_output(f"[yellow]{item_label} cannot be used in combat.[/yellow]")
+                    self.output.write(f"[yellow]{item_label} cannot be used in combat.[/yellow]")
                     self._request_player_action()
             else:
-                self.ui.update_output(f"[red]Item '{item_input}' not found in inventory.[/red]")
+                self.output.write(f"[red]Item '{item_input}' not found in inventory.[/red]")
                 self._request_player_action()
         
         # Handle flee command
@@ -531,7 +531,7 @@ class CombatSession:
             if attack_data.get("on_cooldown", False):
                 attack_name = attack_data.get("name", cmd)
                 cd_remaining = attack_data.get("cooldown_remaining", 0)
-                self.ui.update_output(
+                self.output.write(
                     f"[bold yellow]⏱️ {attack_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
                 )
                 self._request_player_action()
@@ -540,7 +540,7 @@ class CombatSession:
                 self._process_player_action("attack", cmd)
 
         else:
-            self.ui.update_output(f"[red]bash: {command}: command not found[/red]")
+            self.output.write(f"[red]bash: {command}: command not found[/red]")
             # Don't show hint - battle log and UI already show available actions
             self._request_player_action()
     
@@ -548,11 +548,11 @@ class CombatSession:
         """Process the selected player action."""
         if action_type == "flee":
             if self.is_boss:
-                self.ui.update_output("[bold yellow]You cannot flee from a boss battle![/bold yellow]")
+                self.output.write("[bold yellow]You cannot flee from a boss battle![/bold yellow]")
                 self._request_player_action()
                 return
             else:
-                self.ui.update_output("[bold magenta]You fled from combat.[/bold magenta]")
+                self.output.write("[bold magenta]You fled from combat.[/bold magenta]")
                 self._end_combat(fled=True)
                 return
         
@@ -560,7 +560,7 @@ class CombatSession:
             # Handle item usage in combat
             item_data = self.player.inventory.get(action_value)
             if not item_data:
-                self.ui.update_output(f"[red]Item '{action_value}' not found in inventory.[/red]")
+                self.output.write(f"[red]Item '{action_value}' not found in inventory.[/red]")
                 self._request_player_action()
                 return
 
@@ -653,7 +653,7 @@ class CombatSession:
         # Check if enemy is defeated
         if self.enemy_health <= 0:
             enemy_name = self.enemy_data.get("name", self.enemy_id)
-            self.ui.update_output(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
+            self.output.write(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
 
             # Emit enemy defeated event (for loot, achievements, etc)
             event_bus.emit_event(
@@ -676,12 +676,12 @@ class CombatSession:
             new_level = self.player.level
 
             # Display cycles gained
-            self.ui.update_output(f"[cyan]+{base_cycles} Harvesting Cycles[/cyan]")
+            self.output.write(f"[cyan]+{base_cycles} Harvesting Cycles[/cyan]")
 
             # Check if player leveled up
             if new_level > old_level:
-                self.ui.update_output(f"[bold yellow]⬆ LEVEL UP! You are now level {new_level}![/bold yellow]")
-                self.ui.update_output(f"[green]+10 Max HP, +2 DMG[/green]")
+                self.output.write(f"[bold yellow]⬆ LEVEL UP! You are now level {new_level}![/bold yellow]")
+                self.output.write(f"[green]+10 Max HP, +2 DMG[/green]")
 
             # Check if more enemies in queue
             if self._engage_next_enemy():
@@ -689,7 +689,7 @@ class CombatSession:
                 return
             else:
                 # All enemies defeated - end combat
-                self.ui.update_output(f"\n[bold green]✓ Area secured - all hostile entities eliminated![/bold green]")
+                self.output.write(f"\n[bold green]✓ Area secured - all hostile entities eliminated![/bold green]")
                 self._end_combat(victory=True)
                 return
         
@@ -772,7 +772,7 @@ class CombatSession:
         event_bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
 
         if defeat:
-            self.ui.update_output("\n[bold red]You have been defeated.[/bold red]")
+            self.output.write("\n[bold red]You have been defeated.[/bold red]")
 
         # Reset cooldowns after combat ends (normal or fled)
         combat_system.reset_cooldowns(self.player)
