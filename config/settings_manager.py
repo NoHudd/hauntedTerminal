@@ -13,6 +13,7 @@ DEFAULTS = {
     "reduce_motion": False,
     "hints": True,  # in-game inline affordances (→ take/cat/cd)
     "seen_selection_mode": False,  # combat selection-mode modal: show once ever
+    "difficulty": "medium",  # easy | medium | hard — scales enemy stats + XP
 }
 
 # Palette definitions: name → (primary, success, error, warning, accent)
@@ -118,9 +119,16 @@ class SettingsManager:
         import config.dev_config as dev_cfg
         dev_cfg.SHOW_HINTS = enabled
 
+    def set_difficulty(self, mode: str) -> None:
+        """Set the difficulty mode (easy/medium/hard) and apply it live."""
+        from src import difficulty
+        self.settings["difficulty"] = mode if mode in difficulty.MODES else "medium"
+        difficulty.set_mode(self.settings["difficulty"])
+
     def apply_all(self) -> None:
         """Push loaded settings into runtime config. Call once after load()."""
         self.set_hints(self.settings.get("hints", True))
+        self.set_difficulty(self.settings.get("difficulty", "medium"))
 
     def save(self) -> None:
         """Write current settings to JSON file."""
