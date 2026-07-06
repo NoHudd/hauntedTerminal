@@ -122,7 +122,7 @@ class MapCommand(Command):
             return
 
         output = Text()
-        output.append("🗺️  SYSTEM MAP\n", style="bold cyan")
+        output.append("🗺  SYSTEM MAP\n", style="bold cyan")
         output.append("=" * 50 + "\n", style="dim")
 
         if visited_rooms:

@@ -31,7 +31,7 @@ class CombatModeHintScreen(ModalScreen):
         """Set up the hint content."""
         hint_content = """
 [bold cyan]═══════════════════════════════════════════════════════════════[/bold cyan]
-[bold yellow]                    ⚔️  SELECTION MODE ACTIVE  ⚔️[/bold yellow]
+[bold yellow]                    ⚔  SELECTION MODE ACTIVE  ⚔[/bold yellow]
 [bold cyan]═══════════════════════════════════════════════════════════════[/bold cyan]
 
 [white]You are currently in [bold]Selection Mode[/bold].[/white]

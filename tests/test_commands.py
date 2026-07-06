@@ -214,3 +214,36 @@ def test_cat_reads_room_file(session: GameSession) -> None:
     assert "Error" not in out  # would appear if the command raised
     # Renders "[bold]<name>[/bold]\n\n<content>"
     assert "[bold]" in out and out.strip()
+
+
+# --- win condition ----------------------------------------------------------
+
+def test_defeating_overlord_in_core_wins(session: GameSession) -> None:
+    h = session.engine.cmd_handler
+    # Simulate the climax: player stands in /core and the Overlord is dead.
+    session.player.current_room = "core"
+    session.world.remove_enemy_from_room("daemon_overlord.sys")
+    assert "daemon_overlord.sys" not in session.world.get_enemies_in_room("core")
+
+    assert h.check_game_completion() is True
+    assert h._game_won is True
+    # win_game branches the ending by class and records the choice.
+    assert session.player.story_flags["ending_chosen"] in {"restore", "rewrite", "reconcile"}
+
+
+def test_win_is_not_triggered_early(session: GameSession) -> None:
+    h = session.engine.cmd_handler
+    # In core but the Overlord still lives -> no win.
+    session.player.current_room = "core"
+    assert "daemon_overlord.sys" in session.world.get_enemies_in_room("core")
+    assert h.check_game_completion() is False
+    assert h._game_won is False
+
+
+def test_win_does_not_double_fire(session: GameSession) -> None:
+    h = session.engine.cmd_handler
+    session.player.current_room = "core"
+    session.world.remove_enemy_from_room("daemon_overlord.sys")
+    assert h.check_game_completion() is True
+    # Already won: a second check must be a no-op, not a re-trigger.
+    assert h.check_game_completion() is False

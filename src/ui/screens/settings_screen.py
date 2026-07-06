@@ -71,7 +71,7 @@ class SettingsScreen(ModalScreen):
         current_difficulty = s.get("difficulty", "medium")
 
         with Container(id="settings-content"):
-            yield Static("⚙️  Settings", id="settings-title")
+            yield Static("⚙  Settings", id="settings-title")
 
             yield Label("🎨 Color Palette", classes="settings-label")
             yield RadioSet(
@@ -82,7 +82,7 @@ class SettingsScreen(ModalScreen):
                 id="palette-radio",
             )
 
-            yield Label("⌨️  Text Animation Speed", classes="settings-label")
+            yield Label("⌨  Text Animation Speed", classes="settings-label")
             yield RadioSet(
                 RadioButton("Normal", value=(current_speed == "normal")),
                 RadioButton("Fast",   value=(current_speed == "fast")),

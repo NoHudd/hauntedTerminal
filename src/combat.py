@@ -320,7 +320,7 @@ class CombatSession:
         )
 
         # Emit combat intro message as a combat log entry
-        combat_intro = f"⚔️  Combat initiated with {enemy_name}!"
+        combat_intro = f"⚔  Combat initiated with {enemy_name}!"
         if "dialogue" in self.enemy_data:
             combat_intro += f" | {enemy_name}: {self.enemy_data['dialogue']}"
 
@@ -367,7 +367,7 @@ class CombatSession:
         # Show prominent transition message
         transition_msg = f"""
 [bold red]═══════════════════════════════════════[/bold red]
-[bold yellow]⚠️  NEXT ENEMY ENGAGING  ⚠️[/bold yellow]
+[bold yellow]⚠  NEXT ENEMY ENGAGING  ⚠[/bold yellow]
 
 [bold red]{enemy_name}[/bold red] attacks before you can recover!
 [bold red]═══════════════════════════════════════[/bold red]
@@ -484,7 +484,7 @@ class CombatSession:
                     display_name = attack_data.get("name", attack_name)
                     cd_remaining = attack_data.get("cooldown_remaining", 0)
                     self.output.write(
-                        f"[bold yellow]⏱️ {display_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
+                        f"[bold yellow]⏱ {display_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
                     )
                     self._request_player_action()
                 else:
@@ -533,7 +533,7 @@ class CombatSession:
                 attack_name = attack_data.get("name", cmd)
                 cd_remaining = attack_data.get("cooldown_remaining", 0)
                 self.output.write(
-                    f"[bold yellow]⏱️ {attack_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
+                    f"[bold yellow]⏱ {attack_name} is on cooldown for {cd_remaining} turn{'s' if cd_remaining != 1 else ''}![/bold yellow]"
                 )
                 self._request_player_action()
             else:

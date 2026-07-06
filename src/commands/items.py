@@ -323,7 +323,7 @@ class TalkCommand(Command):
         dialogues = npc.get("dialogues", [])
         if not dialogues:
             ctx.output.write(
-                f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
+                f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"
                 f'[italic dim]"..."[/italic dim]\n'
                 f"[dim]({npc_name} has nothing to say right now.)[/dim]"
             )
@@ -331,7 +331,7 @@ class TalkCommand(Command):
 
         dialogue = rng.choice(dialogues)
         dialogue_text = (
-            f"[bold cyan]🗨️  {npc_name}[/bold cyan]\n"
+            f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"
             f'[italic yellow]"{dialogue}"[/italic yellow]'
         )
 
