@@ -34,6 +34,7 @@ class CommandHandler:
         self.current_combat_session = None
         self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
         self._in_game_over_mode = False  # Track if we're in game over screen mode
+        self._game_won = False  # Set once the Daemon Overlord is beaten in /core
         self._in_quit_confirmation = False  # Track if we're confirming quit
 
         # Subscribe to enemy defeated event to remove enemies from room
@@ -230,7 +231,7 @@ class CommandHandler:
         
         # Format and display the automatic dialogue (markup string so styles render)
         output = (
-            f"\n[bold cyan]🗨️  {npc_name} speaks:[/bold cyan]\n"
+            f"\n[bold cyan]🗨  {npc_name} speaks:[/bold cyan]\n"
             f"[italic cyan]\"{selected_dialogue}\"[/italic cyan]\n"
         )
         if context == "post_combat":
@@ -314,7 +315,7 @@ class CommandHandler:
             if self.player.player_class == class_restriction:
                 indicators.append("✅")  # Player class matches
             else:
-                indicators.append("⚔️")  # Class restricted
+                indicators.append("⚔")  # Class restricted
         
         # Check if hidden (shouldn't appear here, but just in case)
         if room_state.get("hidden", False):
@@ -607,7 +608,7 @@ class CommandHandler:
             return False, None
         
         lines = [
-            "[bold red]⚠️  COMBAT REQUIRED  ⚠️[/bold red]\n",
+            "[bold red]⚠  COMBAT REQUIRED  ⚠[/bold red]\n",
             "Hostile entities are present! You must defeat all enemies before exploring.\n",
             "[bold red]Corrupted Entities:[/bold red]",
         ]
@@ -950,6 +951,11 @@ class CommandHandler:
                 debug_log("Player fled but no previous room available")
                 self.output.write("[yellow]You fled but couldn't find your way back...[/yellow]")
 
+        # Victory: the defeated enemy is already removed from the room (via
+        # ENEMY_DEFEATED), so the Core is clear if the Overlord just fell.
+        if victory:
+            self.check_game_completion()
+
     def _on_enemy_defeated(self, event):
         """Handle enemy defeated event - remove enemy from room."""
         enemy_id = event.data.get("enemy_id")
@@ -1020,7 +1026,7 @@ class CommandHandler:
         enemy_count_msg = f" ({len(enemies_queue)} hostiles detected!)" if len(enemies_queue) > 1 else ""
 
         detection_message = f"""
-[bold red]⚠️  HOSTILE ENTITY DETECTED  ⚠️[/bold red]
+[bold red]⚠  HOSTILE ENTITY DETECTED  ⚠[/bold red]
 
 [red]System Alert:[/red] A corrupted process has manifested in this sector!{enemy_count_msg}
 
@@ -1173,10 +1179,22 @@ class CommandHandler:
         self._show_game_over_screen()
 
     def check_game_completion(self):
-        """Check if the player has completed the game"""
-        if self.player.current_room == "core" and "daemon_overlord.sys" not in self.world.get_enemies_in_room("core"):
-            if self.player.has_item("backup.bak"):
-                self.win_game()
+        """Win when the Daemon Overlord is defeated in the Core.
+
+        The old gate also required a `backup.bak` item, but no such item was
+        ever authored or obtainable (the "bring the backup" fetch quest was
+        never built), so it made the game unwinnable. Completion is the climax
+        itself: the Overlord destroyed, in /core. Returns True if the game was won.
+        """
+        if getattr(self, "_game_won", False):
+            return False
+        if (
+            self.player.current_room == "core"
+            and "daemon_overlord.sys" not in self.world.get_enemies_in_room("core")
+        ):
+            self.win_game()
+            return True
+        return False
 
     def win_game(self):
         """Handle win state — branches by class."""
@@ -1260,8 +1278,14 @@ Not because you fixed them. Because you forgave them.
             ("restore", endings["guardian"][1])
         )
         self.player.story_flags["ending_chosen"] = choice
+        self._game_won = True
         self.output.write(message)
-        exit(0)
+        self.output.write(
+            "\n[bold white]The system is clean.[/bold white] "
+            "[green]n[/green] new game · [red]q[/red] quit"
+        )
+        # Reuse the post-game input flow (r/n/q) instead of hard-exiting the app.
+        self._in_game_over_mode = True
 
     def handle_unknown_command(self, command):
         """Handle commands that are not recognized."""

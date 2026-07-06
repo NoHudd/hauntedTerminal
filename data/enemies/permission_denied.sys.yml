@@ -17,7 +17,5 @@ dialogue: "403 FORBIDDEN. 403 FORBIDDEN. You do not have permission to exist in 
 drops:
   - item: health_packet
     chance: 40
-  - item: root_key
-    chance: 15
 on_defeat:
   message: The Permission Denied error finally resolves. Access granted. The ancient games stir in their dusty directories.

@@ -85,17 +85,6 @@ keys:
       message: "The key pulses with energy, ready to unlock powerful class-restricted areas."
     on_examine:
       message: "This rare key grants access to the most challenging class-specific areas - the mage tower and warrior tomb."
-  
-  root_key:
-    name: "Root Access Token"
-    description: "A powerful key that grants access to the /root/vault."
-    short_description: A token for accessing the root vault
-    type: "key"
-    takeable: true
-    usable: true
-    unlocks: ["root_vault"]
-    consumable: true
-    consumed_on_take: true
 
   # Great Kernel Panic Story Keys
   chmod_key:

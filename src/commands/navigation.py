@@ -248,7 +248,7 @@ class CdCommand(Command):
                     )
                 if class_restriction:
                     ctx.output.write(
-                        f"[cyan]⚔️ Class Restriction: Only {class_restriction}s can "
+                        f"[cyan]⚔ Class Restriction: Only {class_restriction}s can "
                         "enter this area.[/cyan]"
                     )
             return

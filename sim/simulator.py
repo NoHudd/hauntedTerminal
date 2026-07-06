@@ -24,9 +24,15 @@ from sim import bot
 from sim.gauntlet import main_path_enemy_ids
 
 HEAL_AMOUNT = 30       # a health_packet's player_heal
-STARTING_HEALS = 3     # heals carried at run start
-HEAL_PER_FIGHT = 1     # heals looted after each won fight
+# The real game is stingy with healing: exactly ONE guaranteed health_packet on
+# the main path (home_grove), plus probabilistic drops from a couple of enemies.
+# There is no restock or shop. We model that faithfully instead of gifting heals,
+# because heal scarcity — not enemy stats — is the game's real difficulty lever.
+STARTING_HEALS = 1     # the one guaranteed home_grove packet
 MAX_TURNS = 200        # safety cap against an unwinnable stalemate loop
+
+# Consumable ids that restore HP, with the amount (from data/items/consumables.yaml).
+_HEAL_ITEMS = {"health_packet": 30, "stable_cache": 40}
 
 
 @dataclass
@@ -152,7 +158,11 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
         if enemy.get("boss_room") or enemy.get("boss_enemy"):
             base *= 3
         player.harvest_cycles(difficulty.scale_xp(base))
-        player._sim_heals += HEAL_PER_FIGHT  # type: ignore[attr-defined]
+        # Loot heals only if this enemy actually drops one and the roll hits —
+        # faithful to the real (stingy) drop economy, not a free per-fight heal.
+        for drop in enemy.get("drops", []) or []:
+            if drop.get("item") in _HEAL_ITEMS and rng.random() * 100 < drop.get("chance", 0):
+                player._sim_heals += 1  # type: ignore[attr-defined]
 
     return RunResult(
         True, None, cleared, player.level, player.health / max(1, player.max_health)
