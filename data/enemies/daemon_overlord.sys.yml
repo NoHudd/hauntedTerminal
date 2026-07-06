@@ -11,4 +11,9 @@ drops:
     chance: 100
 on_defeat:
   message: The Daemon Overlord writhes in agony as its corrupted form begins to dissolve. The backup data is overwhelming its corrupted code, purging it from the system. With a final digital scream, it disappears, leaving the filesystem clean once more.
-  unlock_room: hidden 
+  unlock_room: hidden
+loot_table:
+  - rarity: legendary
+    chance: 100
+  - rarity: epic
+    chance: 100 

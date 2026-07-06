@@ -19,3 +19,6 @@ drops:
     chance: 40
 on_defeat:
   message: The Permission Denied error finally resolves. Access granted. The ancient games stir in their dusty directories.
+loot_table:
+  - rarity: rare
+    chance: 20
