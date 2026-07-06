@@ -52,8 +52,8 @@ classes:
   shaman:
     name: "Shaman"
     description: "Restoration Echo - Born from legacy recovery partitions. You heal the wounds of the Great Kernel Panic."
-    base_health: 100
-    base_damage: 8
+    base_health: 120
+    base_damage: 9
     starter_weapon: "daemon_whisper"
     starter_abilities:
       - data_stitch

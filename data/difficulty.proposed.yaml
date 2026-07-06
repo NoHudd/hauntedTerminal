@@ -2,13 +2,13 @@
 # over data/difficulty.yaml if the numbers look right.
 easy:
   enemy_hp: 0.85
-  enemy_damage: 0.8
+  enemy_damage: 0.9
   xp_gain: 1.3
 medium:
   enemy_hp: 0.95
-  enemy_damage: 0.8
+  enemy_damage: 0.9
   xp_gain: 1.0
 hard:
   enemy_hp: 1.15
-  enemy_damage: 0.7
+  enemy_damage: 0.775
   xp_gain: 0.85
