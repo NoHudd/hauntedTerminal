@@ -29,25 +29,25 @@ class RaritySystem:
 
     @staticmethod
     def get_rarity_color(rarity: str) -> str:
-        return RARITIES.get(rarity.lower(), _DEFAULT)[0]
+        return RARITIES.get(str(rarity).lower(), _DEFAULT)[0]
 
     @staticmethod
     def get_rarity_emoji(rarity: str) -> str:
-        return RARITIES.get(rarity.lower(), _DEFAULT)[1]
+        return RARITIES.get(str(rarity).lower(), _DEFAULT)[1]
 
     @staticmethod
     def get_rarity_order(rarity: str) -> int:
-        return RARITIES.get(rarity.lower(), _DEFAULT)[2]
+        return RARITIES.get(str(rarity).lower(), _DEFAULT)[2]
 
     @staticmethod
     def format_item_name_with_rarity(item_name: str, rarity: str, show_emoji: bool = False) -> str:
         color = RaritySystem.get_rarity_color(rarity)
-        return f"[{color}]{item_name} ({rarity.title()})[/{color}]"
+        return f"[{color}]{item_name} ({str(rarity).title()})[/{color}]"
 
     @staticmethod
     def format_inventory_item(item_id: str, item_data: dict, is_equipped: bool = False) -> str:
         item_type = item_data.get("type", "")
-        rarity    = item_data.get("rarity", "common")
+        rarity    = str(item_data.get("rarity", "common"))
         damage    = item_data.get("damage", 0)
         healing   = item_data.get("healing", 0)
         item_name = item_data.get("name", item_id)
@@ -71,4 +71,4 @@ class RaritySystem:
 
     @staticmethod
     def is_valid_rarity(rarity: str) -> bool:
-        return rarity.lower() in RARITIES
+        return str(rarity).lower() in RARITIES

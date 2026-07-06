@@ -539,7 +539,18 @@ class CommandHandler:
             location_content += f"\n\n{atmospheric}"
         
         self.output.write(location_content)
-    
+
+    def relist_room(self):
+        """Re-render the current room's contents, as if the player typed `ls`.
+
+        Called after actions that change what's on the ground (take/drop) or
+        after reading a room file, so the player sees the updated room without
+        having to retype `ls`.
+        """
+        ls_cmd = self.command_registry.get("ls")
+        if ls_cmd is not None:
+            ls_cmd.execute(self, [])
+
     def get_formatted_item_description(self, item):
         """Format item description to show what it does in parentheses"""
         if not item:
