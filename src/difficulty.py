@@ -58,6 +58,21 @@ def _mult() -> dict[str, float]:
     return _multipliers.get(_mode, _FALLBACK[DEFAULT_MODE])
 
 
+def set_mode_multipliers(mode: str, enemy_hp: float, enemy_damage: float,
+                         xp_gain: float) -> None:
+    """Override a mode's multipliers in memory (used by the sim tuner)."""
+    _multipliers[mode] = {
+        "enemy_hp": enemy_hp,
+        "enemy_damage": enemy_damage,
+        "xp_gain": xp_gain,
+    }
+
+
+def all_multipliers() -> dict[str, dict[str, float]]:
+    """Current multipliers for all modes (copy)."""
+    return {m: dict(_multipliers.get(m, _FALLBACK[m])) for m in MODES}
+
+
 def scale_enemy(enemy: dict) -> dict:
     """Return a copy of enemy data with HP/damage scaled for the active mode."""
     if not isinstance(enemy, dict):
