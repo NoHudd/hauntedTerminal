@@ -7,8 +7,9 @@ produced. Input already flows through the synchronous event bus
 rendered — captured by the HeadlessUI sink.
 
 This makes the engine drivable with no Textual App. It does not yet sever the
-domain->UI output coupling (Phase 2b); it captures at the existing seam.
+domain->UI output coupling; it captures at the existing seam.
 """
+
 from __future__ import annotations
 
 from typing import Any

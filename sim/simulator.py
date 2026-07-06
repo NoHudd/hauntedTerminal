@@ -31,6 +31,14 @@ HEAL_AMOUNT = 30       # a health_packet's player_heal
 STARTING_HEALS = 1     # the one guaranteed home_grove packet
 MAX_TURNS = 200        # safety cap against an unwinnable stalemate loop
 
+# The sim equips only weapons a real player can realistically obtain. common/uncommon/
+# rare are world-placed; epic is reliably obtained via the guaranteed capstone drop from
+# null_guardian.sys (the last pre-boss main-path enemy) — see its loot_table. Legendary
+# is EXCLUDED: it never world-places and is only a post-win boss trophy, so equipping it
+# (as the old tune did with zero_day_blade dmg 50) overstated player power and inflated
+# the tuned band. Modeling epic-capstone-late but no legendary matches real obtainability.
+SIM_OBTAINABLE_RARITIES = {"common", "uncommon", "rare", "epic"}
+
 # Consumable ids that restore HP, with the amount (from data/items/consumables.yaml).
 _HEAL_ITEMS = {"health_packet": 30, "stable_cache": 40}
 
@@ -65,6 +73,8 @@ def _class_weapons(class_id: str) -> tuple[tuple[str, int], ...]:
         return ()
     usable = []
     for wid, wdata in weapons.items():
+        if str(wdata.get("rarity", "common")).lower() not in SIM_OBTAINABLE_RARITIES:
+            continue
         allowed = wdata.get("allowed_classes", [])
         if not allowed or class_id in allowed:
             usable.append((wid, wdata.get("damage", 0)))
