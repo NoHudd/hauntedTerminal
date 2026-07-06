@@ -17,7 +17,6 @@ ROOM_ID_TO_PATH: dict[str, str] = {
     "usr_lib_arcane": "/usr",
     "opt_mage_tower": "/opt",
     "srv_warrior_tomb": "/srv",
-    "tmp_hidden_chamber": "/tmp",
     "proc_secrets": "/proc",
     "etc_hidden_configs": "/etc",
     "dev_null_void": "/dev",

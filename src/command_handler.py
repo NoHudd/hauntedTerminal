@@ -64,9 +64,6 @@ class CommandHandler:
             "/srv": "srv_warrior_tomb",
             "/srv/tomb": "srv_warrior_tomb",
             "/srv/warrior_tomb": "srv_warrior_tomb",
-            "/tmp": "tmp_hidden_chamber",
-            "/tmp/chamber": "tmp_hidden_chamber",
-            "/tmp/hidden_chamber": "tmp_hidden_chamber",
             "/proc": "proc_secrets",
             "/proc/secrets": "proc_secrets",
             "/etc": "etc_hidden_configs",
@@ -99,8 +96,6 @@ class CommandHandler:
             "tower": "opt_mage_tower",
             "srv": "srv_warrior_tomb",
             "tomb": "srv_warrior_tomb",
-            "tmp": "tmp_hidden_chamber",
-            "chamber": "tmp_hidden_chamber",
             "proc": "proc_secrets",
             "secrets": "proc_secrets",
             "etc": "etc_hidden_configs",
@@ -280,7 +275,6 @@ class CommandHandler:
         hints = {
             "opt_mage_tower": "🔒 This area requires an 'opt_key' and is restricted to mages. Try exploring to find keys!",
             "srv_warrior_tomb": "🔒 This area requires an 'opt_key' and is restricted to fighters.",
-            "tmp_hidden_chamber": "🔒 This hidden area requires a 'tmp_key' to access.",
             "etc_hidden_configs": "💡 Try using 'ls -a' in the Arcane Library to discover hidden directories.",
             "dev_null_void": "💡 Try using 'find /dev -name null' in the Binary Armory.",
             "proc_secrets": "💡 Try using 'ps' command in the Mount Forest to discover process secrets."
