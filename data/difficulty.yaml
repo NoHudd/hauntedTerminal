@@ -1,15 +1,15 @@
-# Difficulty modes — per-mode multipliers applied to enemy stats and XP.
-# Calibrated by the simulation tuner (see docs/DIFFICULTY_SIM_DESIGN.md).
-# Target win rates vs optimal play: easy 90-98%, medium 75-85%, hard 50-70%.
+# Live difficulty multipliers. Tuned via sim.tune against the real combat
+# gauntlet (see docs/DIFFICULTY_SIM_STATUS.md). Per-class win rates band within
+# ~10-12pt: medium ~85% avg (15% loss), hard ~68% avg.
 easy:
   enemy_hp: 0.85
-  enemy_damage: 0.95
+  enemy_damage: 0.8
   xp_gain: 1.3
 medium:
   enemy_hp: 0.95
-  enemy_damage: 0.975
+  enemy_damage: 0.8
   xp_gain: 1.0
 hard:
   enemy_hp: 1.15
-  enemy_damage: 0.85
+  enemy_damage: 0.7
   xp_gain: 0.85
