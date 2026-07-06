@@ -36,6 +36,9 @@ class CommandHandler:
         self._in_game_over_mode = False  # Track if we're in game over screen mode
         self._game_won = False  # Set once the Daemon Overlord is beaten in /core
         self._in_quit_confirmation = False  # Track if we're confirming quit
+        # Enemy ids whose loot has already been awarded this run. remove_enemy_from_room
+        # re-emits ENEMY_DEFEATED, so this guards against double-rolling loot.
+        self._awarded_drops: set[str] = set()
 
         # Subscribe to enemy defeated event to remove enemies from room
         event_bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
@@ -962,16 +965,72 @@ class CommandHandler:
             self.check_game_completion()
 
     def _on_enemy_defeated(self, event):
-        """Handle enemy defeated event - remove enemy from room."""
+        """Award the enemy's loot into the current room, then remove it."""
         enemy_id = event.data.get("enemy_id")
         if not enemy_id:
             debug_log("ERROR: No enemy_id in ENEMY_DEFEATED event")
             return
 
-        # Remove the defeated enemy from the current room
         current_room = self.player.current_room
+        # Award once, before removal (remove_enemy_from_room re-emits this event).
+        if enemy_id not in self._awarded_drops:
+            self._awarded_drops.add(enemy_id)
+            self._award_enemy_drops(enemy_id, current_room)
+
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)
+
+    def _award_enemy_drops(self, enemy_id, room_id):
+        """Place an enemy's drops into room_id. Returns the dropped item ids.
+
+        Existing `drops` (heals/keys/badges) are activated here — the difficulty
+        tune already assumes these fire. Gear `loot_table` is added in Task 2.
+        """
+        enemy = self.world.enemies.get(enemy_id)
+        if not enemy:
+            return []
+
+        dropped = []
+        for drop in enemy.get("drops", []) or []:
+            item_id = drop.get("item")
+            if item_id and rng.random() * 100 < drop.get("chance", 0):
+                self.world.add_item_to_room(item_id, room_id)
+                dropped.append(item_id)
+
+        gear_id = self._roll_loot_table(enemy.get("loot_table", []) or [])
+        if gear_id:
+            self.world.add_item_to_room(gear_id, room_id)
+            dropped.append(gear_id)
+
+        if dropped:
+            names = ", ".join(self.world.items.get(i, {}).get("name", i) for i in dropped)
+            self.output.write(f"[bold yellow]The defeated enemy dropped: {names}[/bold yellow]")
+            self.relist_room()
+        return dropped
+
+    def _roll_loot_table(self, table):
+        """Roll a rarity-weighted gear table. Rolls entries in order; returns the
+        first hit's item id (at most one gear drop per kill), or None."""
+        for entry in table or []:
+            rarity = entry.get("rarity")
+            if rarity and rng.random() * 100 < entry.get("chance", 0):
+                item_id = self._random_gear_of_rarity(rarity)
+                if item_id:
+                    return item_id
+        return None
+
+    def _random_gear_of_rarity(self, rarity):
+        """A class-appropriate, not-yet-placed weapon/armor of this rarity, or None.
+        Gear only — never a consumable — so drop tables can't inflate the heal economy."""
+        target = str(rarity).lower()
+        candidates = [
+            iid for iid, data in self.world.items.items()
+            if data.get("type") in ("weapon", "armor")
+            and str(data.get("rarity", "")).lower() == target
+            and self.player.can_use_item(data)
+            and iid not in self.world.item_locations
+        ]
+        return rng.choice(candidates) if candidates else None
 
     def _handle_combat_command(self, command):
         """Handle commands during combat."""
