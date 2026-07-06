@@ -30,9 +30,9 @@ def content() -> GameContent:
 # --- loading & schema -------------------------------------------------------
 
 def test_all_content_loads(content: GameContent) -> None:
-    assert len(content.rooms) == 19
+    assert len(content.rooms) == 18
     assert len(content.classes) == 3
-    assert len(content.enemies) == 19
+    assert len(content.enemies) == 18
     assert content.items and content.npcs and content.abilities and content.attacks
 
 

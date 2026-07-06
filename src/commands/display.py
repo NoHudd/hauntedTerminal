@@ -171,15 +171,9 @@ class KeysCommand(Command):
                 "unlocks": ["var_dungeon"],
                 "description": "Unlocks the Variable Dungeon",
             },
-            "tmp_key": {
-                "name": "Temporary Key",
-                "found_in": "var_dungeon",
-                "unlocks": ["tmp_hidden_chamber"],
-                "description": "Unlocks the hidden temporary chamber",
-            },
             "opt_key": {
                 "name": "Optional Key",
-                "found_in": "tmp_hidden_chamber",
+                "found_in": "var_dungeon",
                 "unlocks": ["opt_mage_tower", "srv_warrior_tomb"],
                 "description": "Unlocks class-restricted areas",
             },
@@ -217,12 +211,10 @@ class KeysCommand(Command):
             "1. Start by exploring usr_lib_arcane to find the lib_key\n", style="dim"
         )
         output.append(
-            "2. Use lib_key to unlock var_dungeon and find tmp_key\n", style="dim"
+            "2. Use lib_key to unlock var_dungeon and explore deeper\n", style="dim"
         )
         output.append(
-            "3. Use tmp_key to access tmp_hidden_chamber and find opt_key\n", style="dim"
-        )
-        output.append(
-            "4. Use opt_key to access class-restricted end-game areas\n", style="dim"
+            "3. Find opt_key while exploring to access class-restricted areas\n",
+            style="dim",
         )
         ctx.output.write(output)

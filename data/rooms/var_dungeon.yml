@@ -18,7 +18,6 @@ detailed_description: |
 exits:
   - usr_lib_arcane
   - home_grove
-  - tmp_hidden_chamber
 items:
   - system_err_log
   - chmod_key

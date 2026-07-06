@@ -57,17 +57,6 @@ keys:
     on_examine:
       message: This administrative badge grants elevated permissions within the system. It could access hidden directories.
       
-  tmp_key:
-    name: "Temporary Access Key"
-    description: "Unlocks access to /tmp/hidden_chamber."
-    short_description: A temporary key for accessing hidden chambers
-    type: "key"
-    takeable: true
-    usable: true
-    unlocks: ["tmp_hidden_chamber"]
-    consumable: true
-    consumed_on_take: true
-  
   opt_key:
     name: "Optional Access Key"
     description: "A powerful key that unlocks access to class-restricted areas like the mage tower and warrior tomb."
