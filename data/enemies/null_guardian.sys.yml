@@ -25,3 +25,8 @@ weaknesses:
 resistances:
   - "void"
   - "deletion"
+# Capstone: the last pre-boss main-path gatekeeper guarantees a class-appropriate
+# epic weapon, so every class enters the /core boss fight with a real endgame weapon.
+loot_table:
+  - rarity: epic
+    chance: 100

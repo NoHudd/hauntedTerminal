@@ -1,15 +1,17 @@
-# Live difficulty multipliers. Tuned via sim.tune against the real combat
-# gauntlet (see docs/DIFFICULTY_SIM_STATUS.md). Per-class win rates band within
-# ~10-12pt: medium ~85% avg (15% loss), hard ~68% avg.
+# Live difficulty multipliers. Re-tuned 2026-07-06 after the sim weapon-fidelity
+# fix (sim now models only obtainable common/uncommon/rare + the guaranteed epic
+# capstone; legendary excluded) and a per-class kit re-balance on the honest weapon
+# model. Targets medium ~85% avg / hard ~68% avg, per-class spread ~10-15pt.
+# See docs/DIFFICULTY_SIM_STATUS.md.
 easy:
   enemy_hp: 0.85
-  enemy_damage: 0.8
+  enemy_damage: 0.9
   xp_gain: 1.3
 medium:
   enemy_hp: 0.95
-  enemy_damage: 0.8
+  enemy_damage: 0.86
   xp_gain: 1.0
 hard:
   enemy_hp: 1.15
-  enemy_damage: 0.7
+  enemy_damage: 0.76
   xp_gain: 0.85

@@ -51,7 +51,7 @@ attacks:
     description: A freezing attack that deals moderate damage, reduces enemy damage next turn, and siphons the frozen process to restore you
     bonus_damage: 12
     enemy_damage_reduction: 0.3
-    healing: 4
+    healing: 7
     cooldown: 3
     accuracy: 90
     type: magical
@@ -77,7 +77,7 @@ attacks:
     name: Healing Strike
     description: A balanced attack that deals damage and heals you
     bonus_damage: 8
-    healing: 10
+    healing: 13
     cooldown: 3
     accuracy: 95
     type: nature
