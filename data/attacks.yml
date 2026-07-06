@@ -21,9 +21,10 @@ attacks:
   
   shield_bash:
     name: Shield Bash
-    description: A defensive move that deals moderate damage but reduces enemy damage next turn
+    description: A defensive move that deals moderate damage, reduces enemy damage next turn, and vents corrupted cycles back to you
     bonus_damage: 10
     enemy_damage_reduction: 0.5
+    healing: 3
     cooldown: 3
     accuracy: 90
     type: physical
@@ -47,9 +48,10 @@ attacks:
   
   frost_nova:
     name: Frost Nova
-    description: A freezing attack that deals moderate damage and reduces enemy damage next turn
+    description: A freezing attack that deals moderate damage, reduces enemy damage next turn, and siphons the frozen process to restore you
     bonus_damage: 12
     enemy_damage_reduction: 0.3
+    healing: 4
     cooldown: 3
     accuracy: 90
     type: magical
