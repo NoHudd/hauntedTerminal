@@ -20,3 +20,8 @@ weaknesses:
   - "system_restore"
 resistances:
   - "corruption"
+loot_table:
+  - rarity: epic
+    chance: 12
+  - rarity: rare
+    chance: 25
