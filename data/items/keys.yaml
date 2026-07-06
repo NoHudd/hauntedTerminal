@@ -26,9 +26,9 @@ keys:
     type: "key"
     unlocks: ["core"]
     max_spawn: 1
-    allowed_rooms: 
+    allowed_rooms:
       - archive
-    rarity: 1
+    rarity: unique
     only_in_unlocked: false
     consumable: true
     consumed_on_take: true

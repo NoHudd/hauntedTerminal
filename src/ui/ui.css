@@ -68,6 +68,10 @@
 #inventory-panel {
     border: round $warning;
     padding: 1 2;
+    /* The sidebar grid gives this panel a fixed 1/3 height; without scroll a
+       long inventory overflows and later items become invisible. */
+    overflow-y: auto;
+    scrollbar-size-vertical: 1;
 }
 
 #stats-panel {

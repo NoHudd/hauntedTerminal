@@ -120,6 +120,10 @@ class TakeCommand(Command):
             ):
                 ctx.player.tutorial_state["took_weapon"] = True
                 ctx.show_tutorial_hint("step3", actual_item_id)
+
+            # Reprint room contents so the player sees the item is gone without
+            # having to retype `ls`.
+            ctx.relist_room()
         else:
             debug_log(f"Failed to add {actual_item_id} to inventory")
             ctx._show_error(
@@ -145,6 +149,9 @@ class CatCommand(Command):
             item = ctx.world.get_item(item_id)
             if item:
                 self._render(ctx, item, item_id)
+                # Reprint room contents so the player keeps the room in view
+                # after reading a file, without retyping `ls`.
+                ctx.relist_room()
             else:
                 ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         elif ctx.player.has_item(filename) or ctx._find_item_in_inventory_by_name(filename):
@@ -205,6 +212,8 @@ class DropCommand(Command):
             )
             if "on_drop" in item:
                 ctx.execute_effect(item["on_drop"])
+            # Reprint room contents so the dropped item shows up without `ls`.
+            ctx.relist_room()
         else:
             ctx._show_error(f"[bold red]Could not drop {item_id}.[/bold red]")
 
