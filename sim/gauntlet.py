@@ -29,20 +29,27 @@ def _threat(enemy: dict) -> float:
 
 
 def main_path_enemy_ids() -> list[str]:
-    """Main-path enemy ids ordered from least to most threatening."""
+    """Main-path enemy ids for one sampled run, least- to most-threatening.
+
+    Rolls tier rooms via enemy_pools (seeded by the caller), so each call under a
+    fresh seed yields a different-but-tier-appropriate run. Boss stays pinned.
+    """
+    from src.enemy_pools import roll_room_enemies
+    from src import rng
+
     rooms = load_room_data()
     enemies = load_enemy_data()
 
-    ids: list[str] = []
-    for room in rooms.values():
-        if not isinstance(room, dict):
-            continue
-        # Skip optional side content: secret, key-gated, or class-locked rooms.
-        if room.get("hidden", False) or room.get("locked", False) or room.get("class_restriction"):
-            continue
-        for enemy_id in room.get("enemies", []) or []:
-            if enemy_id in enemies:
-                ids.append(enemy_id)
+    # Main path only: skip secret, key-gated, or class-locked side content.
+    main_path = {
+        rid: room for rid, room in rooms.items()
+        if isinstance(room, dict)
+        and not room.get("hidden", False)
+        and not room.get("locked", False)
+        and not room.get("class_restriction")
+    }
+    rolled = roll_room_enemies(main_path, enemies, rng)
 
+    ids = [eid for rid in main_path for eid in rolled.get(rid, []) if eid in enemies]
     ids.sort(key=lambda eid: _threat(enemies[eid]))
     return ids

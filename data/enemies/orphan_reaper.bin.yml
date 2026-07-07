@@ -1,0 +1,17 @@
+name: Orphan Reaper
+description: A reaper of orphaned processes, harvesting anything the scheduler forgot.
+health: 88
+damage: 22
+is_boss: false
+tier: 3
+dialogue: "Your parent is gone. I collect what is left."
+experience: 34
+attack_patterns:
+  - name: "Reap"
+    damage: 25
+    description: "Harvests you like a forgotten child process"
+  - name: "SIGORPHAN"
+    damage: 17
+    description: "Severs you from your parent process"
+weaknesses: ["init_adopt"]
+resistances: ["signals"]

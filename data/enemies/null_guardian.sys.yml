@@ -30,3 +30,5 @@ resistances:
 loot_table:
   - rarity: epic
     chance: 100
+
+tier: 3

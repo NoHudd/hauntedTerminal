@@ -25,3 +25,5 @@ loot_table:
     chance: 12
   - rarity: rare
     chance: 25
+
+tier: 2

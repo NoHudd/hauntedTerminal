@@ -25,3 +25,5 @@ weaknesses:
 resistances:
   - "chaos"
   - "instability"
+
+tier: 1

@@ -9,3 +9,4 @@ dialogue: "01001011 01001001 01001100 01001100 00100000 01001001 01001110 010101
 drops: []
 on_defeat:
   message: The corrupted process dissolves into bits of binary code, harmless once more. 
+tier: 1
