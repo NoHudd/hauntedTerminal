@@ -56,6 +56,46 @@ def test_rare_tier_is_deepened_for_world_placement() -> None:
     assert rare >= 4, f"expected >=4 rare weapons for world-placed variety, got {rare}"
 
 
+def _armor() -> dict[str, dict]:
+    with open("data/items/armor.yaml") as fh:
+        return yaml.safe_load(fh)["armor"]
+
+
+def test_every_armor_has_valid_defense_rarity_classes_zones() -> None:
+    for aid, a in _armor().items():
+        d = a.get("defense")
+        assert isinstance(d, int) and d >= 0, f"{aid} defense must be int >= 0, got {d!r}"
+        assert a.get("rarity") in PLACEABLE_RARITIES, f"{aid} rarity invalid"
+        classes = set(a.get("allowed_classes") or [])
+        assert classes and classes <= VALID_CLASSES, f"{aid} allowed_classes invalid: {classes}"
+        assert a.get("allowed_zones"), f"{aid} needs allowed_zones"
+
+
+def test_no_rare_plus_armor_in_early_zone() -> None:
+    for aid, a in _armor().items():
+        if a.get("rarity") in RARE_PLUS:
+            zones = set(a.get("allowed_zones") or [])
+            assert not (zones & EARLY_ZONES), f"{aid} leaks into early zone(s): {zones & EARLY_ZONES}"
+
+
+def test_each_class_has_a_rare_or_better_armor() -> None:
+    armor = _armor()
+    for cls in VALID_CLASSES:
+        rare_plus = [
+            aid for aid, a in armor.items()
+            if a.get("rarity") in RARE_PLUS
+            and cls in (a.get("allowed_classes") or [])
+        ]
+        assert rare_plus, f"{cls} has no rare-or-better armor option"
+
+
+def test_epic_armor_actually_mitigates() -> None:
+    # null_void_cloak was defense 0 (dead). Every epic armor must give real defense.
+    for aid, a in _armor().items():
+        if a.get("rarity") == "epic":
+            assert a.get("defense", 0) > 0, f"epic armor {aid} has no defense"
+
+
 def test_epic_legendary_entries_staged_for_phase2_drops() -> None:
     # Epic/legendary weapons are authored now as Phase 2 drop-table payload (drop tables
     # bypass the room-rarity gate). They must exist and be drop-ready (wired damage),

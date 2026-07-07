@@ -82,19 +82,57 @@ def _class_weapons(class_id: str) -> tuple[tuple[str, int], ...]:
     return tuple(usable)
 
 
+def _armor_data(armor_id: str) -> dict | None:
+    try:
+        with open("data/items/armor.yaml") as fh:
+            return (yaml.safe_load(fh) or {}).get("armor", {}).get(armor_id)
+    except Exception:
+        return None
+
+
+def _class_armor(class_id: str) -> tuple[tuple[str, int], ...]:
+    """(armor_id, defense) obtainable by the class, ascending by defense.
+
+    Models armor progression the same way as weapons, gated to obtainable
+    rarities so the sim doesn't equip gear the real game can't hand out.
+    """
+    try:
+        with open("data/items/armor.yaml") as fh:
+            armor = (yaml.safe_load(fh) or {}).get("armor", {})
+    except Exception:
+        return ()
+    usable = []
+    for aid, adata in armor.items():
+        if str(adata.get("rarity", "common")).lower() not in SIM_OBTAINABLE_RARITIES:
+            continue
+        allowed = adata.get("allowed_classes", [])
+        if not allowed or class_id in allowed:
+            usable.append((aid, adata.get("defense", 0)))
+    usable.sort(key=lambda pair: pair[1])
+    return tuple(usable)
+
+
 def _equip_for_stage(player: Player, class_id: str, cleared: int, total: int) -> None:
-    """Upgrade the equipped weapon to match progress through the gauntlet."""
+    """Upgrade the equipped weapon and armor to match progress through the gauntlet."""
     weapons = _class_weapons(class_id)
-    if not weapons:
-        return
-    tier = min((cleared * len(weapons)) // max(1, total), len(weapons) - 1)
-    weapon_id, _ = weapons[tier]
-    if weapon_id == player.equipped_weapon:
-        return
-    weapon = load_weapon_data(weapon_id)
-    if weapon:
-        player.add_to_inventory(weapon_id, weapon)
-        player.equip_weapon(weapon_id)
+    if weapons:
+        tier = min((cleared * len(weapons)) // max(1, total), len(weapons) - 1)
+        weapon_id, _ = weapons[tier]
+        if weapon_id != player.equipped_weapon:
+            weapon = load_weapon_data(weapon_id)
+            if weapon:
+                player.add_to_inventory(weapon_id, weapon)
+                player.equip_weapon(weapon_id)
+
+    armor = _class_armor(class_id)
+    if armor:
+        a_tier = min((cleared * len(armor)) // max(1, total), len(armor) - 1)
+        armor_id, _ = armor[a_tier]
+        if armor_id != player.equipped_armor:
+            adata = _armor_data(armor_id)
+            if adata:
+                player.add_to_inventory(armor_id, adata)
+                player.equip_armor(armor_id)
 
 
 def _build_player(class_id: str) -> Player:
