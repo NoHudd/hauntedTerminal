@@ -1,18 +1,20 @@
-# Live difficulty multipliers. Values below PRE-DATE the Phase 2b armor wiring —
-# they targeted medium ~85% / hard ~68% with NO armor mitigation. Now that armor is
-# wired (capped % mitigation, guardian-differentiated), the effective band is EASIER
-# than these numbers imply (sim shows ~90-100% with armor modeled). A proper post-armor
-# per-class re-balance is OPEN — see docs/DIFFICULTY_SIM_STATUS.md. Do not treat this as
-# the tuned-for-armor config. Kept coherent (armor only helps; no class collapses).
+# Live difficulty multipliers. Re-tuned 2026-07-07 WITH armor modeled (Phase 2b) and a
+# shaman DPS nudge (base_damage 9->10) so the low-DPS class survives boss pressure.
+# Sim @80 runs/cell: hard G69/W76/S66 (avg ~70%, ~10pt spread), medium ~93% avg,
+# easy ~100%. Hard is harder than medium via enemy_hp 1.15 (longer fights), not per-hit
+# damage. NOTE: the band is fragile — the final boss (daemon_overlord) is the sole
+# chokepoint, so small enemy_damage changes swing win-rate hard (0.76->~98%, 1.0->~45%).
+# Robustly flattening this needs Phase 2c (per-zone enemy pools spread the difficulty).
+# See docs/DIFFICULTY_SIM_STATUS.md.
 easy:
   enemy_hp: 0.85
   enemy_damage: 0.9
   xp_gain: 1.3
 medium:
   enemy_hp: 0.95
-  enemy_damage: 0.86
+  enemy_damage: 0.98
   xp_gain: 1.0
 hard:
   enemy_hp: 1.15
-  enemy_damage: 0.76
+  enemy_damage: 0.93
   xp_gain: 0.85
