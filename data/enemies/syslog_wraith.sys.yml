@@ -1,0 +1,17 @@
+name: Syslog Wraith
+description: A wraith woven from an endless scroll of error logs, screaming every failure at once.
+health: 72
+damage: 17
+is_boss: false
+tier: 2
+dialogue: "[CRITICAL] [CRITICAL] [CRITICAL] — you are the error!"
+experience: 27
+attack_patterns:
+  - name: "Log Flood"
+    damage: 19
+    description: "Drowns you in a torrent of error output"
+  - name: "Panic Trace"
+    damage: 15
+    description: "Traces your faults back at you"
+weaknesses: ["logrotate"]
+resistances: ["stderr"]

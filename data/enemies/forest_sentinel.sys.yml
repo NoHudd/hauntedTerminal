@@ -25,3 +25,5 @@ weaknesses:
 resistances:
   - "nature"
   - "earth"
+
+tier: 2

@@ -11,3 +11,4 @@ drops:
     chance: 50
 on_defeat:
   message: The zombie daemon process finally terminates, leaving behind fragments of its corrupted code. 
+tier: 1

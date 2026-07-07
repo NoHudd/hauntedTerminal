@@ -25,3 +25,5 @@ weaknesses:
 resistances:
   - "system_calls"
   - "permissions"
+
+tier: 2

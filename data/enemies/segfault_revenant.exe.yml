@@ -1,0 +1,17 @@
+name: Segfault Revenant
+description: A program that died on a bad pointer and came back pointing at you.
+health: 90
+damage: 21
+is_boss: false
+tier: 3
+dialogue: "SIGSEGV. Come closer. Let me dereference you."
+experience: 34
+attack_patterns:
+  - name: "Wild Pointer"
+    damage: 24
+    description: "Strikes an address that was never yours"
+  - name: "Core Dump"
+    damage: 16
+    description: "Spills your state across the floor"
+weaknesses: ["bounds_check"]
+resistances: ["memory"]

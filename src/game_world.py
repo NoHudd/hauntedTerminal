@@ -140,6 +140,11 @@ class GameWorld:
 
     def _initialize_world_state(self):
         """Initialize item and enemy locations from room data"""
+        # Roll each room's enemies from the difficulty-tier pools once, here at
+        # world-init. The result flows into enemy_locations below, which get_state
+        # persists — so reloads keep the same world (set_state skips this init).
+        from src import enemy_pools, rng
+        rolled_enemies = enemy_pools.roll_room_enemies(self.rooms, self.enemies, rng)
         for room_id, room_data in self.rooms.items():
             debug_log(f"Initializing state for room: {room_id}")
             # Initialize room state
@@ -155,9 +160,9 @@ class GameWorld:
             if self.room_states[room_id]["hidden"]:
                 debug_log(f"Room {room_id} is hidden")
             
-            # Initialize enemies in this room
+            # Initialize enemies in this room (rolled from tier pools, or pinned)
             enemy_count = 0
-            for enemy_id in room_data.get("enemies", []) or []:
+            for enemy_id in rolled_enemies.get(room_id, []):
                 # Try both with and without extension
                 if enemy_id in self.enemies:
                     self.enemy_locations[enemy_id] = room_id

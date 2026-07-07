@@ -48,3 +48,7 @@ def randint(a: int, b: int) -> int:
 
 def random() -> float:
     return _rng.random()
+
+
+def sample(population: Sequence[Any], k: int) -> list:
+    return _rng.sample(list(population), k)

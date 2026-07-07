@@ -1,0 +1,17 @@
+name: Cache Poltergeist
+description: A restless spirit haunting stale cache lines, flinging invalidated data at intruders.
+health: 78
+damage: 16
+is_boss: false
+tier: 2
+dialogue: "Your reads are STALE. Everything you know is out of date!"
+experience: 26
+attack_patterns:
+  - name: "Cache Flush"
+    damage: 18
+    description: "Violently evicts you from safety"
+  - name: "Stale Read"
+    damage: 14
+    description: "Feeds you corrupted, outdated data"
+weaknesses: ["flush_tool"]
+resistances: ["read_ops"]

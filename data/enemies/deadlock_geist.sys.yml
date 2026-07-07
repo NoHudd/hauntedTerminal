@@ -1,0 +1,17 @@
+name: Deadlock Geist
+description: Two threads that died waiting on each other, fused into one unmoving horror.
+health: 100
+damage: 20
+is_boss: false
+tier: 3
+dialogue: "You wait for me. I wait for you. Neither of us leaves."
+experience: 35
+attack_patterns:
+  - name: "Circular Wait"
+    damage: 22
+    description: "Traps you in an unbreakable hold"
+  - name: "Mutex Crush"
+    damage: 18
+    description: "Crushes you under a contested lock"
+weaknesses: ["lock_ordering"]
+resistances: ["threads"]
