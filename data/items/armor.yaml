@@ -64,7 +64,7 @@ armor:
     name: "Null-Void Cloak"
     description: "Woven from the fabric of /dev/null itself. Those who wear it flicker between existence and non-existence."
     type: "armor"
-    defense: 0
+    defense: 12
     allowed_classes:
       - guardian
       - weaver
@@ -82,3 +82,41 @@ armor:
         description: "Grants immunity to void pull damage in /dev/null"
       - type: "de_allocation_immunity"
         description: "Immune to de-allocation and instant death effects"
+
+  # RARE ARMOR (mid/late-zone, one per non-guardian class)
+  stack_guard_vest:
+    name: "Stack Guard Vest"
+    description: "Canary-laced plating that trips before a corruption can smash the frame. Favored by weavers who court overflow."
+    type: "armor"
+    defense: 15
+    allowed_classes:
+      - weaver
+    rarity: rare
+    tags: ["armor", "stack", "protection"]
+    allowed_zones: ["usr", "lib", "dev"]
+    persistence: "persistent"
+
+  mantra_ward:
+    name: "Mantra Ward"
+    description: "A looping incantation of syscalls that wraps the wearer in recited protection. Shaman work."
+    type: "armor"
+    defense: 15
+    allowed_classes:
+      - shaman
+    rarity: rare
+    tags: ["armor", "mystical", "ward"]
+    allowed_zones: ["usr", "lib", "mnt"]
+    persistence: "persistent"
+
+  # EPIC ARMOR (guardian tank capstone)
+  aegis_partition:
+    name: "Aegis Partition"
+    description: "A read-only partition raised like a bulwark. Writes bounce off it; so do most attacks."
+    type: "armor"
+    defense: 22
+    allowed_classes:
+      - guardian
+    rarity: epic
+    tags: ["armor", "partition", "bulwark"]
+    allowed_zones: ["dev", "root"]
+    persistence: "persistent"

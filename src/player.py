@@ -2,6 +2,13 @@ from utils.debug_tools import debug_log
 from src.data_loader import load_class_data, load_weapon_data, get_abilities_for_class, load_consumable_data
 import random
 
+# Armor mitigation: defense -> capped percent damage reduction.
+ARMOR_MITIGATION_CAP = 33       # max % damage reduced, so a tank can't become unkillable
+ARMOR_DEFENSE_TO_PCT = 1.5      # each point of armor `defense` = this many % mitigation
+                                # (low factor + this cap lets guardian's def-20/22 pieces
+                                #  out-mitigate weaver/shaman def-15 instead of all capping equal)
+
+
 class Player:
     """Class representing the player in the game."""
 
@@ -18,6 +25,8 @@ class Player:
         self.total_damage = 5
         self.inventory = {}
         self.equipped_weapon = None
+        self.equipped_armor = None
+        self.armor_mitigation = 0.0  # fraction 0..(cap/100), from equipped armor's defense
         self.status_effects = {}
         # self.cooldowns = {} # Removed: Cooldowns are now managed by CombatSystem
         self.spells = []  # For special abilities later
@@ -116,7 +125,10 @@ class Player:
             # If the equipped weapon is being removed, unequip it
             if self.equipped_weapon == item_id:
                 self.equipped_weapon = None
-            
+            if self.equipped_armor == item_id:
+                self.equipped_armor = None
+                self.armor_mitigation = 0.0
+
             debug_log(f"Removing item {item_id} from inventory")
             del self.inventory[item_id]
             return True
@@ -138,6 +150,16 @@ class Player:
             debug_log(f"Equipped weapon {item_id}, total_damage now {self.total_damage}.")
             return True
         return False
+
+    def equip_armor(self, item_id):
+        """Equip an armor piece from inventory; set capped damage mitigation from its defense."""
+        if item_id not in self.inventory:
+            return False
+        self.equipped_armor = item_id
+        defense = self.inventory[item_id].get("defense", 0) or 0
+        self.armor_mitigation = min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT) / 100.0
+        debug_log(f"Equipped armor {item_id}, mitigation now {self.armor_mitigation:.0%}.")
+        return True
         
     def get_inventory_items(self):
         """Get a list of all items in the player's inventory."""
@@ -275,7 +297,9 @@ class Player:
         return [data for _, data in self.status_effects.items()]
 
     def take_damage(self, amount):
-        """Reduce player health by amount."""
+        """Reduce player health by amount, after equipped-armor mitigation."""
+        if amount > 0 and self.armor_mitigation:
+            amount = max(1, round(amount * (1 - self.armor_mitigation)))
         self.health -= amount
         if self.health < 0:
             self.health = 0
