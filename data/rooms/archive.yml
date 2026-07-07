@@ -8,6 +8,6 @@ exits:
 - root
 items: []
 npcs: []
-enemies:
-- corrupt_file.exe
+enemy_tier: 1
+enemy_count: 1
 hidden: true

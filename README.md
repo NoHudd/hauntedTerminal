@@ -42,11 +42,11 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
 - **Story Flags**: Track narrative progression through key story beats
 
 ### World & Content
-- **19 Explorable Rooms**: From `/home/lost+found` to `/boot/kernel` - The Core
-- **43 Unique Items**: Weapons, armor, consumables, crafting materials, trinkets, keys, and lore fragments
-- **13 NPCs**: Including the Firewall Knight, Forge Master, and the mysterious Null Whisper
-- **19 Enemies**: From corrupted processes to the Daemon Overlord himself
-- **Environmental Effects**: Heat damage in `/tmp`, void pull in `/dev/null`
+- **18 Explorable Rooms**: From `/home/lost+found` to `/boot/kernel` - The Core
+- **41 Unique Items**: Weapons, armor, consumables, keys, and lore fragments
+- **12 NPCs**: Including the Firewall Knight, the Librarian, and the mysterious Null Whisper
+- **24 Enemies**: From corrupted processes to the Daemon Overlord himself
+- **Environmental Effects**: Void pull in `/dev/null`
 - **Dynamic Loot**: Item rarity based on directory depth (common in `/home`, legendary in `/root`)
 
 ### Story & Secrets
@@ -160,7 +160,6 @@ If you prefer to set things up manually:
 - **`/dev/null` - The Void**: Where you awakened. Void pull drains HP without Null-Void Cloak.
 - **`/home/lost+found` - The Graveyard**: Orphaned files and broken symlinks. Find your `.bash_profile`.
 - **`/bin` - The Armory**: Sacred command icons (cp, mv, rm). The Librarian guides you to lore.
-- **`/tmp` - The Forge**: Extreme heat (2 HP/turn). Craft legendary weapons with the Forge Master.
 - **`/var/log` - The Memory Banks**: Crash logs and error files. Discover the Creator's Typo.
 - **`/etc/iptables` - The Kernel Gate**: Firewall Knight blocks passage. Requires chmod_key.
 - **`/boot/kernel` - The Core**: Final confrontation with the Daemon Overlord.
@@ -203,8 +202,7 @@ data/
 │   ├── weapons.yaml
 │   ├── armor.yaml
 │   ├── consumables.yaml
-│   ├── crafting.yaml
-│   ├── trinkets.yaml
+│   ├── keys.yaml
 │   └── lore_fragments.yaml
 ├── enemies/        # Enemy stats, loot, boss mechanics
 ├── npcs/           # NPC dialogues, merchant inventories
@@ -274,10 +272,9 @@ Items spawn based on directory depth:
 1. **Use `ls -a`** to reveal hidden files and secret paths
 2. **Read everything**: Lore fragments contain crucial story beats
 3. **Talk to NPCs**: They provide hints about item locations and story progression
-4. **Craft strategically**: The Forge Master in `/tmp` can upgrade your gear
-5. **Save often**: The filesystem is dangerous
-6. **Explore thoroughly**: Hidden rooms contain powerful items
-7. **Choose items wisely**: Ephemeral items don't persist through death
+4. **Save often**: The filesystem is dangerous
+5. **Explore thoroughly**: Hidden rooms contain powerful items
+6. **Choose items wisely**: Ephemeral items don't persist through death
 
 ---
 
@@ -300,7 +297,6 @@ While playing HFSE, you'll naturally learn:
 - Discover the Great ASCII Bovine easter egg
 - Defeat the Daemon Overlord and choose your ending
 - Reach max level through harvesting cycles
-- Craft a legendary weapon at The Forge
 
 ---
 
@@ -319,112 +315,18 @@ SKIP_INTRO = True
 ### Project Structure
 
 ```
-HFSE/
-│
-├── main.py                         # Entry point — starts the Textual app
-├── start.sh / start.bat            # Auto-setup scripts (venv + deps + launch)
-├── requirements.txt                # Python dependencies
-│
-├── src/                            # All game logic
-│   ├── game_engine.py              # Orchestrator — wires player, world, UI, events together
-│   │                               #   handles game states, new game / restart / load flows
-│   ├── game_world.py               # World state — rooms, item/enemy locations, lock states,
-│   │                               #   room discovery, loot placement
-│   ├── game_states.py              # GameState enum (MENU, PLAYING, IN_COMBAT, GAME_OVER…)
-│   ├── state_manager.py            # Enforces valid state transitions, emits UI_STATE_CHANGED
-│   ├── player.py                   # Player stats, inventory, HP/damage, move_to(), to/from_dict()
-│   ├── command_handler.py          # Parses player input → routes to action handlers
-│   │                               #   (cd, ls, use, take, talk, attack, flee…)
-│   │                               #   owns room_aliases dict (path → room_id)
-│   ├── combat.py                   # Turn-based combat session, attack resolution,
-│   │                               #   cooldowns, emits COMBAT_STARTED/FRAME_UPDATED/ENDED
-│   ├── events.py                   # EventType enum + EventBus (pub/sub message bus)
-│   ├── data_loader.py              # Loads all YAML files into dicts; caches results
-│   ├── save.py                     # Save/load JSON to saves/ using player.to_dict()
-│   ├── rarity.py                   # Single RARITIES dict (color, emoji, sort order per tier)
-│   │
-│   └── ui/
-│       ├── textual_ui.py           # Textual TUI app — panels, input, event subscriptions,
-│       │                           #   combat UI, inventory display, game-over screen
-│       ├── ui_interface.py         # UIProtocol — interface contract between engine and UI
-│       ├── ui.css                  # Textual CSS styles for all panels and states
-│       ├── view_builder.py         # Converts raw backend objects → ViewModels (pure dicts)
-│       │                           #   owns ROOM_ID_TO_PATH display map
-│       └── view_models.py          # Frozen dataclasses: StatsView, InventoryView,
-│                                   #   RoomView, CombatView, AttackView, EnemyView
-│
-├── data/                           # All game content — edit YAML to change the game
-│   ├── classes.yaml                # Class definitions: stats, attacks list, display block,
-│   │                               #   loot_preference tags, starter weapon
-│   ├── attacks.yml                 # Every attack: damage bonus, accuracy, cooldown, effects
-│   ├── abilities.yaml              # Passive/active ability definitions
-│   │
-│   ├── rooms/                      # One .yml per room
-│   │   ├── home_grove.yml          # Starting area (/home)
-│   │   ├── var_dungeon.yml         # /var — Memory Banks
-│   │   ├── bin_armory.yml          # /bin — The Armory
-│   │   ├── usr_lib_arcane.yml      # /usr/lib — Arcane Library
-│   │   ├── mnt_forest.yml          # /mnt — Mount Forest (hub to optional areas)
-│   │   ├── tmp_hidden_chamber.yml  # /tmp — The Forge (hidden)
-│   │   ├── etc_hidden_configs.yml  # /etc — Hidden Configs
-│   │   ├── dev_null_void.yml       # /dev/null — The Void
-│   │   ├── proc_secrets.yml        # /proc — Process Secrets (hidden)
-│   │   ├── ghost_hidden.yml        # Hidden ghost area
-│   │   ├── mirror_sector.yml       # /proc/self — Sudo Trial arena
-│   │   ├── opt_mage_tower.yml      # /opt — Mage Tower (Weaver class-restricted)
-│   │   ├── srv_warrior_tomb.yml    # /srv — Warrior Tomb (Guardian class-restricted)
-│   │   ├── usr_share_games.yml     # Easter egg path
-│   │   ├── cowsay_secret.yml       # Great ASCII Bovine sanctuary
-│   │   ├── archive.yml             # /archive — lore room
-│   │   ├── deprecated_dir.yml      # /deprecated — legacy content
-│   │   ├── root.yml                # /root
-│   │   └── core.yml                # /boot/kernel — Final boss room
-│   │
-│   ├── items/                      # Items split by category
-│   │   ├── weapons.yaml            # Swords, staves, shields — damage, allowed_classes
-│   │   ├── armor.yaml              # Armor pieces — defense, class restrictions
-│   │   ├── consumables.yaml        # Health packets, buffs — combat_effects block
-│   │   ├── keys.yaml               # Keys — unlocks: [room_id] list
-│   │   ├── crafting.yaml           # Crafting materials for Forge Master recipes
-│   │   ├── trinkets.yaml           # Passive effect items
-│   │   └── lore_fragments.yaml     # Readable files that reveal story
-│   │
-│   ├── enemies/                    # One .yml per enemy
-│   │   ├── daemon_overlord.sys.yml # Final boss
-│   │   ├── corruption_lord.exe.yml # Sub-boss
-│   │   ├── shadow_process.yml      # Sudo Trial enemy (mirror of player)
-│   │   └── ...                     # 15 total enemies
-│   │
-│   └── npcs/                       # One .yml per NPC
-│       ├── echo.usr.yml            # ECHO — tutorial guide
-│       ├── firewall_knight.iptables.yml
-│       ├── forge_master.tmp.yml    # Crafting NPC
-│       ├── null_whisper.void.yml   # Lore NPC
-│       ├── librarian.bin.yml
-│       ├── great_ascii_bovine.cow.yml  # Easter egg NPC
-│       └── ...                     # 15 total NPCs
-│
-├── config/
-│   ├── settings.py                 # Active config (gitignored)
-│   ├── settings.example.py         # Template — copy to settings.py
-│   └── dev_config.py               # DEV_MODE, DEBUG_MODE, SKIP_INTRO flags
-│
-├── docs/
-│   └── TODO.md                     # Master task list (bugs, architecture, features)
-│
-├── storyHFSE/                      # Narrative design documents
-│   ├── world.md                    # World lore and zone descriptions
-│   ├── archetypes_entities.md      # NPC/enemy character bibles
-│   ├── item_registry.md            # Canonical item list and story roles
-│   └── env_logs.md                 # In-world log files and lore text
-│
-├── utils/
-│   ├── debug_tools.py              # debug_log() helper used throughout codebase
-│   ├── particle_animation.py       # Startup animation
-│   └── typewriter.py               # Typewriter text effect
-│
-└── saves/                          # Auto-created — JSON save files per run
+main.py        # entry point → src.game_engine.main
+src/           # game logic (runtime): engine, world, player, combat, commands/, ui/
+engine/        # typed content schema + validation + headless driver (tests/sim use this)
+sim/           # difficulty simulation harness
+data/          # all game content as YAML — rooms/ enemies/ npcs/ items/ + classes/attacks/abilities
+config/        # dev settings (settings.py gitignored)
+storyHFSE/     # narrative design docs (world, archetypes, item registry, env logs)
+tests/ · utils/ · docs/
 ```
+
+> Full architecture and the `src/` vs `engine/` explanation live in `CLAUDE.md`.
+> Content-authoring guide: `docs/extending_the_game.md`.
 
 ---
 
@@ -459,13 +361,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [x] Harvesting Cycles (XP) progression
 - [x] Item persistence and rarity system
 - [x] Story flags and narrative progression
-- [x] 13 NPCs with dialogues and lore
+- [x] 12 NPCs with dialogues and lore
 - [x] 3 character classes with unique abilities
 - [x] Environmental effects and zone mechanics
 - [ ] Phase 5: Easter egg implementation (.moo → bovine → milk)
 - [ ] Phase 6: Multiple class-specific endings
 - [ ] Phase 7: Final testing and polish
-- [ ] Crafting system with Forge Master recipes
 - [ ] Achievements and statistics tracking
 
 ---
