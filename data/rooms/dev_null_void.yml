@@ -24,8 +24,8 @@ exits:
   - bin_armory
 items: []
 # Epic and legendary items spawn here - highest tier loot
-enemies:
-  - null_guardian.sys
+enemy_tier: 3
+enemy_count: 1
 npcs:
   - null_whisper.void
 hidden: false

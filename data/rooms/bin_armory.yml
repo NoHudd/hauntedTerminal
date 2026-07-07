@@ -25,9 +25,8 @@ exits:
 items:
   - ancient_manual_man
 # Ancient manual teaches ls -a command
-enemies:
-  - corrupt_process.bin
-  - zombie_daemon.exe
+enemy_tier: 1
+enemy_count: 2
 npcs:
   - broken_shell.sh
   - librarian.bin

@@ -21,8 +21,8 @@ exits:
 - usr_share_games
 - etc_hidden_configs
 items: []
-enemies:
-- knowledge_guardian.sys
+enemy_tier: 3
+enemy_count: 1
 npcs:
 - librarian.bin
 - echo.usr
