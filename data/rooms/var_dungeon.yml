@@ -22,9 +22,8 @@ items:
   - system_err_log
   - chmod_key
 # Story items - Creator's Typo discovery and Firewall Knight key
-enemies:
-  - var_daemon.sys
-  - data_corruptor.exe
+enemy_tier: 2
+enemy_count: 2
 npcs: []
 locked: false
 hidden: false

@@ -13,8 +13,8 @@ exits:
   - proc_secrets
 items: []
 # Items placed dynamically by class-based system
-enemies:
-  - mount_daemon.exe
+enemy_tier: 2
+enemy_count: 1
 npcs:
   - lost_user.dat
 hidden: false

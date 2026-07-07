@@ -26,8 +26,8 @@ items:
   - cow_wisdom_log
 # Easter egg hint location
 npcs: []
-enemies:
-  - permission_denied.sys
+enemy_tier: 2
+enemy_count: 1
 locked: false
 hidden: false
 zone: ancient

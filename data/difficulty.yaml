@@ -12,9 +12,9 @@ easy:
   xp_gain: 1.3
 medium:
   enemy_hp: 0.95
-  enemy_damage: 0.98
+  enemy_damage: 0.93
   xp_gain: 1.0
 hard:
   enemy_hp: 1.15
-  enemy_damage: 0.93
+  enemy_damage: 0.85
   xp_gain: 0.85
