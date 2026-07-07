@@ -1,8 +1,9 @@
-# Live difficulty multipliers. Re-tuned 2026-07-06 after the sim weapon-fidelity
-# fix (sim now models only obtainable common/uncommon/rare + the guaranteed epic
-# capstone; legendary excluded) and a per-class kit re-balance on the honest weapon
-# model. Targets medium ~85% avg / hard ~68% avg, per-class spread ~10-15pt.
-# See docs/DIFFICULTY_SIM_STATUS.md.
+# Live difficulty multipliers. Values below PRE-DATE the Phase 2b armor wiring —
+# they targeted medium ~85% / hard ~68% with NO armor mitigation. Now that armor is
+# wired (capped % mitigation, guardian-differentiated), the effective band is EASIER
+# than these numbers imply (sim shows ~90-100% with armor modeled). A proper post-armor
+# per-class re-balance is OPEN — see docs/DIFFICULTY_SIM_STATUS.md. Do not treat this as
+# the tuned-for-armor config. Kept coherent (armor only helps; no class collapses).
 easy:
   enemy_hp: 0.85
   enemy_damage: 0.9

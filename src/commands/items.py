@@ -390,6 +390,24 @@ class EquipCommand(Command):
         weapon = ctx.player.get_item_from_inventory(weapon_id)
         weapon_type = weapon.get("type")
 
+        is_armor = (
+            weapon_type == "armor" or "armor" in str(weapon_type)
+            if weapon_type
+            else False
+        )
+        if is_armor:
+            if not ctx.player.can_use_item(weapon):
+                class_restriction = ctx._get_class_restriction_text(weapon)
+                ctx.output.write(
+                    f"[bold red]This armor can only be used by {class_restriction} "
+                    "class.[/bold red]"
+                )
+                return
+            if ctx.player.equip_armor(weapon_id):
+                armor_name = weapon.get("name", weapon_id)
+                ctx.output.write(f"You have equipped [green]{armor_name}[/green].")
+            return
+
         is_weapon = (
             weapon_type == "weapon" or "weapon" in str(weapon_type)
             if weapon_type
