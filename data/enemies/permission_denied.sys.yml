@@ -22,3 +22,5 @@ on_defeat:
 loot_table:
   - rarity: rare
     chance: 20
+
+tier: 2

@@ -231,11 +231,13 @@ class Measurement:
 def measure(class_id: str, mode: str, runs: int = 200, seed: int = 0) -> Measurement:
     difficulty.set_mode(mode)
     world = _build_world()
-    enemy_ids = main_path_enemy_ids()
 
     results: list[RunResult] = []
     for i in range(runs):
         rng.seed(seed + i)
+        # Roll a fresh enemy set per run so the measurement reflects the pool
+        # distribution, not one fixed draw.
+        enemy_ids = main_path_enemy_ids()
         results.append(run_gauntlet(class_id, world, enemy_ids))
 
     wins = [r for r in results if r.won]

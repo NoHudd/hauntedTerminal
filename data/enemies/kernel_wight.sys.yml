@@ -1,0 +1,17 @@
+name: Kernel Wight
+description: A dead process that never left ring 0, dragging privileged corruption behind it.
+health: 95
+damage: 20
+is_boss: false
+tier: 3
+dialogue: "I have SUPERVISOR rights over your death."
+experience: 34
+attack_patterns:
+  - name: "Ring-0 Strike"
+    damage: 23
+    description: "Strikes with unchecked kernel privilege"
+  - name: "Page Fault"
+    damage: 18
+    description: "Faults your memory into disarray"
+weaknesses: ["reboot"]
+resistances: ["syscalls", "privilege"]

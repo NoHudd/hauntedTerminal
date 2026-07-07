@@ -10,3 +10,4 @@ drops: []
 on_defeat:
   message: The corrupted entity breaks down into harmless code fragments, its malevolent influence neutralized.
   spawn_item: access_log.txt 
+tier: 1
