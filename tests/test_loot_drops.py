@@ -72,12 +72,12 @@ def test_loot_table_drops_class_appropriate_gear(session: GameSession) -> None:
     event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_boss"}, "test")
 
     room_items = set(h.world.get_items_in_room(room))
-    epics = {iid for iid, d in h.world.items.items() if str(d.get("rarity", "")).lower() == "epic"}
+    epics = {iid for iid, d in h.world.items.items() if str(d.rarity).lower() == "epic"}
     dropped_epic = room_items & epics
     assert dropped_epic, f"expected an epic gear drop, room has {room_items}"
     # and it must be usable by the weaver (class-appropriate)
     for iid in dropped_epic:
-        assert h.player.can_use_item(h.world.items[iid])
+        assert h.player.can_use_item(h.world.get_item(iid))
 
 
 def test_loot_table_never_drops_a_healing_item(session: GameSession) -> None:
@@ -87,7 +87,7 @@ def test_loot_table_never_drops_a_healing_item(session: GameSession) -> None:
     for _ in range(50):
         got = h._roll_loot_table([{"rarity": "rare", "chance": 100}])
         if got is not None:
-            data = h.world.items.get(got, {})
+            data = h.world.get_item(got) or {}
             assert data.get("type") in ("weapon", "armor"), f"{got} is not gear"
             assert "healing" not in (data.get("tags") or [])
 

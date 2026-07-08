@@ -131,6 +131,16 @@ class Item(_Base):
     persistence: str = "persistent"
     # key items only:
     unlocks: list[RoomId] = Field(default_factory=list)
+    short_description: str = ""
+    tags: list = Field(default_factory=list)
+    allowed_zones: list = Field(default_factory=list)
+    damage: int = 0
+    combat_effects: dict = Field(default_factory=dict)
+    usable: bool = False
+    usable_in_combat: bool = False
+    consumed_on_use: bool = False
+    takeable: bool = True
+    droppable: bool = True
 
     @field_validator("rarity", mode="before")
     @classmethod

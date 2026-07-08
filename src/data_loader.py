@@ -40,6 +40,8 @@ def load_weapon_data(weapon_id):
                 weapons = yaml.safe_load(file) or {}
             weapon_data = weapons.get(weapon_id)
             if weapon_data:
+                from engine.schema import Item
+                Item(id=weapon_id, **weapon_data)  # validation gate; raises loud on a bad field
                 weapon_data["id"] = weapon_id
                 _weapon_data_cache[weapon_id] = weapon_data
                 debug_log(f"Loaded weapon data for {weapon_id}")
@@ -163,6 +165,8 @@ def load_consumable_data(consumable_id):
     # Return the specific consumable
     if consumable_id in _consumables_data_cache:
         consumable_data = _consumables_data_cache[consumable_id].copy()
+        from engine.schema import Item
+        Item(id=consumable_id, **consumable_data)  # validation gate
         consumable_data["id"] = consumable_id
         return consumable_data
 
