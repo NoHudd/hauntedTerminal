@@ -25,3 +25,7 @@ locked: true
 key_required: opt_key
 class_restriction: guardian
 hidden: false
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/srv"
+aliases: ["/srv", "/srv/tomb", "/srv/warrior_tomb", "srv", "tomb"]

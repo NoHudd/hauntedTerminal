@@ -40,3 +40,7 @@ zone_level: 10
 boss_room: true
 final_confrontation: true
 story_location: true
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/core"
+aliases: ["/core", "core"]

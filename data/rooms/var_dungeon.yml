@@ -33,3 +33,7 @@ class_affinity: weaver
 story_location: true
 story_beats:
   - typo_discovered
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/var"
+aliases: ["/var", "/var/dungeon", "var", "dungeon"]

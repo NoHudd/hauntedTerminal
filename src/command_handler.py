@@ -43,75 +43,11 @@ class CommandHandler:
         # Subscribe to enemy defeated event to remove enemies from room
         event_bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         
-        # Room aliases for easier navigation (filesystem paths -> full room IDs)
-        self.room_aliases = {
-            # Filesystem-style paths with / prefix
-            "/home": "home_grove",
-            "/home/grove": "home_grove",
-            "/var": "var_dungeon",
-            "/var/dungeon": "var_dungeon",
-            "/mnt": "mnt_forest",
-            "/mnt/forest": "mnt_forest",
-            "/bin": "bin_armory",
-            "/bin/armory": "bin_armory", 
-            "/usr": "usr_lib_arcane",
-            "/usr/lib": "usr_lib_arcane",
-            "/usr/lib/arcane": "usr_lib_arcane",
-            "/usr/share": "usr_share_games",
-            "/usr/share/games": "usr_share_games",
-            "/usr/share/games/cowsay": "cowsay_secret",
-            "/cowsay": "cowsay_secret",
-            "/opt": "opt_mage_tower",
-            "/opt/tower": "opt_mage_tower",
-            "/opt/mage_tower": "opt_mage_tower",
-            "/srv": "srv_warrior_tomb",
-            "/srv/tomb": "srv_warrior_tomb",
-            "/srv/warrior_tomb": "srv_warrior_tomb",
-            "/proc": "proc_secrets",
-            "/proc/secrets": "proc_secrets",
-            "/etc": "etc_hidden_configs",
-            "/etc/configs": "etc_hidden_configs",
-            "/dev": "dev_null_void",
-            "/dev/null": "dev_null_void",
-            "/ghost": "ghost_hidden",
-            "/archive": "archive", 
-            "/deprecated": "deprecated_dir",
-            "/": "root",
-            "/root": "root",
-            "/core": "core",
-            
-            # Also keep simple names for convenience (no / prefix)
-            "home": "home_grove",
-            "grove": "home_grove",
-            "var": "var_dungeon",
-            "dungeon": "var_dungeon", 
-            "mnt": "mnt_forest",
-            "forest": "mnt_forest",
-            "bin": "bin_armory",
-            "armory": "bin_armory",
-            "usr": "usr_lib_arcane",
-            "lib": "usr_lib_arcane",
-            "arcane": "usr_lib_arcane",
-            "share": "usr_share_games",
-            "games": "usr_share_games",
-            "cowsay": "cowsay_secret",
-            "opt": "opt_mage_tower",
-            "tower": "opt_mage_tower",
-            "srv": "srv_warrior_tomb",
-            "tomb": "srv_warrior_tomb",
-            "proc": "proc_secrets",
-            "secrets": "proc_secrets",
-            "etc": "etc_hidden_configs",
-            "configs": "etc_hidden_configs", 
-            "dev": "dev_null_void",
-            "null": "dev_null_void",
-            "void": "dev_null_void",
-            "ghost": "ghost_hidden",
-            "deprecated": "deprecated_dir",
-            "archive": "archive",
-            "root": "root",
-            "core": "core"
-        }
+        # Navigation aliases (path/name -> room id) are built from each room's
+        # own `path`/`aliases` YAML fields, so there is one source of truth per
+        # room instead of a hand-maintained dict here. See src/room_paths.py.
+        from src import room_paths
+        self.room_aliases = room_paths.refresh_from_rooms(self.world.rooms)
         
         # Migrated verbs (Phase 3 command-pattern). Checked before the legacy
         # dict below; verbs move here one at a time. See src/commands/.

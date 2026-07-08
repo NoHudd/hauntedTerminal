@@ -136,3 +136,42 @@ def test_mirror_sector_is_reachable_somehow(content: GameContent) -> None:
     # Documents the known unreachable-content finding. Flips to a real pass once
     # an entry path is added (or delete this test if mirror_sector is cut).
     assert "mirror_sector" in _reachable(content)
+
+
+# --- C1: flat item files ----------------------------------------------------
+
+def test_items_load_flat_and_count_41() -> None:
+    from engine.content.loader import load_items
+
+    items = load_items("data")
+    assert len(items) == 41, len(items)
+    # every item carries an explicit type (no wrapper-derived category)
+    assert all(getattr(i, "type", None) for i in items.values())
+
+
+def test_duplicate_item_id_raises(tmp_path) -> None:
+    from engine.content.loader import load_items
+    from engine.schema import ContentValidationError
+
+    d = tmp_path / "items"
+    d.mkdir()
+    (d / "a.yaml").write_text("sword:\n  name: A\n  type: weapon\n")
+    (d / "b.yaml").write_text("sword:\n  name: B\n  type: weapon\n")
+    with pytest.raises(ContentValidationError):
+        load_items(str(tmp_path))
+
+
+# --- C2: room path/aliases integrity ----------------------------------------
+
+def test_live_rooms_have_unique_paths_and_no_alias_collisions() -> None:
+    from engine.content.linker import find_nav_problems
+    from engine.content.loader import load_rooms
+    from engine.content.world import GameContent
+
+    rooms = load_rooms("data")
+    content = GameContent(
+        rooms=rooms, items={}, enemies={}, npcs={},
+        classes={}, abilities={}, attacks={},
+    )
+    assert find_nav_problems(content) == []
+    assert all(r.path for r in rooms.values()), "every room needs a path"

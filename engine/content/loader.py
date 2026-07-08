@@ -98,13 +98,18 @@ def load_items(data_dir: str = DATA_DIR) -> dict[ItemId, Item]:
     out: dict[ItemId, Item] = {}
     for path in sorted(glob.glob(os.path.join(data_dir, "items", "*.y*ml"))):
         doc = _read_yaml(path)
-        # each file is {category_name: {item_id: {def}}}
-        for category, items in doc.items():
-            if not isinstance(items, dict):
+        # each file is a flat map {item_id: {def}}; type carries the category.
+        for item_id, body in doc.items():
+            if not isinstance(body, dict):
                 continue
-            for item_id, body in items.items():
-                iid = ItemId(item_id)
-                out[iid] = _build(Item, iid, body or {}, f"{path}:{category}")
+            if "type" not in body:
+                raise ContentValidationError(f"{path}: item '{item_id}' missing 'type'")
+            iid = ItemId(item_id)
+            if iid in out:
+                raise ContentValidationError(
+                    f"{path}: duplicate item id '{item_id}' (already defined elsewhere)"
+                )
+            out[iid] = _build(Item, iid, body, path)
     return out
 
 

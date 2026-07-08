@@ -18,7 +18,7 @@ VALID_CLASSES = {"guardian", "weaver", "shaman"}
 
 def _weapons() -> dict[str, dict]:
     with open("data/items/weapons.yaml") as fh:
-        return yaml.safe_load(fh)["weapons"]
+        return yaml.safe_load(fh) or {}
 
 
 def test_every_weapon_has_wired_positive_damage() -> None:
@@ -58,7 +58,7 @@ def test_rare_tier_is_deepened_for_world_placement() -> None:
 
 def _armor() -> dict[str, dict]:
     with open("data/items/armor.yaml") as fh:
-        return yaml.safe_load(fh)["armor"]
+        return yaml.safe_load(fh) or {}
 
 
 def test_every_armor_has_valid_defense_rarity_classes_zones() -> None:

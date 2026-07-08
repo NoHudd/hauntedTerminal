@@ -47,32 +47,23 @@ def load_weapon_data(weapon_id):
         return _weapon_data_cache[weapon_id]
     
     try:
-        # Load from weapons.yaml
+        # Load from the flat weapons.yaml (id -> def, no wrapper key).
         filepath = 'data/items/weapons.yaml'
         if os.path.exists(filepath):
             with open(filepath, 'r') as file:
-                data = yaml.safe_load(file)
-                if data is None or "weapons" not in data:
-                    debug_log(f"ERROR: Invalid weapons file structure in {filepath}")
-                    return None
-                
-                # Find the weapon in the data
-                weapons = data.get("weapons", {})
-                if weapon_id in weapons:
-                    weapon_data = weapons[weapon_id]
-                    # Add ID to the weapon data
-                    weapon_data["id"] = weapon_id
-                    # Add to cache
-                    _weapon_data_cache[weapon_id] = weapon_data
-                    debug_log(f"Loaded weapon data for {weapon_id}")
-                    return weapon_data
-                else:
-                    debug_log(f"ERROR: Weapon {weapon_id} not found in weapons.yaml")
-                    return None
+                weapons = yaml.safe_load(file) or {}
+            weapon_data = weapons.get(weapon_id)
+            if weapon_data:
+                weapon_data["id"] = weapon_id
+                _weapon_data_cache[weapon_id] = weapon_data
+                debug_log(f"Loaded weapon data for {weapon_id}")
+                return weapon_data
+            debug_log(f"ERROR: Weapon {weapon_id} not found in weapons.yaml")
+            return None
         else:
             debug_log(f"ERROR: Weapons file not found at path: {filepath}")
             return None
-            
+
     except Exception as e:
         debug_log(f"ERROR loading weapon data: {e}")
         return None
@@ -183,8 +174,8 @@ def load_consumable_data(consumable_id):
             filepath = 'data/items/consumables.yaml'
             if os.path.exists(filepath):
                 with open(filepath, 'r') as file:
-                    data = yaml.safe_load(file)
-                    _consumables_data_cache = data.get("consumables", {}) if data else {}
+                    data = yaml.safe_load(file) or {}
+                    _consumables_data_cache = data if isinstance(data, dict) else {}
                     debug_log(f"Loaded consumables data with {len(_consumables_data_cache)} items")
             else:
                 debug_log(f"ERROR: Consumables file not found at path: {filepath}")

@@ -35,3 +35,7 @@ zone_level: 15
 level_requirement: 15
 story_location: true
 easter_egg_zone: true
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/usr/share/games"
+aliases: ["/usr/share", "/usr/share/games", "share", "games"]

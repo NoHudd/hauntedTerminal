@@ -60,6 +60,35 @@ def find_broken_references(content: GameContent) -> list[str]:
     return problems
 
 
+def find_nav_problems(content: GameContent) -> list[str]:
+    """Room path/alias integrity (empty == clean).
+
+    Every room needs a canonical ``path``; paths must be unique; and no alias may
+    resolve to two different rooms. A collision here means ``cd`` would silently
+    send the player to the wrong room, so ``link()`` treats these as fatal.
+    """
+    problems: list[str] = []
+    path_owner: dict[str, str] = {}
+    alias_owner: dict[str, str] = {}
+    for rid, room in content.rooms.items():
+        if not room.path:
+            problems.append(f"room '{rid}': missing 'path'")
+        elif room.path in path_owner:
+            problems.append(
+                f"room '{rid}': path '{room.path}' already used by '{path_owner[room.path]}'"
+            )
+        else:
+            path_owner[room.path] = str(rid)
+        for alias in room.aliases:
+            if alias in alias_owner and alias_owner[alias] != str(rid):
+                problems.append(
+                    f"alias '{alias}' maps to both '{alias_owner[alias]}' and '{rid}'"
+                )
+            else:
+                alias_owner[alias] = str(rid)
+    return problems
+
+
 def find_reference_warnings(content: GameContent) -> list[str]:
     """Advisory dangling references (empty == clean).
 
@@ -86,10 +115,10 @@ def find_reference_warnings(content: GameContent) -> list[str]:
 
 def link(content: GameContent) -> GameContent:
     """Enforce load-bearing referential integrity; raise on any dangling ref."""
-    problems = find_broken_references(content)
+    problems = find_broken_references(content) + find_nav_problems(content)
     if problems:
         raise DanglingReferenceError(
-            f"{len(problems)} dangling reference(s) in content:\n  - "
+            f"{len(problems)} content problem(s):\n  - "
             + "\n  - ".join(problems)
         )
     return content

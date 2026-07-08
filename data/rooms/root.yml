@@ -31,3 +31,7 @@ hidden: false
 zone: core
 zone_level: 7
 requires_sudo: false  # Will be true after story progression
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/"
+aliases: ["/", "/root", "root"]
