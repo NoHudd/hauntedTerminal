@@ -10,10 +10,17 @@ from __future__ import annotations
 POOL_TIERS = (1, 2, 3)
 
 
+def _field(e, key):
+    """Read a field from an enemy that may be a dict (tests) or a typed model (runtime)."""
+    if e is None:
+        return None
+    return e.get(key) if isinstance(e, dict) else getattr(e, key, None)
+
+
 def build_tier_pools(enemies: dict) -> dict[int, list[str]]:
     pools: dict[int, list[str]] = {t: [] for t in POOL_TIERS}
     for eid, edata in enemies.items():
-        tier = (edata or {}).get("tier")
+        tier = _field(edata, "tier")
         if tier in pools:
             pools[tier].append(eid)
     for tier in pools:
@@ -32,7 +39,7 @@ def roll_room_enemies(rooms: dict, enemies: dict, rng_module) -> dict[str, list[
         if pinned:
             result[room_id] = list(pinned)
             for eid in pinned:
-                tier = (enemies.get(eid) or {}).get("tier")
+                tier = _field(enemies.get(eid), "tier")
                 if tier in used:
                     used[tier].add(eid)
 

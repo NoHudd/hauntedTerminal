@@ -17,7 +17,7 @@ def test_gauntlet_is_ordered_by_threat() -> None:
 
     def threat(eid: str) -> float:
         e = enemies[eid]
-        return (e.get("health", 0) or 0) + (e.get("damage", 0) or 0) * 8
+        return (e.health or 0) + (e.damage or 0) * 8
 
     threats = [threat(e) for e in ids]
     assert threats == sorted(threats), "gauntlet must ramp easy -> hard"

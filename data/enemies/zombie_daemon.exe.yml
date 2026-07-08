@@ -12,3 +12,4 @@ drops:
 on_defeat:
   message: The zombie daemon process finally terminates, leaving behind fragments of its corrupted code. 
 tier: 1
+experience: 18

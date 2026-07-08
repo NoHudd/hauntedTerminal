@@ -197,9 +197,9 @@ class ImprovedGameEngine:
                     errors.append(f"Room '{room_id}' references unknown enemy '{enemy_id}'")
 
         for enemy_id, enemy in enemies.items():
-            # Enemy drop references
-            for drop in enemy.get("drops", []):
-                drop_item = drop.get("item")
+            # Enemy drop references (enemy is a typed Enemy model)
+            for drop in enemy.drops:
+                drop_item = drop.item
                 if drop_item and drop_item not in items:
                     errors.append(f"Enemy '{enemy_id}' drop references unknown item '{drop_item}'")
 

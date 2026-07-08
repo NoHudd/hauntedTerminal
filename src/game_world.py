@@ -1084,9 +1084,14 @@ class GameWorld:
             debug_log(f"WARNING: Requested non-existent enemy: {enemy_id}")
             debug_log(f"Available enemy IDs: {list(self.enemies.keys())}")
             return enemy
-        
+
         debug_log(f"Retrieved enemy data for {enemy_id}")
-        
+
+        # Boundary: typed template model -> plain runtime dict. Everything below
+        # (scaling, combat, sim) stays dict-based and unchanged.
+        if not isinstance(enemy, dict):
+            enemy = enemy.model_dump(exclude_unset=True)
+
         # Apply class-based scaling if player class is provided
         if player_class:
             enemy = self.scale_enemy_stats(enemy, player_class)
@@ -1144,7 +1149,7 @@ class GameWorld:
             # Try to find by checking enemy display names in all rooms
             for potential_enemy_id, location in self.enemy_locations.items():
                 enemy_data = self.enemies.get(potential_enemy_id)
-                if enemy_data and enemy_data.get("name") == enemy_id:
+                if enemy_data and enemy_data.name == enemy_id:
                     room_id = location
                     del self.enemy_locations[potential_enemy_id]
                     enemy_id = potential_enemy_id  # Use the actual ID for further operations
@@ -1305,7 +1310,8 @@ class GameWorld:
         if enemies_in_room:
             full_description += "\n[bold red]Enemies:[/bold red]\n"
             for enemy_id in enemies_in_room:
-                enemy_name = self.enemies.get(enemy_id, {}).get('name', enemy_id)
+                e = self.enemies.get(enemy_id)
+                enemy_name = e.name if e else enemy_id
                 full_description += f"- {enemy_name}\n"
 
         # NPCs

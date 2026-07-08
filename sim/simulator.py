@@ -203,7 +203,7 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
                 player.health / max(1, player.max_health),
             )
         cleared += 1
-        base = enemy.get("harvesting_cycles", 50)
+        base = enemy.get("experience", 50)
         if enemy.get("boss_room") or enemy.get("boss_enemy"):
             base *= 3
         player.harvest_cycles(difficulty.scale_xp(base))
