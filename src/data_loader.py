@@ -9,31 +9,17 @@ _weapon_data_cache = {}
 _abilities_data_cache = None
 
 def load_class_data():
-    """Load character class data from YAML"""
+    """Load character classes as typed engine CharacterClass models (id -> model)."""
     global _class_data_cache
-    
-    # Return cached data if available
+
     if _class_data_cache is not None:
         return _class_data_cache
-    
+
     try:
-        # Try to load from classes.yaml
-        filepath = 'data/classes.yaml'
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as file:
-                data = yaml.safe_load(file)
-                if data is None:
-                    debug_log("ERROR: Empty classes file")
-                    return {}
-                    
-                # Store in cache
-                _class_data_cache = data.get("classes", {})
-                debug_log(f"Loaded class data: {list(_class_data_cache.keys())}")
-                return _class_data_cache
-        else:
-            debug_log("ERROR: Classes file not found at path: " + filepath)
-            return {}
-            
+        from engine.content.loader import load_classes
+        _class_data_cache = {str(cid): klass for cid, klass in load_classes("data").items()}
+        debug_log(f"Loaded class data: {list(_class_data_cache.keys())}")
+        return _class_data_cache
     except Exception as e:
         debug_log(f"ERROR loading class data: {e}")
         return {}

@@ -139,7 +139,8 @@ def _build_player(class_id: str) -> Player:
     player = Player("SimBot", class_id)
     combat_system.initialize_cooldowns(player.player_id)
     classes = load_class_data()
-    weapon_id = classes.get(class_id, {}).get("starter_weapon")
+    cls = classes.get(class_id)
+    weapon_id = cls.starter_weapon if cls else None
     if weapon_id:
         weapon = load_weapon_data(weapon_id)
         if weapon:

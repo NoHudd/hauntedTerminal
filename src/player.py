@@ -82,10 +82,10 @@ class Player:
             debug_log(f"Invalid class '{self.player_class}' provided, defaulting to guardian.")
             class_info = classes_data.get("guardian")
 
-        self.max_health = class_info.get("base_health", 100)
+        self.max_health = class_info.base_health
         self.health = self.max_health
-        self.total_damage = class_info.get("base_damage", 5)
-        self.class_description = class_info.get("description", "An explorer in the system.")
+        self.total_damage = class_info.base_damage
+        self.class_description = class_info.description
 
         debug_log(f"Player class set to {self.player_class} with {self.health} HP and {self.total_damage} base damage.")
 
@@ -98,7 +98,7 @@ class Player:
         #         self.equip_weapon(starter_weapon_id)
 
         # Load starter abilities
-        self.starter_abilities = class_info.get("starter_abilities", [])
+        self.starter_abilities = class_info.starter_abilities
 
         # Give starter consumables to help survive early game
         self._add_starter_items()

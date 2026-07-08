@@ -177,11 +177,10 @@ class ImprovedGameEngine:
 
         # Load class data to validate starter weapons
         try:
-            import yaml as _yaml
-            with open("data/classes.yaml") as f:
-                class_data = _yaml.safe_load(f).get("classes", {})
+            from src.data_loader import load_class_data
+            class_data = load_class_data()
             for cls_name, cls_info in class_data.items():
-                weapon = cls_info.get("starter_weapon")
+                weapon = cls_info.starter_weapon
                 if weapon and weapon not in items:
                     errors.append(f"Class '{cls_name}' starter_weapon '{weapon}' not found in items")
         except Exception as e:
@@ -688,19 +687,19 @@ class ImprovedGameEngine:
             ]
 
             for i, (class_id, cls) in enumerate(classes.items(), 1):
-                d = cls.get("display", {})
-                color = d.get("color", "white")
-                hp_color = d.get("hp_color", "white")
-                dmg_color = d.get("dmg_color", "white")
+                d = cls.display
+                color = d.color
+                hp_color = d.hp_color
+                dmg_color = d.dmg_color
                 icon = self._CLASS_ICONS.get(class_id, "•")
-                name = cls.get("name", class_id).upper()
-                tagline = cls.get("description", "").split(" - ", 1)
+                name = cls.name.upper()
+                tagline = cls.description.split(" - ", 1)
                 tagline_main = tagline[0] if tagline else ""
                 tagline_sub = tagline[1] if len(tagline) > 1 else ""
-                hp = d.get("hp_label", "")
-                dmg = d.get("dmg_label", "")
-                weapon = d.get("weapon_name", "")
-                pref = ", ".join(cls.get("preferred_zones", []) or [])
+                hp = d.hp_label
+                dmg = d.dmg_label
+                weapon = d.weapon_name
+                pref = ", ".join(cls.preferred_zones or [])
 
                 body = Text()
                 body.append(tagline_main + "\n", style="italic")
@@ -756,9 +755,11 @@ class ImprovedGameEngine:
         try:
             from src.data_loader import load_class_data
             classes = load_class_data()
-            cls = classes.get(self.selected_class, {})
-            selected_class_name = cls.get("name", self.selected_class.title())
-            selected_class_desc = cls.get("display", {}).get("echo_description", "a mysterious entity")
+            cls = classes.get(self.selected_class)
+            selected_class_name = cls.name if cls else self.selected_class.title()
+            selected_class_desc = (
+                cls.display.echo_description if cls else "a mysterious entity"
+            )
             
             tutorial_intro = f"""
 [bold cyan]>>> ECHO SYSTEM INITIALIZING... <<<[/bold cyan]

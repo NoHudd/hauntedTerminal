@@ -39,7 +39,8 @@ class CombatSystem:
         """Get available attacks for a specific character class from classes.yaml."""
         from src.data_loader import load_class_data
         class_data = load_class_data()
-        attacks = class_data.get(player_class, {}).get("attacks", ["strike"])
+        cls = class_data.get(player_class)
+        attacks = (cls.attacks if cls else None) or ["strike"]
         debug_log(f"Available attacks for {player_class} class: {attacks}")
         return attacks
     
