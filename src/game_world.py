@@ -109,8 +109,8 @@ class GameWorld:
             return enemy_data
         
         # Get class scaling type
-        class_info = self.class_data.get(player_class, {})
-        power_scaling = class_info.get("power_scaling", "balanced")
+        class_info = self.class_data.get(player_class)
+        power_scaling = class_info.power_scaling if class_info else "balanced"
         
         # Create scaled copy to avoid modifying original data
         scaled_enemy = enemy_data.copy()
@@ -219,15 +219,9 @@ class GameWorld:
             debug_log(f"Room {room_id} initialized with {item_count} items")
     
     def _load_class_data(self):
-        """Load class configuration data for world generation."""
-        try:
-            with open('data/classes.yaml', 'r') as file:
-                data = yaml.safe_load(file)
-                debug_log(f"Loaded class data for {len(data.get('classes', {}))} classes")
-                return data.get('classes', {})
-        except Exception as e:
-            debug_log(f"Error loading class data: {e}")
-            return {}
+        """Class data as typed CharacterClass models (delegates to the shared loader)."""
+        from src.data_loader import load_class_data
+        return load_class_data()
     
     def place_items(self, player_class=None):
         """
@@ -253,7 +247,7 @@ class GameWorld:
         debug_log(f"Ensuring starter weapon availability for class: {player_class}")
         
         class_info = self.class_data[player_class]
-        starter_weapon = class_info.get("starter_weapon")
+        starter_weapon = class_info.starter_weapon
         
         if not starter_weapon:
             debug_log(f"No starter weapon defined for class {player_class}")
@@ -280,9 +274,9 @@ class GameWorld:
         debug_log(f"Executing class-based placement for {player_class}")
 
         class_info = self.class_data[player_class]
-        preferred_zones = class_info.get("preferred_zones", [])
-        loot_preferences = class_info.get("loot_preference", [])
-        power_scaling = class_info.get("power_scaling", "balanced")
+        preferred_zones = class_info.preferred_zones
+        loot_preferences = class_info.loot_preference
+        power_scaling = class_info.power_scaling
 
         # Place keys first so loot pass doesn't compete for room slots.
         self._place_keys()
@@ -908,8 +902,8 @@ class GameWorld:
     def place_starter_items(self, player_class: str) -> None:
         """Place class-appropriate starter items in home_grove after character creation."""
         # Get starter weapon from class data
-        class_info = self.class_data.get(player_class.lower(), {})
-        starter_weapon = class_info.get("starter_weapon")
+        class_info = self.class_data.get(player_class.lower())
+        starter_weapon = class_info.starter_weapon if class_info else None
 
         if starter_weapon and starter_weapon in self.items:
             # Force-place directly into item_locations — skip the item cap check so
