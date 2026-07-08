@@ -126,16 +126,14 @@ def load_enemy_data():
         debug_log(f"ERROR loading enemy data: {e}")
         return {}
 
-# (Optional) Load all rooms
 def load_room_data():
-    """Load all rooms from data/rooms."""
-    rooms = {}
-    room_folder = "data/rooms/"
-    for filename in os.listdir(room_folder):
-        if filename.endswith(".yaml") or filename.endswith(".yml"):
-            room_id = filename.replace(".yaml", "").replace(".yml", "")
-            rooms[room_id] = load_yaml(os.path.join(room_folder, filename))
-    return rooms
+    """Load all rooms as typed engine Room models (id -> model)."""
+    try:
+        from engine.content.loader import load_rooms
+        return {str(rid): r for rid, r in load_rooms("data").items()}
+    except Exception as e:
+        debug_log(f"ERROR loading room data: {e}")
+        return {}
 
 
 # Consumables cache

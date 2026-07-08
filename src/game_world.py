@@ -150,9 +150,9 @@ class GameWorld:
             # Initialize room state
             self.room_states[room_id] = {
                 "visited": False,
-                "locked": room_data.get("locked", False),
-                "hidden": room_data.get("hidden", False),
-                "key_required": room_data.get("key_required", None)
+                "locked": room_data.locked,
+                "hidden": room_data.hidden,
+                "key_required": room_data.key_required,
             }
             
             if self.room_states[room_id]["locked"]:
@@ -190,7 +190,7 @@ class GameWorld:
             
             # Initialize NPCs in this room
             npc_count = 0
-            for npc_id in room_data.get("npcs", []) or []:
+            for npc_id in room_data.npcs or []:
                 if npc_id in self.npcs:
                     self.npc_locations[npc_id] = room_id
                     npc_count += 1
@@ -203,7 +203,7 @@ class GameWorld:
             # Initialize fixed items in this room (from room data)
             # This ensures quest/fixed items are always in the right place
             item_count = 0
-            for item_id in room_data.get("items", []) or []:
+            for item_id in room_data.items or []:
                 if item_id in self.items:
                     self.item_locations[item_id] = room_id
                     item_count += 1
@@ -701,7 +701,7 @@ class GameWorld:
         rooms_by_zone = {}
         
         for room_id, room_data in self.rooms.items():
-            zone = room_data.get("zone", "neutral")
+            zone = room_data.zone or "neutral"
             if zone not in rooms_by_zone:
                 rooms_by_zone[zone] = []
             rooms_by_zone[zone].append(room_id)
@@ -930,7 +930,8 @@ class GameWorld:
         allowed_zones = item_data.get("allowed_zones", [])
         if allowed_zones:
             room_prefix = room_id.split("_", 1)[0]
-            room_zone = self.rooms.get(room_id, {}).get("zone", "")
+            r = self.rooms.get(room_id)
+            room_zone = r.zone if r else ""
             if room_prefix not in allowed_zones and room_zone not in allowed_zones:
                 return False
         return True
@@ -1014,8 +1015,8 @@ class GameWorld:
 
         # As a backup, check the room data directly (some items might not be in the tracking dict)
         room_data = self.get_room(room_id)
-        if room_data and "items" in room_data:
-            items_in_room_data = room_data.get("items", []) or []  # Handle None by returning empty list
+        if room_data and room_data.items:
+            items_in_room_data = room_data.items or []  # Handle None by returning empty list
             debug_log(f"Items from room data for {room_id}: {items_in_room_data}")
             # Combine both sources, ensuring no duplicates
             combined_items = list(set(items_from_locations + items_in_room_data))
@@ -1042,8 +1043,8 @@ class GameWorld:
         
         # As a backup, check the room data directly (some enemies might not be in the tracking dict)
         room_data = self.get_room(room_id)
-        if room_data and "enemies" in room_data:
-            enemies_in_room_data = room_data.get("enemies", []) or []  # Handle None by returning empty list
+        if room_data and room_data.enemies:
+            enemies_in_room_data = room_data.enemies or []  # Handle None by returning empty list
             # Combine both sources, ensuring no duplicates
             combined_enemies = list(set(enemies_from_locations + enemies_in_room_data))
             debug_log(f"Found {len(combined_enemies)} enemies in room {room_id}: {combined_enemies}")
@@ -1060,8 +1061,8 @@ class GameWorld:
         
         # As a backup, check the room data directly (some npcs might not be in the tracking dict)
         room_data = self.get_room(room_id)
-        if room_data and "npcs" in room_data:
-            npcs_in_room_data = room_data.get("npcs", []) or []  # Handle None by returning empty list
+        if room_data and room_data.npcs:
+            npcs_in_room_data = room_data.npcs or []  # Handle None by returning empty list
             # Combine both sources, ensuring no duplicates
             combined_npcs = list(set(npcs_from_locations + npcs_in_room_data))
             debug_log(f"Found {len(combined_npcs)} NPCs in room {room_id}: {combined_npcs}")
@@ -1159,16 +1160,16 @@ class GameWorld:
         # If we found the room, also make sure to remove from the room's direct data
         if room_id:
             room_data = self.get_room(room_id)
-            if room_data and "enemies" in room_data:
-                if enemy_id in room_data["enemies"]:
-                    room_data["enemies"].remove(enemy_id)
+            if room_data and room_data.enemies:
+                if enemy_id in room_data.enemies:
+                    room_data.enemies.remove(enemy_id)
                     debug_log(f"Removed enemy {enemy_id} from room {room_id} data")
-                
+
                 # Check if there are similar IDs (with extensions) to remove
                 enemy_base_id = enemy_id.split('.')[0]
-                for e_id in list(room_data["enemies"]):
+                for e_id in list(room_data.enemies):
                     if e_id.startswith(enemy_base_id):
-                        room_data["enemies"].remove(e_id)
+                        room_data.enemies.remove(e_id)
                         debug_log(f"Removed related enemy {e_id} from room {room_id} data")
             
             # Emit enemy defeated event
@@ -1230,7 +1231,7 @@ class GameWorld:
         if not room:
             debug_log(f"WARNING: Attempted to get exits for non-existent room: {room_id}")
             return []
-        exits = room.get("exits", [])
+        exits = room.exits
         debug_log(f"Room {room_id} has exits: {exits}")
         return exits
     
@@ -1293,8 +1294,8 @@ class GameWorld:
             return "You are in a void. Something is terribly wrong."
 
         # Name and description
-        name = room_data.get('name', 'An Unnamed Room')
-        description = room_data.get('description', 'A featureless space.')
+        name = room_data.name or 'An Unnamed Room'
+        description = room_data.description or 'A featureless space.'
         full_description = f"[bold cyan]{name}[/bold cyan]\n{description}\n"
 
         # Items

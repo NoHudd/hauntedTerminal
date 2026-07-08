@@ -42,12 +42,12 @@ def main_path_enemy_ids() -> list[str]:
     enemies = load_enemy_data()
 
     # Main path only: skip secret, key-gated, or class-locked side content.
+    # rooms are typed Room models (from load_room_data).
     main_path = {
         rid: room for rid, room in rooms.items()
-        if isinstance(room, dict)
-        and not room.get("hidden", False)
-        and not room.get("locked", False)
-        and not room.get("class_restriction")
+        if not room.hidden
+        and not room.locked
+        and not room.class_restriction
     }
     rolled = roll_room_enemies(main_path, enemies, rng)
 
