@@ -459,9 +459,9 @@ class CommandHandler:
         self.world.set_room_visited(room_id)
         
         # Get room information
-        room_name = room.get("name", room_id)
+        room_name = room.name or room_id
         title = Text(f"{room_name}", style="bold white on dark_blue")
-        description = Text(room.get("description", "No description available."))
+        description = Text(room.description or "No description available.")
 
         # Get atmospheric enhancement
         atmospheric = self.get_atmospheric_description(room_id)

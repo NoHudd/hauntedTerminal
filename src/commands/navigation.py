@@ -257,7 +257,7 @@ class CdCommand(Command):
         ctx.player.move_to(directory)
 
         new_room = ctx.world.get_room(directory)
-        room_name = new_room.get("name", directory) if new_room else directory
+        room_name = new_room.name if new_room else directory
         ctx.output.write(f"[bold cyan]Entering {room_name}...[/bold cyan]")
         debug_log(f"Successfully moved player to {directory}")
 
