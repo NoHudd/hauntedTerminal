@@ -667,8 +667,8 @@ class CombatSession:
                 "CombatSession"
             )
 
-            # Award harvesting cycles (XP)
-            base_cycles = self.enemy_data.get("harvesting_cycles", 50)
+            # Award harvesting cycles (XP) from the enemy's authored experience value.
+            base_cycles = self.enemy_data.get("experience", 50)
             is_boss = self.enemy_data.get("boss_room", False) or self.enemy_data.get("boss_enemy", False)
             if is_boss:
                 base_cycles *= 3

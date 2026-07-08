@@ -116,23 +116,15 @@ def load_yaml(filepath):
 
 # (Optional) Load all enemies
 def load_enemy_data():
-    """Load all enemies from data/enemies/ directory."""
-    enemies = {}
-    enemy_folder = "data/enemies/"
-    
-    if not os.path.exists(enemy_folder):
-        debug_log(f"Enemy folder {enemy_folder} not found")
+    """Load all enemies as typed engine Enemy models (id -> model, dots kept)."""
+    try:
+        from engine.content.loader import load_enemies
+        enemies = {str(eid): e for eid, e in load_enemies("data").items()}
+        debug_log(f"Total enemies loaded: {len(enemies)}")
         return enemies
-    
-    for filename in os.listdir(enemy_folder):
-        if filename.endswith(".yaml") or filename.endswith(".yml"):
-            enemy_id = filename.replace(".yaml", "").replace(".yml", "")
-            enemy_data = load_yaml(os.path.join(enemy_folder, filename))
-            enemies[enemy_id] = enemy_data
-            debug_log(f"Loaded enemy data for {enemy_id}")
-    
-    debug_log(f"Total enemies loaded: {len(enemies)}")
-    return enemies
+    except Exception as e:
+        debug_log(f"ERROR loading enemy data: {e}")
+        return {}
 
 # (Optional) Load all rooms
 def load_room_data():

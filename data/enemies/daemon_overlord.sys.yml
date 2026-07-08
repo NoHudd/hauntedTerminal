@@ -17,3 +17,4 @@ loot_table:
     chance: 100
   - rarity: epic
     chance: 100 
+experience: 150

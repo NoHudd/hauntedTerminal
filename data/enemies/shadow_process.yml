@@ -35,3 +35,4 @@ special_mechanics:
   dynamic_damage: true
   cannot_flee: true
   respawns_on_trial_retry: true
+experience: 100

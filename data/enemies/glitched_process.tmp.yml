@@ -11,3 +11,4 @@ on_defeat:
   message: The corrupted process terminates cleanly. Its memory is freed.
 
 tier: 1
+experience: 16

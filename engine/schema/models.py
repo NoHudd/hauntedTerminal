@@ -108,6 +108,16 @@ class Enemy(_Base):
     is_boss: bool = False
     auto_attack: bool = True
     drops: list[Drop] = Field(default_factory=list)
+    tier: int | None = None
+    experience: int = 0
+    dialogue: str = ""
+    attack_patterns: list = Field(default_factory=list)
+    loot_table: list = Field(default_factory=list)
+
+    @field_validator("dialogue", mode="before")
+    @classmethod
+    def _dialogue_to_str(cls, v: object) -> str:
+        return "" if v is None else str(v)
 
 
 class Item(_Base):

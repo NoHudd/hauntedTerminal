@@ -24,8 +24,9 @@ from src.data_loader import load_enemy_data, load_room_data
 _DAMAGE_WEIGHT = 8
 
 
-def _threat(enemy: dict) -> float:
-    return (enemy.get("health", 0) or 0) + (enemy.get("damage", 0) or 0) * _DAMAGE_WEIGHT
+def _threat(enemy) -> float:
+    # enemy is a typed Enemy model (from load_enemy_data()).
+    return (enemy.health or 0) + (enemy.damage or 0) * _DAMAGE_WEIGHT
 
 
 def main_path_enemy_ids() -> list[str]:

@@ -10,3 +10,4 @@ drops: []
 on_defeat:
   message: The corrupted process dissolves into bits of binary code, harmless once more. 
 tier: 1
+experience: 15

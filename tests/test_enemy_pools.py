@@ -70,7 +70,7 @@ def test_bosses_are_not_pooled() -> None:
     enemies = load_enemy_data()
     for boss in ("daemon_overlord.sys", "corruption_overlord.exe"):
         assert boss in enemies
-        assert enemies[boss].get("tier") is None, f"{boss} must not be pooled"
+        assert enemies[boss].tier is None, f"{boss} must not be pooled"
 
 
 import glob
@@ -132,7 +132,7 @@ def test_world_rolls_and_persists_enemies() -> None:
         assert len(placed) == 2 and len(set(placed)) == 2
         from src.data_loader import load_enemy_data
         enemies = load_enemy_data()
-        assert all(enemies[e].get("tier") == 2 for e in placed)
+        assert all(enemies[e].tier == 2 for e in placed)
         # persistence: saved state carries the rolled placement verbatim
         state = world.get_state()
         assert state["enemy_locations"] == world.enemy_locations
