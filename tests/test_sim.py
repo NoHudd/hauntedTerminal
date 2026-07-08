@@ -45,7 +45,7 @@ def test_class_weapons_excludes_legendary_but_allows_epic() -> None:
     from sim.simulator import _class_weapons
 
     with open("data/items/weapons.yaml") as fh:
-        weapons = (yaml.safe_load(fh) or {})["weapons"]
+        weapons = yaml.safe_load(fh) or {}
     legendary = {
         wid for wid, d in weapons.items()
         if str(d.get("rarity", "")).lower() == "legendary"

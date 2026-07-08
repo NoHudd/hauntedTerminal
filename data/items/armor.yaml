@@ -1,122 +1,121 @@
-armor:
-  # UNCOMMON ARMOR
-  firewall_mantle:
-    name: "Firewall Mantle"
-    description: "A protective cloak woven from firewall rules. Used primarily for traversing /tmp without suffering heat damage."
-    type: "armor"
-    defense: 5
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: uncommon
-    tags: ["armor", "firewall", "heat_resistance"]
-    allowed_zones: ["bin", "etc", "usr", "tmp"]
-    persistence: "persistent"
-    special_effects:
-      - type: "environmental_immunity"
-        environment: "heat"
-        description: "Grants immunity to heat damage in /tmp"
-      - type: "fire_resistance"
-        value: 50
-        description: "Reduces fire-based damage by 50%"
+# UNCOMMON ARMOR
+firewall_mantle:
+  name: "Firewall Mantle"
+  description: "A protective cloak woven from firewall rules. Used primarily for traversing /tmp without suffering heat damage."
+  type: "armor"
+  defense: 5
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: uncommon
+  tags: ["armor", "firewall", "heat_resistance"]
+  allowed_zones: ["bin", "etc", "usr", "tmp"]
+  persistence: "persistent"
+  special_effects:
+    - type: "environmental_immunity"
+      environment: "heat"
+      description: "Grants immunity to heat damage in /tmp"
+    - type: "fire_resistance"
+      value: 50
+      description: "Reduces fire-based damage by 50%"
 
-  encrypted_plate:
-    name: "Encrypted Plate"
-    description: "A hardened shell of encrypted metadata. Its complex algorithms deflect spam attacks and data corruption."
-    type: "armor"
-    defense: 10
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: uncommon
-    tags: ["armor", "encrypted", "anti_spam"]
-    allowed_zones: ["bin", "etc", "usr", "lib"]
-    persistence: "persistent"
-    special_effects:
-      - type: "spam_immunity"
-        description: "Completely blocks damage from spam-type attacks"
-      - type: "data_corruption_resistance"
-        value: 30
-        description: "Reduces corruption damage by 30%"
+encrypted_plate:
+  name: "Encrypted Plate"
+  description: "A hardened shell of encrypted metadata. Its complex algorithms deflect spam attacks and data corruption."
+  type: "armor"
+  defense: 10
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: uncommon
+  tags: ["armor", "encrypted", "anti_spam"]
+  allowed_zones: ["bin", "etc", "usr", "lib"]
+  persistence: "persistent"
+  special_effects:
+    - type: "spam_immunity"
+      description: "Completely blocks damage from spam-type attacks"
+    - type: "data_corruption_resistance"
+      value: 30
+      description: "Reduces corruption damage by 30%"
 
-  # RARE ARMOR
-  immutable_shield:
-    name: "Immutable Shield"
-    description: "A file with the 'i' attribute set. This shield cannot be modified, degraded, or destroyed by any means."
-    type: "armor"
-    defense: 20
-    allowed_classes:
-      - guardian
-    rarity: rare
-    tags: ["armor", "immutable", "shield", "indestructible"]
-    allowed_zones: ["lib", "usr", "dev", "etc"]
-    persistence: "persistent"
-    special_effects:
-      - type: "no_degradation"
-        description: "Cannot be degraded or destroyed by any effect"
-      - type: "immutable"
-        description: "Defense value cannot be reduced by debuffs or corrosion"
+# RARE ARMOR
+immutable_shield:
+  name: "Immutable Shield"
+  description: "A file with the 'i' attribute set. This shield cannot be modified, degraded, or destroyed by any means."
+  type: "armor"
+  defense: 20
+  allowed_classes:
+    - guardian
+  rarity: rare
+  tags: ["armor", "immutable", "shield", "indestructible"]
+  allowed_zones: ["lib", "usr", "dev", "etc"]
+  persistence: "persistent"
+  special_effects:
+    - type: "no_degradation"
+      description: "Cannot be degraded or destroyed by any effect"
+    - type: "immutable"
+      description: "Defense value cannot be reduced by debuffs or corrosion"
 
-  # EPIC ARMOR
-  null_void_cloak:
-    name: "Null-Void Cloak"
-    description: "Woven from the fabric of /dev/null itself. Those who wear it flicker between existence and non-existence."
-    type: "armor"
-    defense: 12
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: epic
-    tags: ["armor", "cloak", "evasion", "void"]
-    allowed_zones: ["dev", "root"]
-    persistence: "persistent"
-    special_effects:
-      - type: "evasion_boost"
-        value: 25
-        description: "+25% chance to evade all attacks"
-      - type: "environmental_immunity"
-        environment: "void"
-        description: "Grants immunity to void pull damage in /dev/null"
-      - type: "de_allocation_immunity"
-        description: "Immune to de-allocation and instant death effects"
+# EPIC ARMOR
+null_void_cloak:
+  name: "Null-Void Cloak"
+  description: "Woven from the fabric of /dev/null itself. Those who wear it flicker between existence and non-existence."
+  type: "armor"
+  defense: 12
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: epic
+  tags: ["armor", "cloak", "evasion", "void"]
+  allowed_zones: ["dev", "root"]
+  persistence: "persistent"
+  special_effects:
+    - type: "evasion_boost"
+      value: 25
+      description: "+25% chance to evade all attacks"
+    - type: "environmental_immunity"
+      environment: "void"
+      description: "Grants immunity to void pull damage in /dev/null"
+    - type: "de_allocation_immunity"
+      description: "Immune to de-allocation and instant death effects"
 
-  # RARE ARMOR (mid/late-zone, one per non-guardian class)
-  stack_guard_vest:
-    name: "Stack Guard Vest"
-    description: "Canary-laced plating that trips before a corruption can smash the frame. Favored by weavers who court overflow."
-    type: "armor"
-    defense: 15
-    allowed_classes:
-      - weaver
-    rarity: rare
-    tags: ["armor", "stack", "protection"]
-    allowed_zones: ["usr", "lib", "dev"]
-    persistence: "persistent"
+# RARE ARMOR (mid/late-zone, one per non-guardian class)
+stack_guard_vest:
+  name: "Stack Guard Vest"
+  description: "Canary-laced plating that trips before a corruption can smash the frame. Favored by weavers who court overflow."
+  type: "armor"
+  defense: 15
+  allowed_classes:
+    - weaver
+  rarity: rare
+  tags: ["armor", "stack", "protection"]
+  allowed_zones: ["usr", "lib", "dev"]
+  persistence: "persistent"
 
-  mantra_ward:
-    name: "Mantra Ward"
-    description: "A looping incantation of syscalls that wraps the wearer in recited protection. Shaman work."
-    type: "armor"
-    defense: 15
-    allowed_classes:
-      - shaman
-    rarity: rare
-    tags: ["armor", "mystical", "ward"]
-    allowed_zones: ["usr", "lib", "mnt"]
-    persistence: "persistent"
+mantra_ward:
+  name: "Mantra Ward"
+  description: "A looping incantation of syscalls that wraps the wearer in recited protection. Shaman work."
+  type: "armor"
+  defense: 15
+  allowed_classes:
+    - shaman
+  rarity: rare
+  tags: ["armor", "mystical", "ward"]
+  allowed_zones: ["usr", "lib", "mnt"]
+  persistence: "persistent"
 
-  # EPIC ARMOR (guardian tank capstone)
-  aegis_partition:
-    name: "Aegis Partition"
-    description: "A read-only partition raised like a bulwark. Writes bounce off it; so do most attacks."
-    type: "armor"
-    defense: 22
-    allowed_classes:
-      - guardian
-    rarity: epic
-    tags: ["armor", "partition", "bulwark"]
-    allowed_zones: ["dev", "root"]
-    persistence: "persistent"
+# EPIC ARMOR (guardian tank capstone)
+aegis_partition:
+  name: "Aegis Partition"
+  description: "A read-only partition raised like a bulwark. Writes bounce off it; so do most attacks."
+  type: "armor"
+  defense: 22
+  allowed_classes:
+    - guardian
+  rarity: epic
+  tags: ["armor", "partition", "bulwark"]
+  allowed_zones: ["dev", "root"]
+  persistence: "persistent"

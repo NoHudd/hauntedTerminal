@@ -11,3 +11,7 @@ npcs: []
 enemy_tier: 1
 enemy_count: 1
 hidden: true
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/archive"
+aliases: ["/archive", "archive"]

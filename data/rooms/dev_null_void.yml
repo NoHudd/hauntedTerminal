@@ -39,3 +39,7 @@ environmental_effect:
 story_location: true
 story_beats:
   - awakening_site 
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/dev"
+aliases: ["/dev", "/dev/null", "dev", "null", "void"]

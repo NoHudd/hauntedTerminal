@@ -33,3 +33,7 @@ class_affinity: "neutral"
 story_location: true
 story_beats:
   - identity_retrieval 
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/home"
+aliases: ["/home", "/home/grove", "home", "grove"]

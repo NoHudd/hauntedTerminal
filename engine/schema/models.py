@@ -60,6 +60,8 @@ class Room(_Base):
     zone: str = ""
     zone_level: int = 0
     requires_sudo: bool = False
+    path: str = ""
+    aliases: list[str] = Field(default_factory=list)
 
     _coerce_locked = field_validator("locked", mode="before")(_falsey_to_bool)
     _coerce_hidden = field_validator("hidden", mode="before")(_falsey_to_bool)
