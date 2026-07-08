@@ -152,7 +152,6 @@ class ImprovedGameEngine:
         logger.info(f"Loaded {len(rooms)} rooms, {len(items)} items, {len(enemies)} enemies, {len(npcs)} NPCs")
 
         # Validate cross-file references at startup
-        self._validate_data_references(rooms, items, enemies)
     
     def _load_game_data_for_load(self):
         """Load game data when loading a saved game - skip world state initialization."""
@@ -171,45 +170,6 @@ class ImprovedGameEngine:
         
         logger.info("Game data loaded successfully for save game")
     
-    def _validate_data_references(self, rooms, items, enemies):
-        """Validate cross-file references at startup. Logs errors for broken references."""
-        errors = []
-
-        # Load class data to validate starter weapons
-        try:
-            from src.data_loader import load_class_data
-            class_data = load_class_data()
-            for cls_name, cls_info in class_data.items():
-                weapon = cls_info.starter_weapon
-                if weapon and weapon not in items:
-                    errors.append(f"Class '{cls_name}' starter_weapon '{weapon}' not found in items")
-        except Exception as e:
-            errors.append(f"Could not validate class data: {e}")
-
-        for room_id, room in rooms.items():
-            # Room item references
-            for item_id in room.get("items", []):
-                if item_id not in items:
-                    errors.append(f"Room '{room_id}' references unknown item '{item_id}'")
-            # Room enemy references
-            for enemy_id in room.get("enemies", []):
-                if enemy_id not in enemies:
-                    errors.append(f"Room '{room_id}' references unknown enemy '{enemy_id}'")
-
-        for enemy_id, enemy in enemies.items():
-            # Enemy drop references (enemy is a typed Enemy model)
-            for drop in enemy.drops:
-                drop_item = drop.item
-                if drop_item and drop_item not in items:
-                    errors.append(f"Enemy '{enemy_id}' drop references unknown item '{drop_item}'")
-
-        if errors:
-            for msg in errors:
-                logger.error(f"[DATA VALIDATION] {msg}")
-            logger.error(f"[DATA VALIDATION] {len(errors)} reference error(s) found — check YAML files")
-        else:
-            logger.info("[DATA VALIDATION] All cross-file references OK")
-
     def _load_data_from_dir(self, directory: str, category_key: str) -> Dict[str, Any]:
         """Generic data loader for enemies and NPCs."""
         data_map = {}

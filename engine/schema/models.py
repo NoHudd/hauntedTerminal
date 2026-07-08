@@ -60,6 +60,7 @@ class Room(_Base):
     zone: str = ""
     zone_level: int = 0
     requires_sudo: bool = False
+    class_restriction: str = ""
     path: str = ""
     aliases: list[str] = Field(default_factory=list)
 

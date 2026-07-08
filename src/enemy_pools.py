@@ -35,7 +35,7 @@ def roll_room_enemies(rooms: dict, enemies: dict, rng_module) -> dict[str, list[
 
     # Pass 1: pinned rooms keep their enemies and reserve those ids per tier.
     for room_id, room in rooms.items():
-        pinned = (room or {}).get("enemies")
+        pinned = _field(room, "enemies")
         if pinned:
             result[room_id] = list(pinned)
             for eid in pinned:
@@ -45,9 +45,9 @@ def roll_room_enemies(rooms: dict, enemies: dict, rng_module) -> dict[str, list[
 
     # Pass 2: tier rooms draw distinct, still-available enemies of their tier.
     for room_id, room in rooms.items():
-        tier = (room or {}).get("enemy_tier")
+        tier = _field(room, "enemy_tier")
         if tier in POOL_TIERS:
-            count = (room or {}).get("enemy_count", 1)
+            count = _field(room, "enemy_count") or 1
             available = [e for e in pools[tier] if e not in used[tier]]
             k = min(count, len(available))
             drawn = rng_module.sample(available, k) if k > 0 else []
