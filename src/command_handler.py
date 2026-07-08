@@ -939,7 +939,7 @@ class CommandHandler:
             dropped.append(gear_id)
 
         if dropped:
-            names = ", ".join(self.world.items.get(i, {}).get("name", i) for i in dropped)
+            names = ", ".join((self.world.get_item(i) or {}).get("name", i) for i in dropped)
             self.output.write(f"[bold yellow]The defeated enemy dropped: {names}[/bold yellow]")
             self.relist_room()
         return dropped
@@ -959,13 +959,14 @@ class CommandHandler:
         """A class-appropriate, not-yet-placed weapon/armor of this rarity, or None.
         Gear only — never a consumable — so drop tables can't inflate the heal economy."""
         target = str(rarity).lower()
-        candidates = [
-            iid for iid, data in self.world.items.items()
-            if data.get("type") in ("weapon", "armor")
-            and str(data.get("rarity", "")).lower() == target
-            and self.player.can_use_item(data)
-            and iid not in self.world.item_locations
-        ]
+        candidates = []
+        for iid in self.world.items:
+            data = self.world.get_item(iid)  # dict via boundary
+            if (data.get("type") in ("weapon", "armor")
+                    and str(data.get("rarity", "")).lower() == target
+                    and self.player.can_use_item(data)
+                    and iid not in self.world.item_locations):
+                candidates.append(iid)
         return rng.choice(candidates) if candidates else None
 
     def _handle_combat_command(self, command):

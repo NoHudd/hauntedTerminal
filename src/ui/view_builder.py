@@ -116,7 +116,7 @@ class ViewBuilder:
             # Convert exit IDs to simple paths for the exits panel
             # Shows what the user needs to type (e.g., "/var").
             # Filter out hidden rooms — they only appear after `ls -a` discovery.
-            exit_ids = room_data.get('exits', [])
+            exit_ids = room_data.exits
             exit_commands = []
             get_room_state = getattr(world, 'get_room_state', None)
             for exit_id in exit_ids:
@@ -130,7 +130,7 @@ class ViewBuilder:
             # Build enemy display names from live world state
             enemy_ids = getattr(world, 'get_enemies_in_room', lambda r: [])(room_id)
             enemy_names = [
-                world.enemies.get(eid, {}).get('name', eid)
+                getattr(world.enemies[eid], 'name', eid)
                 for eid in enemy_ids
                 if eid in getattr(world, 'enemies', {})
             ]
@@ -144,8 +144,8 @@ class ViewBuilder:
             ]
 
             return RoomView(
-                name=room_data.get('name', room_id),
-                description=room_data.get('description', 'An unknown location.'),
+                name=room_data.name or room_id,
+                description=room_data.description or 'An unknown location.',
                 exits=exit_commands,
                 enemies=enemy_names,
                 npcs=npc_names,

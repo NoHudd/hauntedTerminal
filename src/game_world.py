@@ -256,13 +256,12 @@ class GameWorld:
         # Check if the weapon item exists in the items collection
         weapon_found = False
         for item_id, item_data in self.items.items():
-            if item_id == starter_weapon or (isinstance(item_data, dict) and item_data.get("name", "").lower().replace(" ", "_") == starter_weapon):
+            name_match = item_data.name.lower().replace(" ", "_") == starter_weapon
+            if item_id == starter_weapon or name_match:
                 weapon_found = True
-                # Ensure it can spawn in safe zones like home_grove
-                allowed_zones = item_data.get("allowed_zones", [])
-                if "safe" not in allowed_zones:
-                    allowed_zones.append("safe")
-                    item_data["allowed_zones"] = allowed_zones
+                # Ensure it can spawn in safe zones like home_grove (live model mutation)
+                if "safe" not in item_data.allowed_zones:
+                    item_data.allowed_zones.append("safe")
                 debug_log(f"Starter weapon {starter_weapon} configured for dynamic placement")
                 break
                 
@@ -310,7 +309,7 @@ class GameWorld:
         spread out instead of monopolizing the random-loot pool."""
         unplaced_keys = [
             item_id for item_id, item_data in self.items.items()
-            if item_data.get("type", "").lower() == "key"
+            if str(item_data.type).lower() == "key"
             and item_id not in self.item_locations
         ]
         if not unplaced_keys:
@@ -341,8 +340,11 @@ class GameWorld:
         home_grove_items = [item_id for item_id, loc in self.item_locations.items() if loc == "home_grove"]
 
         # Check if there's already a healing consumable in home_grove
+        def _tags(iid):
+            it = self.items.get(iid)
+            return it.tags if it else []
         has_health_item = any(
-            "healing" in self.items.get(item_id, {}).get("tags", [])
+            "healing" in _tags(item_id)
             for item_id in home_grove_items
         )
 
@@ -376,6 +378,9 @@ class GameWorld:
         
         # Gather all items with placement information and organize by rarity
         for item_id, item_data in self.items.items():
+            # Typed template -> plain dict for this placement pass (read-only).
+            if not isinstance(item_data, dict):
+                item_data = item_data.model_dump(exclude_unset=True)
             # Skip if item is already placed in a fixed location
             if item_id in self.item_locations:
                 debug_log(f"Skipping item {item_id} - already placed")
@@ -765,6 +770,9 @@ class GameWorld:
         suitable_items = []
 
         for item_id, item_data in self.items.items():
+            # Typed template -> plain dict for this placement pass (read-only).
+            if not isinstance(item_data, dict):
+                item_data = item_data.model_dump(exclude_unset=True)
             # Skip already placed items
             if item_id in self.item_locations:
                 continue
@@ -874,12 +882,12 @@ class GameWorld:
         """Count how many items are currently in a room."""
         return sum(1 for item_id, loc in self.item_locations.items() if loc == room_id)
 
-    def _get_allowed_rarities_for_room(self, room_id: str, room_data: dict) -> list:
+    def _get_allowed_rarities_for_room(self, room_id: str, room_data) -> list:
         """Determine which item rarities are allowed in a room based on characteristics."""
-        # Get room characteristics
-        enemies = room_data.get('enemies', [])
+        # Get room characteristics (room_data is a typed Room model)
+        enemies = room_data.enemies
         enemy_count = len(enemies)
-        zone = room_data.get('zone', 'neutral')
+        zone = room_data.zone or 'neutral'
         is_boss_room = any('boss' in str(e).lower() or 'overlord' in str(e).lower() for e in enemies)
 
         # Determine allowed rarities
@@ -1072,11 +1080,12 @@ class GameWorld:
         return npcs_from_locations
     
     def get_item(self, item_id):
-        """Get item data by ID"""
+        """Get item data by ID (typed template dumped to a runtime dict)."""
         item = self.items.get(item_id)
         if item is None:
             debug_log(f"WARNING: Requested non-existent item: {item_id}")
-        return item
+            return None
+        return item.model_dump(exclude_unset=True) if not isinstance(item, dict) else item
     
     def get_enemy(self, enemy_id, player_class=None):
         """Get enemy data by ID, optionally scaled for player class"""
@@ -1303,7 +1312,8 @@ class GameWorld:
         if items_in_room:
             full_description += "\n[bold yellow]You see the following items:[/bold yellow]\n"
             for item_id in items_in_room:
-                item_name = self.items.get(item_id, {}).get('name', item_id)
+                it = self.items.get(item_id)
+                item_name = it.name if it else item_id
                 full_description += f"- {item_name}\n"
 
         # Enemies
