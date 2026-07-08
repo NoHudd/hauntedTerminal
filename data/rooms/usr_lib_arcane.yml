@@ -28,3 +28,7 @@ npcs:
 - echo.usr
 locked: []
 hidden: false
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/usr"
+aliases: ["/usr", "/usr/lib", "/usr/lib/arcane", "usr", "lib", "arcane"]

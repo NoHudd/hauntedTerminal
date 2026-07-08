@@ -68,7 +68,7 @@ def _class_weapons(class_id: str) -> tuple[tuple[str, int], ...]:
     """
     try:
         with open("data/items/weapons.yaml") as fh:
-            weapons = (yaml.safe_load(fh) or {}).get("weapons", {})
+            weapons = yaml.safe_load(fh) or {}
     except Exception:
         return ()
     usable = []
@@ -85,7 +85,7 @@ def _class_weapons(class_id: str) -> tuple[tuple[str, int], ...]:
 def _armor_data(armor_id: str) -> dict | None:
     try:
         with open("data/items/armor.yaml") as fh:
-            return (yaml.safe_load(fh) or {}).get("armor", {}).get(armor_id)
+            return (yaml.safe_load(fh) or {}).get(armor_id)
     except Exception:
         return None
 
@@ -98,7 +98,7 @@ def _class_armor(class_id: str) -> tuple[tuple[str, int], ...]:
     """
     try:
         with open("data/items/armor.yaml") as fh:
-            armor = (yaml.safe_load(fh) or {}).get("armor", {})
+            armor = yaml.safe_load(fh) or {}
     except Exception:
         return ()
     usable = []

@@ -25,3 +25,7 @@ locked: true
 key_required: opt_key
 class_restriction: weaver
 hidden: true
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/opt"
+aliases: ["/opt", "/opt/tower", "/opt/mage_tower", "opt", "tower"]

@@ -245,8 +245,13 @@ class ImprovedGameEngine:
         return data_map
     
     def _load_items(self) -> Dict[str, Any]:
-        """Load all items from categorized YAML files into a single dictionary."""
-        items = {}
+        """Load all items from flat YAML files into a single dict (id -> def).
+
+        Each file is a flat map of item_id -> definition; the item's own ``type``
+        field carries its category. A missing wrapper key can no longer silently
+        zero out a whole file, and a duplicate id raises instead of overwriting.
+        """
+        items: Dict[str, Any] = {}
 
         items_dir = 'data/items'
         if not os.path.exists(items_dir):
@@ -254,26 +259,26 @@ class ImprovedGameEngine:
             return items
 
         for filename in os.listdir(items_dir):
-            if filename.endswith(('.yaml', '.yml')):
-                filepath = os.path.join(items_dir, filename)
-                try:
-                    with open(filepath, 'r') as file:
-                        data = yaml.safe_load(file)
-                        if data:
-                            category = os.path.splitext(filename)[0]
-                            category_items = data.get(category, {})
-                            if category_items:
-                                for item_id, item_data in category_items.items():
-                                    if item_data:  # Make sure item_data isn't None
-                                        item_data['id'] = item_id
-                                        if 'type' not in item_data:
-                                            item_data['type'] = category.rstrip('s')
-                                        items[item_id] = item_data
-                                logger.debug(f"Loaded {len(category_items)} items from {filename}")
-                            else:
-                                logger.warning(f"No items found in {filename} under key '{category}'")
-                except Exception as e:
-                    logger.error(f"Error loading items from {filename}: {e}")
+            if not filename.endswith(('.yaml', '.yml')):
+                continue
+            filepath = os.path.join(items_dir, filename)
+            try:
+                with open(filepath, 'r') as file:
+                    data = yaml.safe_load(file) or {}
+            except Exception as e:
+                logger.error(f"Error loading items from {filename}: {e}")
+                continue
+            for item_id, item_data in data.items():
+                if not isinstance(item_data, dict):
+                    continue
+                if 'type' not in item_data:
+                    logger.error(f"{filename}: item '{item_id}' missing 'type' — skipped")
+                    continue
+                if item_id in items:
+                    raise ValueError(f"duplicate item id '{item_id}' in {filename}")
+                item_data['id'] = item_id
+                items[item_id] = item_data
+            logger.debug(f"Loaded items from {filename}")
 
         logger.info(f"Total items loaded: {len(items)}")
         return items

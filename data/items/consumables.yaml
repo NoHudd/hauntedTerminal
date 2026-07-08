@@ -1,135 +1,134 @@
-consumables:
-  # COMMON CONSUMABLES
-  health_packet:
-    name: "Health Packet"
-    short_description: "Restores system integrity"
-    description: "A small packet of recovered data that restores your system integrity. Heals 30 HP instantly."
-    type: "consumable"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: common
-    tags: ["consumable", "healing", "basic"]
-    allowed_zones: ["home", "var", "tmp", "bin", "mnt"]
-    persistence: "ephemeral"
-    usable: true
-    usable_in_combat: true
-    consumed_on_use: true
-    combat_effects:
-      player_heal: 30
-    on_use:
-      message: "You consume the Health Packet. Corrupted sectors are repaired, restoring 30 HP."
+# COMMON CONSUMABLES
+health_packet:
+  name: "Health Packet"
+  short_description: "Restores system integrity"
+  description: "A small packet of recovered data that restores your system integrity. Heals 30 HP instantly."
+  type: "consumable"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: common
+  tags: ["consumable", "healing", "basic"]
+  allowed_zones: ["home", "var", "tmp", "bin", "mnt"]
+  persistence: "ephemeral"
+  usable: true
+  usable_in_combat: true
+  consumed_on_use: true
+  combat_effects:
+    player_heal: 30
+  on_use:
+    message: "You consume the Health Packet. Corrupted sectors are repaired, restoring 30 HP."
 
-  overflowing_buffer:
-    name: "Overflowing Buffer"
-    description: "A chaotic vial of raw, unallocated data. Restores Script Mana but disappears after use."
-    type: "consumable"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: common
-    tags: ["consumable", "mana", "buffer"]
-    allowed_zones: ["home", "var", "tmp", "bin"]
-    persistence: "ephemeral"
-    usable: true
-    usable_in_combat: true
-    consumed_on_use: true
-    combat_effects:
-      player_mana_restore: 20
-    on_use:
-      message: "You consume the Overflowing Buffer. Raw data floods your circuits, restoring 20 Script Mana."
+overflowing_buffer:
+  name: "Overflowing Buffer"
+  description: "A chaotic vial of raw, unallocated data. Restores Script Mana but disappears after use."
+  type: "consumable"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: common
+  tags: ["consumable", "mana", "buffer"]
+  allowed_zones: ["home", "var", "tmp", "bin"]
+  persistence: "ephemeral"
+  usable: true
+  usable_in_combat: true
+  consumed_on_use: true
+  combat_effects:
+    player_mana_restore: 20
+  on_use:
+    message: "You consume the Overflowing Buffer. Raw data floods your circuits, restoring 20 Script Mana."
 
-  # UNCOMMON CONSUMABLES
-  stable_cache:
-    name: "Stable Cache"
-    description: "Smoothly processed, high-speed data. Provides steady healing over time."
-    type: "consumable"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: uncommon
-    tags: ["consumable", "healing", "over_time"]
-    allowed_zones: ["bin", "etc", "usr", "var"]
-    persistence: "ephemeral"
-    usable: true
-    usable_in_combat: true
-    consumed_on_use: true
-    combat_effects:
-      player_heal_over_time: 40
-      duration_turns: 3
-    on_use:
-      message: "You activate the Stable Cache. Its data streams into you, restoring 40 HP over the next 3 turns."
+# UNCOMMON CONSUMABLES
+stable_cache:
+  name: "Stable Cache"
+  description: "Smoothly processed, high-speed data. Provides steady healing over time."
+  type: "consumable"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: uncommon
+  tags: ["consumable", "healing", "over_time"]
+  allowed_zones: ["bin", "etc", "usr", "var"]
+  persistence: "ephemeral"
+  usable: true
+  usable_in_combat: true
+  consumed_on_use: true
+  combat_effects:
+    player_heal_over_time: 40
+    duration_turns: 3
+  on_use:
+    message: "You activate the Stable Cache. Its data streams into you, restoring 40 HP over the next 3 turns."
 
-  # RARE CONSUMABLES
-  legacy_backup:
-    name: "Legacy Backup"
-    description: "A snapshot of a better, purer time. Automatically revives you from death with 50% HP."
-    type: "consumable"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: rare
-    tags: ["consumable", "revive", "backup"]
-    allowed_zones: ["lib", "usr", "dev", "etc"]
-    persistence: "persistent"
-    usable: false
-    auto_trigger: true
-    trigger_condition: "player_death"
-    special_effects:
-      - type: "auto_revive"
-        revive_hp_percent: 50
-        description: "Automatically revives the player at 50% HP upon death (single use)"
+# RARE CONSUMABLES
+legacy_backup:
+  name: "Legacy Backup"
+  description: "A snapshot of a better, purer time. Automatically revives you from death with 50% HP."
+  type: "consumable"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: rare
+  tags: ["consumable", "revive", "backup"]
+  allowed_zones: ["lib", "usr", "dev", "etc"]
+  persistence: "persistent"
+  usable: false
+  auto_trigger: true
+  trigger_condition: "player_death"
+  special_effects:
+    - type: "auto_revive"
+      revive_hp_percent: 50
+      description: "Automatically revives the player at 50% HP upon death (single use)"
 
-  sudo_seed:
-    name: "Sudo-Seed"
-    description: "A glowing spark of Creator-level power. Permanently increases strength but limited to 5 per run."
-    type: "consumable"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: rare
-    tags: ["consumable", "permanent_upgrade", "strength"]
-    allowed_zones: ["lib", "usr", "dev", "root"]
-    persistence: "persistent"
-    usable: true
-    usable_in_combat: false
-    consumed_on_use: true
-    max_uses_per_run: 5
-    special_effects:
-      - type: "permanent_stat_boost"
-        stat: "strength"
-        value: 2
-        description: "Permanently increases STR by +2 (maximum 5 uses per run)"
-    on_use:
-      message: "You plant the Sudo-Seed within your core processes. You feel raw power surge through your circuits. STR permanently increased by +2."
+sudo_seed:
+  name: "Sudo-Seed"
+  description: "A glowing spark of Creator-level power. Permanently increases strength but limited to 5 per run."
+  type: "consumable"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: rare
+  tags: ["consumable", "permanent_upgrade", "strength"]
+  allowed_zones: ["lib", "usr", "dev", "root"]
+  persistence: "persistent"
+  usable: true
+  usable_in_combat: false
+  consumed_on_use: true
+  max_uses_per_run: 5
+  special_effects:
+    - type: "permanent_stat_boost"
+      stat: "strength"
+      value: 2
+      description: "Permanently increases STR by +2 (maximum 5 uses per run)"
+  on_use:
+    message: "You plant the Sudo-Seed within your core processes. You feel raw power surge through your circuits. STR permanently increased by +2."
 
-  # SECRET CONSUMABLES (Easter Egg)
-  milk_of_motherboard:
-    name: "Milk of the Motherboard"
-    description: "A legendary elixir obtained from the Great ASCII Bovine. Its power is beyond comprehension."
-    type: "consumable"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: secret
-    tags: ["consumable", "legendary", "easter_egg", "bovine"]
-    allowed_zones: []  # Does not spawn in loot tables
-    persistence: "persistent"
-    usable: true
-    usable_in_combat: true
-    consumed_on_use: true
-    special_effects:
-      - type: "maximize_all_stats"
-        duration_turns: 10
-        description: "Maximizes all stats (HP, Mana, STR, DEF, EVA) for 10 turns"
-    combat_effects:
-      maximize_stats: true
+# SECRET CONSUMABLES (Easter Egg)
+milk_of_motherboard:
+  name: "Milk of the Motherboard"
+  description: "A legendary elixir obtained from the Great ASCII Bovine. Its power is beyond comprehension."
+  type: "consumable"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: secret
+  tags: ["consumable", "legendary", "easter_egg", "bovine"]
+  allowed_zones: []  # Does not spawn in loot tables
+  persistence: "persistent"
+  usable: true
+  usable_in_combat: true
+  consumed_on_use: true
+  special_effects:
+    - type: "maximize_all_stats"
       duration_turns: 10
-    on_use:
-      message: "You drink the Milk of the Motherboard. Divine energy floods every register and buffer. You have achieved computational perfection!"
+      description: "Maximizes all stats (HP, Mana, STR, DEF, EVA) for 10 turns"
+  combat_effects:
+    maximize_stats: true
+    duration_turns: 10
+  on_use:
+    message: "You drink the Milk of the Motherboard. Divine energy floods every register and buffer. You have achieved computational perfection!"

@@ -12,3 +12,7 @@ npcs: []
 enemies: []
 locked: false
 hidden: false
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/deprecated"
+aliases: ["/deprecated", "deprecated"]

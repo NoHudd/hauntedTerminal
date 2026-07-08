@@ -21,3 +21,7 @@ hidden: false
 zone: "natural"
 zone_level: 2
 class_affinity: "shaman" 
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/mnt"
+aliases: ["/mnt", "/mnt/forest", "mnt", "forest"]

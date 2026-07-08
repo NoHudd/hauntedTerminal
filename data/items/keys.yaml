@@ -1,119 +1,118 @@
-keys:
-  lib_key:
-    name: Library Key
-    short_description: A key that unlocks the var_dungeon
-    description: A digital key with arcane symbols etched into its surface. It appears to unlock the passage to the variable dungeon (/var/dungeon).
-    takeable: true
-    usable: true
-    droppable: false
-    type: "key"
-    unlocks: ["var_dungeon"]
-    consumable: true
-    consumed_on_take: true
-    on_take:
-      message: As you take the key, you feel a connection forming with the locked passage to the variable dungeon.
-    on_use:
-      message: The key glows with arcane energy, waiting to be used at the proper location.
-    on_examine:
-      message: The key's design suggests it's specifically crafted to access the variable dungeon area. The arcane symbols seem to resonate with the lock mechanism.
+lib_key:
+  name: Library Key
+  short_description: A key that unlocks the var_dungeon
+  description: A digital key with arcane symbols etched into its surface. It appears to unlock the passage to the variable dungeon (/var/dungeon).
+  takeable: true
+  usable: true
+  droppable: false
+  type: "key"
+  unlocks: ["var_dungeon"]
+  consumable: true
+  consumed_on_take: true
+  on_take:
+    message: As you take the key, you feel a connection forming with the locked passage to the variable dungeon.
+  on_use:
+    message: The key glows with arcane energy, waiting to be used at the proper location.
+  on_examine:
+    message: The key's design suggests it's specifically crafted to access the variable dungeon area. The arcane symbols seem to resonate with the lock mechanism.
 
-  master_key:
-    name: Master Key
-    short_description: A master key for the core system
-    description: A digital master key that can unlock the core system directory. It's heavily encrypted and seems to be one-use only.
-    takeable: true
-    usable: true
-    type: "key"
-    unlocks: ["core"]
-    max_spawn: 1
-    allowed_rooms:
-      - archive
-    rarity: unique
-    only_in_unlocked: false
-    consumable: true
-    consumed_on_take: true
-    on_take:
-      message: As you take the master key, you feel the weight of its importance. The system itself seems to acknowledge its power.
-    on_use:
-      message: The master key pulses with intense energy as it interfaces with the core system lock.
-    on_examine:
-      message: This is the legendary master key, capable of unlocking the corrupted core. It can only be used once as it will dissolve into the lock mechanism.
+master_key:
+  name: Master Key
+  short_description: A master key for the core system
+  description: A digital master key that can unlock the core system directory. It's heavily encrypted and seems to be one-use only.
+  takeable: true
+  usable: true
+  type: "key"
+  unlocks: ["core"]
+  max_spawn: 1
+  allowed_rooms:
+    - archive
+  rarity: unique
+  only_in_unlocked: false
+  consumable: true
+  consumed_on_take: true
+  on_take:
+    message: As you take the master key, you feel the weight of its importance. The system itself seems to acknowledge its power.
+  on_use:
+    message: The master key pulses with intense energy as it interfaces with the core system lock.
+  on_examine:
+    message: This is the legendary master key, capable of unlocking the corrupted core. It can only be used once as it will dissolve into the lock mechanism.
 
-  system_badge:
-    name: System Badge
-    short_description: An administrative access badge
-    description: A digital badge that grants access to protected system directories. It pulses with administrative privileges.
-    takeable: true
-    usable: true
-    droppable: false
-    type: "key"
-    unlocks: ["ghost_hidden"]
-    consumable: true
-    consumed_on_take: true
-    on_take:
-      message: The badge recognizes you as a user with potential administrative privileges.
-    on_use:
-      message: The badge glows with authority, authenticating your access to restricted areas.
-    on_examine:
-      message: This administrative badge grants elevated permissions within the system. It could access hidden directories.
-      
-  opt_key:
-    name: "Optional Access Key"
-    description: "A powerful key that unlocks access to class-restricted areas like the mage tower and warrior tomb."
-    short_description: A key for accessing optional class-specific areas
-    type: "key"
-    takeable: true
-    usable: true
-    droppable: false
-    unlocks: ["opt_mage_tower", "srv_warrior_tomb"]
-    consumable: true
-    consumed_on_take: true
-    on_take:
-      message: "As you grasp the opt_key, you feel its power resonating with class-specific areas of the system."
-    on_use:
-      message: "The key pulses with energy, ready to unlock powerful class-restricted areas."
-    on_examine:
-      message: "This rare key grants access to the most challenging class-specific areas - the mage tower and warrior tomb."
+system_badge:
+  name: System Badge
+  short_description: An administrative access badge
+  description: A digital badge that grants access to protected system directories. It pulses with administrative privileges.
+  takeable: true
+  usable: true
+  droppable: false
+  type: "key"
+  unlocks: ["ghost_hidden"]
+  consumable: true
+  consumed_on_take: true
+  on_take:
+    message: The badge recognizes you as a user with potential administrative privileges.
+  on_use:
+    message: The badge glows with authority, authenticating your access to restricted areas.
+  on_examine:
+    message: This administrative badge grants elevated permissions within the system. It could access hidden directories.
+    
+opt_key:
+  name: "Optional Access Key"
+  description: "A powerful key that unlocks access to class-restricted areas like the mage tower and warrior tomb."
+  short_description: A key for accessing optional class-specific areas
+  type: "key"
+  takeable: true
+  usable: true
+  droppable: false
+  unlocks: ["opt_mage_tower", "srv_warrior_tomb"]
+  consumable: true
+  consumed_on_take: true
+  on_take:
+    message: "As you grasp the opt_key, you feel its power resonating with class-specific areas of the system."
+  on_use:
+    message: "The key pulses with energy, ready to unlock powerful class-restricted areas."
+  on_examine:
+    message: "This rare key grants access to the most challenging class-specific areas - the mage tower and warrior tomb."
 
-  # Great Kernel Panic Story Keys
-  chmod_key:
-    name: "chmod Key"
-    description: "A crystallized permission modifier. The Firewall Knight will recognize this as proof of your authority."
-    short_description: A key that grants permission to pass the Firewall Knight
-    type: "key"
-    takeable: true
-    usable: true
-    droppable: false
-    unlocks: ["etc_hidden_configs"]  # Unlocks passage past Firewall Knight
-    rarity: unique
-    allowed_zones: ["var"]  # Found in /var/log (Memory Banks)
-    persistence: "persistent"
-    consumable: false
-    on_take:
-      message: "You acquire the chmod Key. The Firewall Knight will have to acknowledge your permissions now."
-    on_use:
-      message: "The chmod Key glows with authority. The Firewall Knight's protocols recognize your elevated permissions."
-    on_examine:
-      message: "This key modifies file permissions at a fundamental level. The Firewall Knight is bound by Read-Only protocols - this key grants Write access."
+# Great Kernel Panic Story Keys
+chmod_key:
+  name: "chmod Key"
+  description: "A crystallized permission modifier. The Firewall Knight will recognize this as proof of your authority."
+  short_description: A key that grants permission to pass the Firewall Knight
+  type: "key"
+  takeable: true
+  usable: true
+  droppable: false
+  unlocks: ["etc_hidden_configs"]  # Unlocks passage past Firewall Knight
+  rarity: unique
+  allowed_zones: ["var"]  # Found in /var/log (Memory Banks)
+  persistence: "persistent"
+  consumable: false
+  on_take:
+    message: "You acquire the chmod Key. The Firewall Knight will have to acknowledge your permissions now."
+  on_use:
+    message: "The chmod Key glows with authority. The Firewall Knight's protocols recognize your elevated permissions."
+  on_examine:
+    message: "This key modifies file permissions at a fundamental level. The Firewall Knight is bound by Read-Only protocols - this key grants Write access."
 
-  sudo_privileges_badge:
-    name: "Sudo Privileges Badge"
-    description: "A badge earned by defeating your Shadow Process. You now possess Superuser privileges."
-    short_description: Proof of Superuser status
-    type: "key"
-    takeable: true
-    usable: false
-    droppable: false
-    rarity: unique
-    persistence: "persistent"
-    story_flag: "sudo_trial_complete"
-    special_effects:
-      - type: "superuser_access"
-        description: "Grants access to root-level commands and directories"
-      - type: "damage_boost"
-        value: 5
-        description: "+5 damage with Superuser privileges"
-    on_take:
-      message: "You have proven yourself worthy. The Sudo Privileges Badge materializes, granting you Superuser status."
-    on_examine:
-      message: "This badge marks you as a proven administrator with sudo privileges. Your commands now execute with root-level authority." 
+sudo_privileges_badge:
+  name: "Sudo Privileges Badge"
+  description: "A badge earned by defeating your Shadow Process. You now possess Superuser privileges."
+  short_description: Proof of Superuser status
+  type: "key"
+  takeable: true
+  usable: false
+  droppable: false
+  rarity: unique
+  persistence: "persistent"
+  story_flag: "sudo_trial_complete"
+  special_effects:
+    - type: "superuser_access"
+      description: "Grants access to root-level commands and directories"
+    - type: "damage_boost"
+      value: 5
+      description: "+5 damage with Superuser privileges"
+  on_take:
+    message: "You have proven yourself worthy. The Sudo Privileges Badge materializes, granting you Superuser status."
+  on_examine:
+    message: "This badge marks you as a proven administrator with sudo privileges. Your commands now execute with root-level authority." 

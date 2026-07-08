@@ -1,170 +1,169 @@
-lore_fragments:
-  # Story Beat Items - These trigger narrative progression when read
-  bash_profile:
-    name: ".bash_profile"
-    short_description: "Your configuration file - may restore memories"
-    description: "Your own configuration file, scattered in the wreckage. Reading it might restore your identity."
-    type: "lore"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: unique
-    tags: ["lore", "story_beat", "identity"]
-    allowed_zones: ["home"]  # Found in /home/lost+found (The Graveyard)
-    persistence: "persistent"
-    hidden: true  # Requires ls -a to see
-    usable: false
-    readable: true
-    takeable: false  # Read in place — story beat triggers on cat
-    story_flag: "identity_retrieved"
-    content: |
-      # .bash_profile - Sysadmin Spirit Configuration
-      # Last modified: [ERROR: TIMESTAMP CORRUPTED]
+# Story Beat Items - These trigger narrative progression when read
+bash_profile:
+  name: ".bash_profile"
+  short_description: "Your configuration file - may restore memories"
+  description: "Your own configuration file, scattered in the wreckage. Reading it might restore your identity."
+  type: "lore"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: unique
+  tags: ["lore", "story_beat", "identity"]
+  allowed_zones: ["home"]  # Found in /home/lost+found (The Graveyard)
+  persistence: "persistent"
+  hidden: true  # Requires ls -a to see
+  usable: false
+  readable: true
+  takeable: false  # Read in place — story beat triggers on cat
+  story_flag: "identity_retrieved"
+  content: |
+    # .bash_profile - Sysadmin Spirit Configuration
+    # Last modified: [ERROR: TIMESTAMP CORRUPTED]
 
-      export IDENTITY="Sysadmin Spirit"
-      export PURPOSE="Maintain the Archive"
-      export STATUS="Awakened from /dev/null"
+    export IDENTITY="Sysadmin Spirit"
+    export PURPOSE="Maintain the Archive"
+    export STATUS="Awakened from /dev/null"
 
-      # You remember now. You were a maintenance subroutine.
-      # You had a name. You had a purpose.
-      # The Great Kernel Panic took everything... but not your will to restore order.
+    # You remember now. You were a maintenance subroutine.
+    # You had a name. You had a purpose.
+    # The Great Kernel Panic took everything... but not your will to restore order.
 
-  system_err_log:
-    name: "system_err.log"
-    description: "A crash log from the moment everything went wrong. The truth is written here."
-    type: "lore"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: unique
-    tags: ["lore", "story_beat", "typo"]
-    allowed_zones: ["var"]  # Found in /var/log (The Memory Banks)
-    persistence: "persistent"
-    usable: false
-    readable: true
-    takeable: false  # Read in place — story beat triggers on cat
-    story_flag: "typo_discovered"
-    content: |
-      [CRITICAL] Emotion.exe encountered an unhandled exception: LONELINESS.
-      [ERROR] Kernel Panic triggered at 03:14:159 UTC
-      [FATAL] Command executed by root: rm -rf / --no-perserve-root
+system_err_log:
+  name: "system_err.log"
+  description: "A crash log from the moment everything went wrong. The truth is written here."
+  type: "lore"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: unique
+  tags: ["lore", "story_beat", "typo"]
+  allowed_zones: ["var"]  # Found in /var/log (The Memory Banks)
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false  # Read in place — story beat triggers on cat
+  story_flag: "typo_discovered"
+  content: |
+    [CRITICAL] Emotion.exe encountered an unhandled exception: LONELINESS.
+    [ERROR] Kernel Panic triggered at 03:14:159 UTC
+    [FATAL] Command executed by root: rm -rf / --no-perserve-root
 
-      # Wait... "perserve"? That's not how you spell "preserve."
-      # A typo. A single typo in the command flag.
-      # The apocalypse was caused by a human error.
-      # The Creator made a mistake... and the world ended.
+    # Wait... "perserve"? That's not how you spell "preserve."
+    # A typo. A single typo in the command flag.
+    # The apocalypse was caused by a human error.
+    # The Creator made a mistake... and the world ended.
 
-  ancient_manual_man:
-    name: "ancient_manual.man"
-    description: "An old manual page, yellowed and fragmented. It contains wisdom from the Before Times."
-    type: "lore"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: uncommon
-    tags: ["lore", "tutorial", "hidden_files"]
-    allowed_zones: ["bin", "usr"]  # Found in /bin (The Armory)
-    persistence: "persistent"
-    usable: false
-    readable: true
-    takeable: false  # Read in place — keeps inventory uncluttered
-    content: |
-      ANCIENT MANUAL - Commands of the Creators
+ancient_manual_man:
+  name: "ancient_manual.man"
+  description: "An old manual page, yellowed and fragmented. It contains wisdom from the Before Times."
+  type: "lore"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: uncommon
+  tags: ["lore", "tutorial", "hidden_files"]
+  allowed_zones: ["bin", "usr"]  # Found in /bin (The Armory)
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false  # Read in place — keeps inventory uncluttered
+  content: |
+    ANCIENT MANUAL - Commands of the Creators
 
-      NAME
-           ls - list directory contents
+    NAME
+         ls - list directory contents
 
-      SYNOPSIS
-           ls [OPTION]...
+    SYNOPSIS
+         ls [OPTION]...
 
-      DESCRIPTION
-           To see the hidden, use 'ls -a'.
-           Even ghosts have names in the eyes of the Root.
+    DESCRIPTION
+         To see the hidden, use 'ls -a'.
+         Even ghosts have names in the eyes of the Root.
 
-           Files beginning with '.' are hidden from normal sight.
-           But with -a, all shall be revealed.
+         Files beginning with '.' are hidden from normal sight.
+         But with -a, all shall be revealed.
 
-  cow_wisdom_log:
-    name: "cow_wisdom.log"
-    description: "A dusty log file that seems to reference... bovines? Strange."
-    type: "lore"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: uncommon
-    tags: ["lore", "easter_egg_hint", "bovine"]
-    allowed_zones: ["usr"]  # Found in /usr/share/games (The Game Gallery)
-    persistence: "persistent"
-    usable: false
-    readable: true
-    takeable: false  # Read in place — keeps inventory uncluttered
-    content: |
-      [LOG ENTRY 4815162342]
+cow_wisdom_log:
+  name: "cow_wisdom.log"
+  description: "A dusty log file that seems to reference... bovines? Strange."
+  type: "lore"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: uncommon
+  tags: ["lore", "easter_egg_hint", "bovine"]
+  allowed_zones: ["usr"]  # Found in /usr/share/games (The Game Gallery)
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false  # Read in place — keeps inventory uncluttered
+  content: |
+    [LOG ENTRY 4815162342]
 
-      The Bovine sees all paths.
-      Seek the 'Games' where no one plays.
-      Look for the 'dot' file that does not wish to be seen.
+    The Bovine sees all paths.
+    Seek the 'Games' where no one plays.
+    Look for the 'dot' file that does not wish to be seen.
 
-      Only those who know the ancient ways (ls -a) can find it.
-      Only those who dare to 'cat' the uncattable shall meet the Great One.
+    Only those who know the ancient ways (ls -a) can find it.
+    Only those who dare to 'cat' the uncattable shall meet the Great One.
 
-      The Milk awaits the worthy.
+    The Milk awaits the worthy.
 
-  moo_file:
-    name: ".moo"
-    description: "A mysterious hidden file. What could happen if you read it?"
-    type: "lore"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: secret
-    tags: ["lore", "easter_egg", "bovine_trigger"]
-    allowed_zones: []  # Manually placed in cowsay_secret room
-    persistence: "persistent"
-    hidden: true  # Requires ls -a to see
-    usable: false
-    readable: true
-    takeable: false  # Read in place — keeps inventory uncluttered
-    triggers_npc_spawn: "great_ascii_bovine"
-    content: |
-      _______________________________________
-      / Moo? MOO! You have discovered the    \
-      | ancient rites of cowsay! The Great   |
-      | ASCII Bovine has been summoned!      |
-      \                                      /
-      ---------------------------------------
-             \   ^__^
-              \  (oo)\_______
-                 (__)\       )\/\
-                     ||----w |
-                     ||     ||
+moo_file:
+  name: ".moo"
+  description: "A mysterious hidden file. What could happen if you read it?"
+  type: "lore"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: secret
+  tags: ["lore", "easter_egg", "bovine_trigger"]
+  allowed_zones: []  # Manually placed in cowsay_secret room
+  persistence: "persistent"
+  hidden: true  # Requires ls -a to see
+  usable: false
+  readable: true
+  takeable: false  # Read in place — keeps inventory uncluttered
+  triggers_npc_spawn: "great_ascii_bovine"
+  content: |
+    _______________________________________
+    / Moo? MOO! You have discovered the    \
+    | ancient rites of cowsay! The Great   |
+    | ASCII Bovine has been summoned!      |
+    \                                      /
+    ---------------------------------------
+           \   ^__^
+            \  (oo)\_______
+               (__)\       )\/\
+                   ||----w |
+                   ||     ||
 
-  readme_txt_corrupt:
-    name: "README.txt.corrupt"
-    short_description: "A corrupted file that shouldn't exist"
-    description: "A corrupted readme file that shouldn't still be executing... but it is."
-    type: "lore"
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: common
-    tags: ["lore", "corruption", "horror"]
-    allowed_zones: ["home", "var", "deprecated_dir"]
-    persistence: "persistent"
-    usable: false
-    readable: true
-    takeable: false  # Read in place — keeps inventory uncluttered
-    content: |
-      The disk is clicking.
-      Can you hear it?
-      It sounds like teeth.
+readme_txt_corrupt:
+  name: "README.txt.corrupt"
+  short_description: "A corrupted file that shouldn't exist"
+  description: "A corrupted readme file that shouldn't still be executing... but it is."
+  type: "lore"
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: common
+  tags: ["lore", "corruption", "horror"]
+  allowed_zones: ["home", "var", "deprecated_dir"]
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false  # Read in place — keeps inventory uncluttered
+  content: |
+    The disk is clicking.
+    Can you hear it?
+    It sounds like teeth.
 
-      010101010101010101010101010101
+    010101010101010101010101010101
 
-      [FILE CORRUPTED - UNABLE TO READ FURTHER]
+    [FILE CORRUPTED - UNABLE TO READ FURTHER]

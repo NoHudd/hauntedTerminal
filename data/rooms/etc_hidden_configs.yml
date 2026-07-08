@@ -35,3 +35,7 @@ zone: core
 zone_level: 6
 story_location: true
 gate_guardian: true
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/etc"
+aliases: ["/etc", "/etc/configs", "etc", "configs"]

@@ -1,238 +1,237 @@
-weapons:
-  # STARTER WEAPONS (Class-specific, Common rarity)
-  segfault_shield:
-    name: "Segmentation Fault Shield"
-    description: "A defensive barrier formed from a crashed memory segment. Basic but reliable protection."
-    type: "weapon"
-    damage: 8
-    allowed_classes:
-      - guardian
-    rarity: common
-    tags: ["shields", "defensive", "starter"]
-    allowed_zones: ["home", "safe"]
-    persistence: "persistent"
-    special_effects:
-      - type: "defensive_bonus"
-        value: 2
-        description: "+2 DEF while equipped"
+# STARTER WEAPONS (Class-specific, Common rarity)
+segfault_shield:
+  name: "Segmentation Fault Shield"
+  description: "A defensive barrier formed from a crashed memory segment. Basic but reliable protection."
+  type: "weapon"
+  damage: 8
+  allowed_classes:
+    - guardian
+  rarity: common
+  tags: ["shields", "defensive", "starter"]
+  allowed_zones: ["home", "safe"]
+  persistence: "persistent"
+  special_effects:
+    - type: "defensive_bonus"
+      value: 2
+      description: "+2 DEF while equipped"
 
-  null_pointer:
-    name: "Null Pointer"
-    description: "A reference to nothing that somehow deals damage. The paradox is your weapon."
-    type: "weapon"
-    damage: 10
-    allowed_classes:
-      - weaver
-    rarity: common
-    tags: ["offensive", "exploit", "starter"]
-    allowed_zones: ["home", "corrupted"]
-    persistence: "persistent"
+null_pointer:
+  name: "Null Pointer"
+  description: "A reference to nothing that somehow deals damage. The paradox is your weapon."
+  type: "weapon"
+  damage: 10
+  allowed_classes:
+    - weaver
+  rarity: common
+  tags: ["offensive", "exploit", "starter"]
+  allowed_zones: ["home", "corrupted"]
+  persistence: "persistent"
 
-  daemon_whisper:
-    name: "Daemon Whisper"
-    description: "An echo of a terminated process. Its ghostly wails strike at corrupted code."
-    type: "weapon"
-    damage: 7
-    allowed_classes:
-      - shaman
-    rarity: common
-    tags: ["mystical", "staves", "starter"]
-    allowed_zones: ["home", "mystical"]
-    persistence: "persistent"
-    special_effects:
-      - type: "spirit_damage"
-        value: 2
-        description: "+2 damage against ghost-type enemies"
+daemon_whisper:
+  name: "Daemon Whisper"
+  description: "An echo of a terminated process. Its ghostly wails strike at corrupted code."
+  type: "weapon"
+  damage: 7
+  allowed_classes:
+    - shaman
+  rarity: common
+  tags: ["mystical", "staves", "starter"]
+  allowed_zones: ["home", "mystical"]
+  persistence: "persistent"
+  special_effects:
+    - type: "spirit_damage"
+      value: 2
+      description: "+2 damage against ghost-type enemies"
 
-  # COMMON WEAPONS
-  dangling_pointer:
-    name: "Dangling Pointer"
-    description: "A jagged shard of lost memory. Its unstable nature makes it unreliable but dangerous."
-    type: "weapon"
-    damage: 5
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: common
-    tags: ["memory", "unstable", "offensive"]
-    allowed_zones: ["home", "var", "tmp", "bin"]
-    persistence: "ephemeral"
-    special_effects:
-      - type: "miss_chance"
-        value: 10
-        description: "10% chance to miss due to pointer instability"
+# COMMON WEAPONS
+dangling_pointer:
+  name: "Dangling Pointer"
+  description: "A jagged shard of lost memory. Its unstable nature makes it unreliable but dangerous."
+  type: "weapon"
+  damage: 5
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: common
+  tags: ["memory", "unstable", "offensive"]
+  allowed_zones: ["home", "var", "tmp", "bin"]
+  persistence: "ephemeral"
+  special_effects:
+    - type: "miss_chance"
+      value: 10
+      description: "10% chance to miss due to pointer instability"
 
-  # UNCOMMON WEAPONS
-  kill_script:
-    name: "Kill Script"
-    description: "A SIGKILL command made physical. Particularly effective against zombie processes that refuse to die."
-    type: "weapon"
-    damage: 12
-    allowed_classes:
-      - weaver
-    rarity: uncommon
-    tags: ["script", "signal", "offensive", "anti_zombie"]
-    allowed_zones: ["bin", "etc", "usr", "tmp"]
-    persistence: "persistent"
-    special_effects:
-      - type: "bonus_damage_vs_type"
-        target_type: "zombie"
-        value: 5
-        description: "+5 damage against zombie-type enemies"
+# UNCOMMON WEAPONS
+kill_script:
+  name: "Kill Script"
+  description: "A SIGKILL command made physical. Particularly effective against zombie processes that refuse to die."
+  type: "weapon"
+  damage: 12
+  allowed_classes:
+    - weaver
+  rarity: uncommon
+  tags: ["script", "signal", "offensive", "anti_zombie"]
+  allowed_zones: ["bin", "etc", "usr", "tmp"]
+  persistence: "persistent"
+  special_effects:
+    - type: "bonus_damage_vs_type"
+      target_type: "zombie"
+      value: 5
+      description: "+5 damage against zombie-type enemies"
 
-  # RARE WEAPONS
-  dangling_reference:
-    name: "Dangling Reference"
-    description: "A sharp logic error that bypasses security protocols. Its precision cuts through defensive barriers."
-    type: "weapon"
-    damage: 18
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: rare
-    tags: ["logic_error", "armor_penetration", "offensive"]
-    allowed_zones: ["lib", "usr", "dev", "etc"]
-    persistence: "persistent"
-    special_effects:
-      - type: "armor_penetration"
-        value: 15
-        description: "Ignores 15% of enemy armor"
+# RARE WEAPONS
+dangling_reference:
+  name: "Dangling Reference"
+  description: "A sharp logic error that bypasses security protocols. Its precision cuts through defensive barriers."
+  type: "weapon"
+  damage: 18
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: rare
+  tags: ["logic_error", "armor_penetration", "offensive"]
+  allowed_zones: ["lib", "usr", "dev", "etc"]
+  persistence: "persistent"
+  special_effects:
+    - type: "armor_penetration"
+      value: 15
+      description: "Ignores 15% of enemy armor"
 
-  # LEGENDARY WEAPONS
-  zero_day_blade:
-    name: "The Zero-Day Blade"
-    description: "An unpatchable exploit made manifest. No defense can stand against an unknown vulnerability."
-    type: "weapon"
-    damage: 50
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: legendary
-    tags: ["legendary", "exploit", "true_damage", "zero_day"]
-    allowed_zones: ["root"]
-    persistence: "persistent"
-    special_effects:
-      - type: "true_damage"
-        description: "Deals true damage that cannot be mitigated by any armor or defensive abilities"
-      - type: "exploit"
-        description: "Bypasses all defensive protocols and immunities"
+# LEGENDARY WEAPONS
+zero_day_blade:
+  name: "The Zero-Day Blade"
+  description: "An unpatchable exploit made manifest. No defense can stand against an unknown vulnerability."
+  type: "weapon"
+  damage: 50
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: legendary
+  tags: ["legendary", "exploit", "true_damage", "zero_day"]
+  allowed_zones: ["root"]
+  persistence: "persistent"
+  special_effects:
+    - type: "true_damage"
+      description: "Deals true damage that cannot be mitigated by any armor or defensive abilities"
+    - type: "exploit"
+      description: "Bypasses all defensive protocols and immunities"
 
-  # --- RARE WEAPONS (Phase 1 gear-pool expansion) ---
-  race_condition_edge:
-    name: "Race Condition Edge"
-    description: "A blade that strikes in the gap between two threads. Whether it lands is a matter of scheduling."
-    type: "weapon"
-    damage: 16
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: rare
-    tags: ["logic_error", "offensive", "timing"]
-    allowed_zones: ["bin", "etc", "usr"]
-    persistence: "persistent"
+# --- RARE WEAPONS (Phase 1 gear-pool expansion) ---
+race_condition_edge:
+  name: "Race Condition Edge"
+  description: "A blade that strikes in the gap between two threads. Whether it lands is a matter of scheduling."
+  type: "weapon"
+  damage: 16
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: rare
+  tags: ["logic_error", "offensive", "timing"]
+  allowed_zones: ["bin", "etc", "usr"]
+  persistence: "persistent"
 
-  buffer_overflow_lance:
-    name: "Buffer Overflow Lance"
-    description: "A spear of overrun memory that keeps writing past where it should. Reach exceeds its bounds."
-    type: "weapon"
-    damage: 18
-    allowed_classes:
-      - weaver
-    rarity: rare
-    tags: ["exploit", "offensive", "reach"]
-    allowed_zones: ["usr", "lib", "mnt"]
-    persistence: "persistent"
+buffer_overflow_lance:
+  name: "Buffer Overflow Lance"
+  description: "A spear of overrun memory that keeps writing past where it should. Reach exceeds its bounds."
+  type: "weapon"
+  damage: 18
+  allowed_classes:
+    - weaver
+  rarity: rare
+  tags: ["exploit", "offensive", "reach"]
+  allowed_zones: ["usr", "lib", "mnt"]
+  persistence: "persistent"
 
-  recursion_fang:
-    name: "Recursion Fang"
-    description: "A staff-fang whose every strike echoes a smaller strike within it, down and down until the stack gives out."
-    type: "weapon"
-    damage: 17
-    allowed_classes:
-      - shaman
-    rarity: rare
-    tags: ["mystical", "staves", "offensive"]
-    allowed_zones: ["lib", "usr", "mnt"]
-    persistence: "persistent"
+recursion_fang:
+  name: "Recursion Fang"
+  description: "A staff-fang whose every strike echoes a smaller strike within it, down and down until the stack gives out."
+  type: "weapon"
+  damage: 17
+  allowed_classes:
+    - shaman
+  rarity: rare
+  tags: ["mystical", "staves", "offensive"]
+  allowed_zones: ["lib", "usr", "mnt"]
+  persistence: "persistent"
 
-  # --- EPIC WEAPONS (new tier — none existed before) ---
-  privilege_escalation_pike:
-    name: "Privilege Escalation Pike"
-    description: "A pike that talks its way upward through every permission ring it touches. Few walls hold it back."
-    type: "weapon"
-    damage: 24
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: epic
-    tags: ["exploit", "offensive", "armor_penetration"]
-    allowed_zones: ["etc", "usr", "dev"]
-    persistence: "persistent"
+# --- EPIC WEAPONS (new tier — none existed before) ---
+privilege_escalation_pike:
+  name: "Privilege Escalation Pike"
+  description: "A pike that talks its way upward through every permission ring it touches. Few walls hold it back."
+  type: "weapon"
+  damage: 24
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: epic
+  tags: ["exploit", "offensive", "armor_penetration"]
+  allowed_zones: ["etc", "usr", "dev"]
+  persistence: "persistent"
 
-  heap_spray_scepter:
-    name: "Heap Spray Scepter"
-    description: "A scepter that seeds the heap with a thousand waiting payloads, then triggers them all at once."
-    type: "weapon"
-    damage: 26
-    allowed_classes:
-      - shaman
-    rarity: epic
-    tags: ["mystical", "staves", "offensive"]
-    allowed_zones: ["usr", "lib", "dev"]
-    persistence: "persistent"
+heap_spray_scepter:
+  name: "Heap Spray Scepter"
+  description: "A scepter that seeds the heap with a thousand waiting payloads, then triggers them all at once."
+  type: "weapon"
+  damage: 26
+  allowed_classes:
+    - shaman
+  rarity: epic
+  tags: ["mystical", "staves", "offensive"]
+  allowed_zones: ["usr", "lib", "dev"]
+  persistence: "persistent"
 
-  kernel_panic_maul:
-    name: "Kernel Panic Maul"
-    description: "A two-handed maul that ends arguments the way the kernel ends an unrecoverable fault: instantly and without appeal."
-    type: "weapon"
-    damage: 28
-    allowed_classes:
-      - guardian
-    rarity: epic
-    tags: ["offensive", "heavy", "crush"]
-    allowed_zones: ["etc", "dev", "lib"]
-    persistence: "persistent"
+kernel_panic_maul:
+  name: "Kernel Panic Maul"
+  description: "A two-handed maul that ends arguments the way the kernel ends an unrecoverable fault: instantly and without appeal."
+  type: "weapon"
+  damage: 28
+  allowed_classes:
+    - guardian
+  rarity: epic
+  tags: ["offensive", "heavy", "crush"]
+  allowed_zones: ["etc", "dev", "lib"]
+  persistence: "persistent"
 
-  fork_bomb_gauntlet:
-    name: "Fork Bomb Gauntlet"
-    description: "A gauntlet that spawns a copy of every blow, and each copy spawns more. Exponential violence."
-    type: "weapon"
-    damage: 30
-    allowed_classes:
-      - weaver
-    rarity: epic
-    tags: ["exploit", "offensive", "multi_hit"]
-    allowed_zones: ["bin", "dev", "usr"]
-    persistence: "persistent"
+fork_bomb_gauntlet:
+  name: "Fork Bomb Gauntlet"
+  description: "A gauntlet that spawns a copy of every blow, and each copy spawns more. Exponential violence."
+  type: "weapon"
+  damage: 30
+  allowed_classes:
+    - weaver
+  rarity: epic
+  tags: ["exploit", "offensive", "multi_hit"]
+  allowed_zones: ["bin", "dev", "usr"]
+  persistence: "persistent"
 
-  # --- LEGENDARY WEAPONS (root-tier, alongside zero_day_blade) ---
-  rootkit_reaper:
-    name: "The Rootkit Reaper"
-    description: "A scythe that hides its own edge from the system that would parry it. You never see the cut that lands."
-    type: "weapon"
-    damage: 46
-    allowed_classes:
-      - guardian
-      - weaver
-      - shaman
-    rarity: legendary
-    tags: ["legendary", "exploit", "stealth", "offensive"]
-    allowed_zones: ["root"]
-    persistence: "persistent"
+# --- LEGENDARY WEAPONS (root-tier, alongside zero_day_blade) ---
+rootkit_reaper:
+  name: "The Rootkit Reaper"
+  description: "A scythe that hides its own edge from the system that would parry it. You never see the cut that lands."
+  type: "weapon"
+  damage: 46
+  allowed_classes:
+    - guardian
+    - weaver
+    - shaman
+  rarity: legendary
+  tags: ["legendary", "exploit", "stealth", "offensive"]
+  allowed_zones: ["root"]
+  persistence: "persistent"
 
-  segfault_singularity:
-    name: "Segfault Singularity"
-    description: "A collapsed memory address dense enough to bend defenses toward it. Everything nearby falls in."
-    type: "weapon"
-    damage: 44
-    allowed_classes:
-      - guardian
-    rarity: legendary
-    tags: ["legendary", "memory", "gravity", "offensive"]
-    allowed_zones: ["root", "dev"]
-    persistence: "persistent"
+segfault_singularity:
+  name: "Segfault Singularity"
+  description: "A collapsed memory address dense enough to bend defenses toward it. Everything nearby falls in."
+  type: "weapon"
+  damage: 44
+  allowed_classes:
+    - guardian
+  rarity: legendary
+  tags: ["legendary", "memory", "gravity", "offensive"]
+  allowed_zones: ["root", "dev"]
+  persistence: "persistent"

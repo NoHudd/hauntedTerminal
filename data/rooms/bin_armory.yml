@@ -34,3 +34,7 @@ hidden: false
 zone: safe
 zone_level: 2
 story_location: true 
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/bin"
+aliases: ["/bin", "/bin/armory", "bin", "armory"]

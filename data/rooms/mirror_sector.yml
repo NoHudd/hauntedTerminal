@@ -49,3 +49,7 @@ victory_rewards:
   - sudo_privileges_badge
 story_flags_on_victory:
   - sudo_trial_complete
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/mirror"
+aliases: []

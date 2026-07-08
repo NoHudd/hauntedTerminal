@@ -13,3 +13,7 @@ enemies: []
 locked: true
 key_required: system_badge
 hidden: true
+
+# Navigation (data-driven; see docs/CONTENT_DECOUPLE_SPEC.md)
+path: "/ghost"
+aliases: ["/ghost", "ghost"]
