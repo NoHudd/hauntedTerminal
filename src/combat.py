@@ -4,7 +4,7 @@ import random
 from src import rng
 from utils.debug_tools import debug_log
 from src.events import event_bus, EventType
-from src.ui.view_builder import ViewBuilder
+from src.viewmodels.view_builder import ViewBuilder
 
 class CombatSystem:
     """Handles all combat-related functionality with a unified approach."""

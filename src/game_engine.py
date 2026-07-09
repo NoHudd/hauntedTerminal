@@ -22,13 +22,12 @@ from src.player import Player
 from src.command_handler import CommandHandler
 from src.game_output import GameOutput
 from src.save import save_manager
-from src.ui.textual_ui import TextualGameUI
 from src.ui.ui_interface import UIProtocol, UIError, UIInitializationError
 from src.events import event_bus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
 from src.data_loader import load_room_data, load_enemy_data
 from src.state_manager import state_manager
-from src.ui.view_builder import ViewBuilder
+from src.viewmodels.view_builder import ViewBuilder
 
 # Import debug tools
 from utils.debug_tools import debug_log
@@ -61,7 +60,9 @@ class ImprovedGameEngine:
 
         # Non-reloadable state
         self.save_dir = "saves"
-        self.ui = ui or TextualGameUI()
+        # UI is injected by the composition root (main.py) / GameSession / tests.
+        # The backend never constructs the concrete frontend.
+        self.ui = ui
         # Domain output sink: command/combat text is written here and forwarded
         # live to the UI (Phase 2b). The domain no longer references the UI.
         self.output = GameOutput(forward=self._forward_output)
@@ -923,8 +924,8 @@ to this haunted filesystem.[/italic]
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
 
-def main():
-    """The main entry point for the improved game."""
+def main(ui):
+    """Entry point: the caller (composition root) supplies the concrete UI."""
     # Setup logging - only to file, not to console (to avoid UI interference)
     from config.dev_config import DEBUG_LOG_FILE
 
@@ -937,9 +938,9 @@ def main():
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     root_logger.addHandler(file_handler)
     root_logger.setLevel(logging.INFO)
-    
+
     try:
-        engine = ImprovedGameEngine()
+        engine = ImprovedGameEngine(ui=ui)
         engine.run()
         
     except KeyboardInterrupt:
