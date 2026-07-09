@@ -978,7 +978,7 @@ class GameWorld:
         if room is None:
             debug_log(f"WARNING: Attempted to get non-existent room: {room_id}")
         else:
-            debug_log(f"Retrieved room data for {room_id}")
+            debug_log(f"Retrieved room data for {room_id}", category="world")
         return room
     
     def get_room_state(self, room_id):
@@ -1013,19 +1013,17 @@ class GameWorld:
     
     def get_items_in_room(self, room_id):
         """Get all items in a room"""
-        debug_log(f"[Instance {self.instance_id}] Getting items in room {room_id}")
-        debug_log(f"[Instance {self.instance_id}] Total items in item_locations: {len(self.item_locations)}")
-        debug_log(f"[Instance {self.instance_id}] Full item_locations: {self.item_locations}")
+        debug_log(f"Getting items in room {room_id}", category="world")
 
         # Get all items from the item_locations dictionary
         items_from_locations = [item_id for item_id, location in self.item_locations.items() if location == room_id]
-        debug_log(f"Items from locations for {room_id}: {items_from_locations}")
+        debug_log(f"Items from locations for {room_id}: {items_from_locations}", category="world")
 
         # As a backup, check the room data directly (some items might not be in the tracking dict)
         room_data = self.get_room(room_id)
         if room_data and room_data.items:
             items_in_room_data = room_data.items or []  # Handle None by returning empty list
-            debug_log(f"Items from room data for {room_id}: {items_in_room_data}")
+            debug_log(f"Items from room data for {room_id}: {items_in_room_data}", category="world")
             # Combine both sources, ensuring no duplicates
             combined_items = list(set(items_from_locations + items_in_room_data))
 
@@ -1033,50 +1031,50 @@ class GameWorld:
             filtered_items = [item_id for item_id in combined_items if item_id not in self.removed_items]
             if len(filtered_items) != len(combined_items):
                 removed_count = len(combined_items) - len(filtered_items)
-                debug_log(f"Filtered out {removed_count} permanently removed items from room {room_id}")
+                debug_log(f"Filtered out {removed_count} permanently removed items from room {room_id}", category="world")
 
-            debug_log(f"Found {len(filtered_items)} items in room {room_id}: {filtered_items}")
+            debug_log(f"Found {len(filtered_items)} items in room {room_id}: {filtered_items}", category="world")
             return filtered_items
 
         # Filter removed items from locations-only list as well
         filtered_items = [item_id for item_id in items_from_locations if item_id not in self.removed_items]
-        debug_log(f"Found {len(filtered_items)} items in room {room_id}: {filtered_items}")
+        debug_log(f"Found {len(filtered_items)} items in room {room_id}: {filtered_items}", category="world")
         return filtered_items
     
     def get_enemies_in_room(self, room_id):
         """Get all enemies in a room"""
-        debug_log(f"Getting enemies in room {room_id}")
+        debug_log(f"Getting enemies in room {room_id}", category="world")
         # Get all enemies from the enemy_locations dictionary
         enemies_from_locations = [enemy_id for enemy_id, location in self.enemy_locations.items() if location == room_id]
-        
+
         # As a backup, check the room data directly (some enemies might not be in the tracking dict)
         room_data = self.get_room(room_id)
         if room_data and room_data.enemies:
             enemies_in_room_data = room_data.enemies or []  # Handle None by returning empty list
             # Combine both sources, ensuring no duplicates
             combined_enemies = list(set(enemies_from_locations + enemies_in_room_data))
-            debug_log(f"Found {len(combined_enemies)} enemies in room {room_id}: {combined_enemies}")
+            debug_log(f"Found {len(combined_enemies)} enemies in room {room_id}: {combined_enemies}", category="world")
             return combined_enemies
-        
-        debug_log(f"Found {len(enemies_from_locations)} enemies in room {room_id}: {enemies_from_locations}")
+
+        debug_log(f"Found {len(enemies_from_locations)} enemies in room {room_id}: {enemies_from_locations}", category="world")
         return enemies_from_locations
     
     def get_npcs_in_room(self, room_id):
         """Get all NPCs in a room"""
-        debug_log(f"Getting NPCs in room {room_id}")
+        debug_log(f"Getting NPCs in room {room_id}", category="world")
         # Get all NPCs from the npc_locations dictionary
         npcs_from_locations = [npc_id for npc_id, location in self.npc_locations.items() if location == room_id]
-        
+
         # As a backup, check the room data directly (some npcs might not be in the tracking dict)
         room_data = self.get_room(room_id)
         if room_data and room_data.npcs:
             npcs_in_room_data = room_data.npcs or []  # Handle None by returning empty list
             # Combine both sources, ensuring no duplicates
             combined_npcs = list(set(npcs_from_locations + npcs_in_room_data))
-            debug_log(f"Found {len(combined_npcs)} NPCs in room {room_id}: {combined_npcs}")
+            debug_log(f"Found {len(combined_npcs)} NPCs in room {room_id}: {combined_npcs}", category="world")
             return combined_npcs
-        
-        debug_log(f"Found {len(npcs_from_locations)} NPCs in room {room_id}: {npcs_from_locations}")
+
+        debug_log(f"Found {len(npcs_from_locations)} NPCs in room {room_id}: {npcs_from_locations}", category="world")
         return npcs_from_locations
     
     def get_item(self, item_id):

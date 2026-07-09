@@ -8,6 +8,23 @@ from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widgets import RichLog
 
+LOG_CATEGORIES = ["combat", "command", "item", "room", "player", "world", "system"]
+
+
+def line_passes(line: str, level_filter: int, category_filter) -> bool:
+    """Whether a log line survives the active filters.
+
+    level_filter: 0=all, 1=warnings+errors, 2=errors-only.
+    category_filter: None=all, else keep only lines tagged [CATEGORY].
+    """
+    if level_filter == 2 and "- ERROR -" not in line:
+        return False
+    if level_filter == 1 and "- ERROR -" not in line and "- WARNING -" not in line:
+        return False
+    if category_filter and f"[{category_filter.upper()}]" not in line:
+        return False
+    return True
+
 
 class LogViewerScreen(ModalScreen):
     """Modal overlay for viewing debug logs in real-time."""
@@ -23,18 +40,22 @@ class LogViewerScreen(ModalScreen):
         ("G", "scroll_end", "Go to Bottom"),
         ("d", "page_down", "Page Down"),
         ("u", "page_up", "Page Up"),
-        ("f", "toggle_filter", "Filter Warnings"),
+        ("f", "cycle_level", "Level Filter"),
+        ("c", "cycle_category", "Category Filter"),
     ]
+
+    _LEVEL_NAMES = ["all", "warn+err", "err-only"]
 
     def __init__(self):
         super().__init__()
         self._log_position = 0
         self._refresh_timer = None
-        self._filter_active: bool = False
+        self._level_filter: int = 0
+        self._category_filter = None
 
     def compose(self) -> ComposeResult:
         """Create log viewer UI."""
-        yield RichLog(highlight=True, markup=True, id="log-display", max_lines=500)
+        yield RichLog(highlight=True, markup=True, id="log-display", max_lines=5000)
 
     def _colorize_log_line(self, line: str) -> str:
         """Return the line wrapped in Rich markup based on content."""
@@ -77,11 +98,11 @@ class LogViewerScreen(ModalScreen):
         try:
             if os.path.exists(self.log_file):
                 with open(self.log_file, 'r') as f:
-                    lines = f.readlines()
-                    recent_lines = lines[-100:] if len(lines) > 100 else lines
-                    for line in recent_lines:
+                    # Load the ENTIRE current session (debug.log is cleared each run),
+                    # so the viewer can scroll all the way back to the start.
+                    for line in f.readlines():
                         stripped = line.rstrip()
-                        if self._filter_active and '- ERROR -' not in stripped and '- WARNING -' not in stripped:
+                        if not line_passes(stripped, self._level_filter, self._category_filter):
                             continue
                         log_widget.write(self._colorize_log_line(stripped))
 
@@ -111,7 +132,7 @@ class LogViewerScreen(ModalScreen):
 
                 for line in new_lines:
                     stripped = line.rstrip()
-                    if self._filter_active and '- ERROR -' not in stripped and '- WARNING -' not in stripped:
+                    if not line_passes(stripped, self._level_filter, self._category_filter):
                         continue
                     log_widget.write(self._colorize_log_line(stripped))
 
@@ -121,26 +142,34 @@ class LogViewerScreen(ModalScreen):
             pass
 
     def _full_refresh_log(self) -> None:
-        """Reload the entire log, applying current filter."""
+        """Reload the entire log, applying current filters, and update the title."""
         try:
             log_widget = self.query_one("#log-display", RichLog)
             log_widget.clear()
-            if not os.path.exists(self.log_file):
-                return
-            with open(self.log_file, 'r') as f:
-                lines = f.readlines()
-                for line in lines:
-                    stripped = line.rstrip()
-                    if self._filter_active and '- ERROR -' not in stripped and '- WARNING -' not in stripped:
-                        continue
-                    log_widget.write(self._colorize_log_line(stripped))
-                self._log_position = f.tell()
+            if os.path.exists(self.log_file):
+                with open(self.log_file, 'r') as f:
+                    for line in f.readlines():
+                        stripped = line.rstrip()
+                        if not line_passes(stripped, self._level_filter, self._category_filter):
+                            continue
+                        log_widget.write(self._colorize_log_line(stripped))
+                    self._log_position = f.tell()
+            lvl = self._LEVEL_NAMES[self._level_filter]
+            cat = self._category_filter or "all"
+            log_widget.border_title = f"Logs — level: {lvl} · category: {cat}"
         except Exception:
             pass
 
-    def action_toggle_filter(self) -> None:
-        """Toggle to show only WARNING/ERROR lines."""
-        self._filter_active = not self._filter_active
+    def action_cycle_level(self) -> None:
+        """Cycle level filter: all → warnings+errors → errors-only."""
+        self._level_filter = (self._level_filter + 1) % 3
+        self._full_refresh_log()
+
+    def action_cycle_category(self) -> None:
+        """Cycle category focus: all → each category → all."""
+        cats = [None] + LOG_CATEGORIES
+        i = cats.index(self._category_filter)
+        self._category_filter = cats[(i + 1) % len(cats)]
         self._full_refresh_log()
 
     def action_dismiss(self) -> None:
