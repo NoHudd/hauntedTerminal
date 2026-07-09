@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 # Ordered list of palette keys (must match PALETTE_DISPLAY_NAMES order)
 PALETTE_KEYS = ["default", "neon", "amber", "vscode-dark", "pastel", "yonce"]
 SPEED_KEYS = ["normal", "fast", "off"]
-DIFFICULTY_KEYS = ["easy", "medium", "hard"]
 
 
 class SettingsScreen(ModalScreen):
@@ -68,7 +67,6 @@ class SettingsScreen(ModalScreen):
         current_speed = s.get("text_speed", "normal")
         current_motion = s.get("reduce_motion", False)
         current_hints = s.get("hints", True)
-        current_difficulty = s.get("difficulty", "medium")
 
         with Container(id="settings-content"):
             yield Static("⚙  Settings", id="settings-title")
@@ -88,15 +86,6 @@ class SettingsScreen(ModalScreen):
                 RadioButton("Fast",   value=(current_speed == "fast")),
                 RadioButton("Off",    value=(current_speed == "off")),
                 id="speed-radio",
-            )
-
-            yield Label("🎯 Difficulty", classes="settings-label")
-            yield Static("[dim]Scales enemy strength & leveling[/dim]")
-            yield RadioSet(
-                RadioButton("Easy",   value=(current_difficulty == "easy")),
-                RadioButton("Medium", value=(current_difficulty == "medium")),
-                RadioButton("Hard",   value=(current_difficulty == "hard")),
-                id="difficulty-radio",
             )
 
             yield Label("Reduce Motion", classes="settings-label")
@@ -128,8 +117,6 @@ class SettingsScreen(ModalScreen):
         elif event.radio_set.id == "speed-radio":
             key = SPEED_KEYS[event.index]
             self._manager.set_text_speed(key)
-        elif event.radio_set.id == "difficulty-radio":
-            self._manager.set_difficulty(DIFFICULTY_KEYS[event.index])
 
     def on_switch_changed(self, event: Switch.Changed) -> None:
         """Handle toggles."""
