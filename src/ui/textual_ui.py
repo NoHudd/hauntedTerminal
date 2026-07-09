@@ -98,6 +98,7 @@ class TextualGameUI(App):
         (EventType.PLAYER_STATS_CHANGED, "_on_player_stats_changed"),
         (EventType.PLAYER_INVENTORY_CHANGED, "_on_player_inventory_changed"),
         (EventType.ROOM_ENTERED, "_on_room_entered"),
+        (EventType.DELAYED_ROOM_REFRESH, "_on_delayed_room_refresh"),
         (EventType.UI_STATE_CHANGED, "_on_ui_state_changed"),
         (EventType.COMBAT_STARTED, "_on_combat_started"),
         (EventType.COMBAT_FRAME_UPDATED, "_on_combat_frame_updated"),
@@ -292,6 +293,20 @@ class TextualGameUI(App):
 
             # Apply exploring game state
             self._apply_game_state_styling("exploring")
+
+    _DELAYED_RELIST_SECONDS = 2.0
+
+    def _on_delayed_room_refresh(self, event):
+        """After a story-beat `cat`, re-list the room a beat later so the
+        '✦ Memory restored / ✓ saved' message is readable first."""
+        self.set_timer(self._DELAYED_RELIST_SECONDS, self._deferred_relist)
+
+    def _deferred_relist(self):
+        event_bus.emit_event(
+            EventType.COMMAND_ENTERED,
+            {"command": "ls", "game_state": state_manager.current_state},
+            "TextualGameUI",
+        )
 
     def _on_ui_state_changed(self, event):
         """Handle UI state changed event - trigger UI styling changes only."""

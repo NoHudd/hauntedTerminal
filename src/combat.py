@@ -609,11 +609,16 @@ class CombatSession:
             if should_consume:
                 self.player.remove_from_inventory(action_value)
             
-            # Build detailed message for item usage
+            # Build detailed message for item usage. Make a heal pop so the player
+            # clearly sees it landed even when the enemy also hits this turn.
             item_name = item_data.get('name', action_value)
-            item_message = f"{self.player.name} used {item_name}"
-            if heal_amount > 0:
-                item_message += f" (healed {actual_heal} HP)"
+            if actual_heal > 0:
+                item_message = (
+                    f"[bold green]💚 {self.player.name} used {item_name} — "
+                    f"+{actual_heal} HP![/bold green]"
+                )
+            else:
+                item_message = f"{self.player.name} used {item_name}"
 
             # Emit combat action result event for item usage
             event_bus.emit_event(
@@ -629,7 +634,7 @@ class CombatSession:
                 },
                 "CombatSession"
             )
-        
+
         elif action_type == "attack":
             attack_result = combat_system.perform_attack(self.player, action_value)
 

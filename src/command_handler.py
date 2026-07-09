@@ -75,9 +75,16 @@ class CommandHandler:
         debug_log("CommandHandler event subscriptions set up")
 
     def cleanup_event_subscriptions(self):
-        """Clean up event subscriptions for the command handler."""
+        """Clean up ALL event subscriptions for the command handler.
+
+        Must mirror every subscribe — including ENEMY_DEFEATED (subscribed in
+        __init__, not via _EVENT_HANDLERS). A missed unsubscribe leaves a stale
+        handler alive: ROOM_ENTERED then fires check_for_enemies twice (fight each
+        enemy twice) and ENEMY_DEFEATED fires twice (double loot).
+        """
         for event_type, handler_name in self._EVENT_HANDLERS:
             event_bus.unsubscribe(event_type, getattr(self, handler_name))
+        event_bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         debug_log("CommandHandler event subscriptions cleaned up")
     
     def _on_room_entered(self, event):
@@ -681,13 +688,14 @@ class CommandHandler:
         "ending_chosen":       "You chose your ending.",
     }
 
-    def _trigger_story_flag(self, item):
-        """Set the item's story_flag on the player, show feedback, and auto-save."""
+    def _trigger_story_flag(self, item) -> bool:
+        """Set the item's story_flag, show feedback, auto-save. Returns True if a new
+        story beat fired (so callers can hold the room re-list a beat)."""
         flag = item.get("story_flag")
         if not flag:
-            return
+            return False
         if self.player.get_story_flag(flag):
-            return
+            return False
 
         self.player.set_story_flag(flag, True)
         title = self.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
@@ -705,6 +713,7 @@ class CommandHandler:
         except Exception as e:
             debug_log(f"Auto-save after story flag {flag} failed: {e}")
             self.output.write(f"[dim yellow]⚠ Auto-save failed: {e}[/dim yellow]")
+        return True
 
     def _handle_consumable_item(self, item_id, item):
         """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
@@ -922,7 +931,10 @@ class CommandHandler:
         Existing `drops` (heals/keys/badges) are activated here — the difficulty
         tune already assumes these fire. Gear `loot_table` is added in Task 2.
         """
-        enemy = self.world.enemies.get(enemy_id)
+        # get_enemy dumps the typed Enemy model to a plain dict (self.world.enemies
+        # holds models); reading the raw model with .get() crashes and aborts the
+        # ENEMY_DEFEATED handler before removal, leaving the enemy to be re-fought.
+        enemy = self.world.get_enemy(enemy_id)
         if not enemy:
             return []
 
