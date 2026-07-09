@@ -3,6 +3,7 @@ import os
 import sys
 import shutil
 from src.game_engine import main
+from src.ui.textual_ui import TextualGameUI  # composition root: the frontend is chosen HERE
 
 if __name__ == "__main__":
     # Create necessary directories if they don't exist
@@ -22,5 +23,5 @@ if __name__ == "__main__":
         with open("combat.log", "w") as f:
             f.write("=== Combat Log (Fresh Session) ===\n")
 
-    # Run the game
-    main() 
+    # Run the game — build the concrete frontend and inject it into the backend.
+    main(TextualGameUI())
