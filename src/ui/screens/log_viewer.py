@@ -46,6 +46,10 @@ class LogViewerScreen(ModalScreen):
 
     _LEVEL_NAMES = ["all", "warn+err", "err-only"]
 
+    _HINTS = (
+        "f level · c category · g/G top/bottom · j/k scroll · u/d page · q close"
+    )
+
     def __init__(self):
         super().__init__()
         self._log_position = 0
@@ -93,6 +97,8 @@ class LogViewerScreen(ModalScreen):
 
         self.log_file = DEBUG_LOG_FILE
         log_widget = self.query_one("#log-display", RichLog)
+        log_widget.border_title = "Logs — level: all · category: all"
+        log_widget.border_subtitle = self._HINTS
 
         # Load last 100 lines from log file
         try:
