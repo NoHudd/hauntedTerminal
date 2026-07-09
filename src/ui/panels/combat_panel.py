@@ -67,8 +67,14 @@ class CombatPanel(Static):
 
     def show_damage_pop(self, amount: int, actor: str, kind: str = "damage") -> None:
         """Show a brief floating number over the target. Caller schedules clear via timer."""
-        # actor=="player" means player attacked enemy → pop appears over enemy
-        target = "enemy" if actor == "player" else "player"
+        if kind == "damage":
+            # An attack pops over the victim: player attacks -> over enemy, and vice-versa.
+            target = "enemy" if actor == "player" else "player"
+        else:
+            # A heal/buff pops over the one affected — the actor themselves — so a
+            # self-heal shows "💚 +N" over the player (where they're watching HP),
+            # not over the enemy.
+            target = "player" if actor == "player" else "enemy"
         symbol = "-" if kind == "damage" else "+"
         color = "bold red" if kind == "damage" else "bold green"
         icon = "💥" if kind == "damage" else "💚"

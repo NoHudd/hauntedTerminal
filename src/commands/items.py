@@ -148,10 +148,20 @@ class CatCommand(Command):
         if item_id:
             item = ctx.world.get_item(item_id)
             if item:
-                self._render(ctx, item, item_id)
-                # Reprint room contents so the player keeps the room in view
-                # after reading a file, without retyping `ls`.
-                ctx.relist_room()
+                story_beat = self._render(ctx, item, item_id)
+                if story_beat:
+                    # A story beat printed "✦ Memory restored / ✓ saved". Let that
+                    # linger — the TUI re-lists the room after a short delay so the
+                    # message is readable first. Headless ignores the event.
+                    event_bus.emit_event(
+                        EventType.DELAYED_ROOM_REFRESH,
+                        {"room_id": current_room},
+                        "cat",
+                    )
+                else:
+                    # Ordinary file: reprint room contents so the player keeps the
+                    # room in view without retyping `ls`.
+                    ctx.relist_room()
             else:
                 ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         elif ctx.player.has_item(filename) or ctx._find_item_in_inventory_by_name(filename):
@@ -168,7 +178,8 @@ class CatCommand(Command):
             )
 
     @staticmethod
-    def _render(ctx: "CommandHandler", item: dict, item_id: str) -> None:
+    def _render(ctx: "CommandHandler", item: dict, item_id: str) -> bool:
+        """Print the file; run on_read + story flag. Returns True if a story beat fired."""
         item_name = item.get("name", item_id)
         content = item.get(
             "content",
@@ -177,7 +188,7 @@ class CatCommand(Command):
         ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
         if "on_read" in item:
             ctx.execute_effect(item["on_read"])
-        ctx._trigger_story_flag(item)
+        return ctx._trigger_story_flag(item)
 
 
 class DropCommand(Command):
