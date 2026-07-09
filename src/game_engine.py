@@ -800,6 +800,10 @@ to this haunted filesystem.[/italic]
     def create_player(self, name: str, player_class: str) -> bool:
         """Create a new player."""
         try:
+            # Idempotent: never leave a prior handler subscribed, or ROOM_ENTERED /
+            # ENEMY_DEFEATED fire on both and everything doubles (fight enemies twice).
+            if self.cmd_handler:
+                self.cmd_handler.cleanup_event_subscriptions()
             self.player = Player(name=name, player_class=player_class)
             self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()

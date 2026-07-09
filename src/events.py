@@ -103,6 +103,12 @@ class EventType(Enum):
     # Subscribed by: command_handler.py
     # Data: {"player_name": str, "from_room": str, "to_room": str}
 
+    DELAYED_ROOM_REFRESH = auto()
+    # Emitted by: commands/items.py (cat, after a story-beat read) so the "✦ Memory
+    # restored / ✓ saved" message stays on screen before the room re-lists.
+    # Subscribed by: textual_ui.py (schedules an `ls` via set_timer). Headless ignores it.
+    # Data: {"room_id": str}
+
     ENEMY_DEFEATED = auto()
     # Emitted by: combat.py
     # Subscribed by: command_handler.py

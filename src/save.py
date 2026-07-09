@@ -83,19 +83,11 @@ class SaveManager:
                 json.dump(save_data, file, indent=2)
             
             logger.info(f"Game saved successfully to {save_path}")
-            
-            # Emit save completion event
-            event_bus.emit_event(
-                EventType.GAME_SAVED,
-                {
-                    "save_path": save_path,
-                    "save_name": save_name,
-                    "player_name": player.name,
-                    "timestamp": save_data["savedAt"]
-                },
-                "SaveManager"
-            )
-            
+
+            # NOTE: do NOT emit GAME_SAVED here. GAME_SAVED is the *request* event
+            # (_on_save_requested handles it by calling save_game); re-emitting it on
+            # completion re-triggers the handler → infinite recursion → save storm.
+            # Callers show their own "saved" confirmation directly.
             return save_path
             
         except Exception as e:
