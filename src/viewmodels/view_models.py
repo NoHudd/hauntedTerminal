@@ -60,9 +60,13 @@ class RoomView:
     """Room display data."""
     name: str
     description: str
+    id: str = ""
+    zone: str = ""
     exits: List[str] = field(default_factory=list)
-    enemies: List[str] = field(default_factory=list)
-    npcs: List[str] = field(default_factory=list)
+    enemies: List[str] = field(default_factory=list)      # display names
+    npcs: List[str] = field(default_factory=list)         # display names
+    enemy_ids: List[str] = field(default_factory=list)    # same order as enemies
+    npc_ids: List[str] = field(default_factory=list)      # same order as npcs
 
     def to_dict(self) -> dict:
         """Convert to dictionary for event serialization."""
