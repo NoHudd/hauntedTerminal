@@ -237,6 +237,8 @@ class ImprovedGameEngine:
                 self._handle_menu_command(command)
             elif game_state == GameState.WAITING_FOR_NAME:
                 self._handle_name_input(command)
+            elif game_state == GameState.WAITING_FOR_DIFFICULTY:
+                self._handle_difficulty_input(command)
             elif game_state == GameState.WAITING_FOR_CLASS:
                 self._handle_class_input(command)
             elif game_state == GameState.TUTORIAL_NAME_INPUT:
@@ -478,8 +480,8 @@ class ImprovedGameEngine:
         # Reload world data so the new game starts with a fresh world state
         self._load_game_data()
 
-        # Show class selection
-        self._show_class_selection()
+        # Pick difficulty first (locked for the run), then class selection.
+        self._show_difficulty_selection()
         
     def _load_game(self):
         """Load an existing game."""
@@ -601,6 +603,73 @@ class ImprovedGameEngine:
         "weaver":   "✨",
         "shaman":   "🌿",
     }
+
+    _DIFFICULTY_INFO = {
+        "easy":   ("🌱", "green", "Gentler enemies, faster leveling. For learning the ropes."),
+        "medium": ("⚖",  "cyan",  "The intended, balanced challenge."),
+        "hard":   ("🔥", "red",   "Tougher enemies and longer fights; you level slower."),
+    }
+
+    def _show_difficulty_selection(self):
+        """Difficulty picker — Rich panels, mirrors class selection."""
+        try:
+            from src import difficulty
+            from rich.panel import Panel
+            from rich.console import Group
+            from rich.text import Text
+            from rich.align import Align
+            from rich.rule import Rule
+
+            renderables = [
+                Text(""),
+                Align.center(Text("⚙  CHOOSE YOUR DIFFICULTY  ⚙", style="bold cyan")),
+                Rule(style="cyan"),
+                Text(""),
+            ]
+            for i, mode in enumerate(difficulty.MODES, 1):
+                icon, color, desc = self._DIFFICULTY_INFO.get(mode, ("•", "white", ""))
+                body = Text(desc, style="italic")
+                renderables.append(Panel(
+                    body,
+                    title=f"[bold {color}][{i}]  {icon}  {mode.upper()}[/bold {color}]",
+                    title_align="left",
+                    border_style=color,
+                    padding=(1, 2),
+                    expand=True,
+                ))
+                renderables.append(Text(""))
+            renderables.append(
+                Text(f"Enter your choice (1–{len(difficulty.MODES)}):", style="bold white")
+            )
+
+            group = Group(*renderables)
+            if hasattr(self.ui, "update_output_renderable"):
+                self.ui.update_output_renderable(group)
+            else:
+                from rich.console import Console
+                con = Console(record=True, width=100)
+                con.print(group)
+                self.ui.update_output(con.export_text(styles=True))
+
+            state_manager.set_state(GameState.WAITING_FOR_DIFFICULTY)
+        except Exception as e:
+            logger.error(f"Error showing difficulty selection: {e}")
+            self.ui.update_output(f"Error showing difficulty selection: {e}")
+            state_manager.set_state(GameState.MENU)
+
+    def _handle_difficulty_input(self, choice: str):
+        """Set the run's difficulty from the picker, then go to class selection."""
+        from src import difficulty
+        mode_map = {str(i): m for i, m in enumerate(difficulty.MODES, 1)}
+        mode = mode_map.get(str(choice).strip())
+        if not mode:
+            valid = ", ".join(mode_map.keys())
+            self.ui.update_output(f"[bold red]Invalid choice. Please enter {valid}.[/bold red]\n")
+            self._show_difficulty_selection()
+            return
+        difficulty.set_mode(mode)
+        self.ui.update_output(f"[bold green]Difficulty set to {mode.upper()}.[/bold green]\n")
+        self._show_class_selection()
 
     def _show_class_selection(self):
         """Display class selection as auto-sized Rich Panels stacked vertically.
