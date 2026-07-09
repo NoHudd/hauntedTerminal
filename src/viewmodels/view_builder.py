@@ -130,28 +130,29 @@ class ViewBuilder:
                 path = ROOM_ID_TO_PATH.get(exit_id, exit_id)
                 exit_commands.append(path)
 
-            # Build enemy display names from live world state
-            enemy_ids = getattr(world, 'get_enemies_in_room', lambda r: [])(room_id)
-            enemy_names = [
-                getattr(world.enemies[eid], 'name', eid)
-                for eid in enemy_ids
+            # Enemies: keep (id, name) pairs so the scene can resolve sprites
+            enemy_ids = [
+                eid for eid in getattr(world, 'get_enemies_in_room', lambda r: [])(room_id)
                 if eid in getattr(world, 'enemies', {})
             ]
+            enemy_names = [getattr(world.enemies[eid], 'name', eid) for eid in enemy_ids]
 
-            # Build NPC display names from live world state
-            npc_ids = getattr(world, 'get_npcs_in_room', lambda r: [])(room_id)
-            npc_names = [
-                world.npcs.get(nid, {}).get('name', nid)
-                for nid in npc_ids
+            npc_ids = [
+                nid for nid in getattr(world, 'get_npcs_in_room', lambda r: [])(room_id)
                 if nid in getattr(world, 'npcs', {})
             ]
+            npc_names = [world.npcs.get(nid, {}).get('name', nid) for nid in npc_ids]
 
             return RoomView(
                 name=room_data.name or room_id,
                 description=room_data.description or 'An unknown location.',
+                id=room_id,
+                zone=getattr(room_data, 'zone', '') or '',
                 exits=exit_commands,
                 enemies=enemy_names,
                 npcs=npc_names,
+                enemy_ids=enemy_ids,
+                npc_ids=npc_ids,
             )
         except Exception as e:
             logger.error(f"Error building room view for {room_id}: {e}", exc_info=True)
