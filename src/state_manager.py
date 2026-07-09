@@ -14,7 +14,8 @@ class StateManager:
 
     # Define valid state transitions for validation
     _valid_transitions = {
-        GameState.MENU: [GameState.WAITING_FOR_NAME, GameState.LOADING, GameState.EXIT],
+        GameState.MENU: [GameState.WAITING_FOR_DIFFICULTY, GameState.WAITING_FOR_NAME, GameState.LOADING, GameState.EXIT],
+        GameState.WAITING_FOR_DIFFICULTY: [GameState.WAITING_FOR_CLASS, GameState.MENU],
         GameState.WAITING_FOR_NAME: [GameState.WAITING_FOR_CLASS, GameState.TUTORIAL_NAME_INPUT],
         GameState.WAITING_FOR_CLASS: [GameState.PLAYING],
         GameState.TUTORIAL_NAME_INPUT: [GameState.WAITING_FOR_CLASS, GameState.PLAYING],
