@@ -29,8 +29,7 @@ from config.dev_config import SKIP_INTRO
 from src.ui.panels.inventory_panel import InventoryPanel
 from src.ui.panels.stats_panel import StatsPanel
 from src.ui.panels.combat_panel import CombatPanel
-from src.ui.panels.room_strip import RoomStrip
-from src.ui.panels.entity_strip import EntityStrip
+from src.ui.panels.scene_view import SceneView
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
 from src.ui.screens.settings_screen import SettingsScreen
@@ -116,8 +115,7 @@ class TextualGameUI(App):
         yield Static(id="header")
         with Horizontal():
             with Vertical(id="main-area"):
-                yield RoomStrip(id="room-strip")
-                yield EntityStrip(id="entity-strip")
+                yield SceneView(id="scene-view")
                 with VerticalScroll(id="output-panel"):
                     yield Static(self.output_content, id="output-display")
             with Container(id="sidebar"):
@@ -134,8 +132,7 @@ class TextualGameUI(App):
             self._inv_panel = self.query_one("#inventory-panel", InventoryPanel)
             self._stats_panel = self.query_one("#stats-panel", StatsPanel)
             self._combat_panel = self.query_one("#combat-panel", CombatPanel)
-            self._room_strip = self.query_one("#room-strip", RoomStrip)
-            self._entity_strip = self.query_one("#entity-strip", EntityStrip)
+            self._scene_view = self.query_one("#scene-view", SceneView)
 
             # Set panel titles
             self._inv_panel.border_title = "📦 Inventory"
@@ -285,8 +282,7 @@ class TextualGameUI(App):
             npcs = self._room_view.get('npcs', [])
 
             room_name = self._room_view.get('name', '')
-            self._room_strip.refresh_room(room_name, exits)
-            self._entity_strip.refresh_entities(enemies, npcs)
+            self._scene_view.show_explore(self._room_view)
 
             # Apply dynamic room theming using room view data
             self._apply_room_theme(room_name, self._room_view)
@@ -656,10 +652,12 @@ class TextualGameUI(App):
         self._stats_panel.update(content)
 
     def update_exits(self, exits: list) -> None:
-        """Update the room strip exits display."""
+        """Update the scene's exits display (border subtitle)."""
         self._check_ready()
-        room_name = self._room_view.get('name', '') if self._room_view else ''
-        self._room_strip.refresh_room(room_name, exits)
+        if self._room_view:
+            room = dict(self._room_view)
+            room['exits'] = exits
+            self._scene_view.show_explore(room)
 
     def update_player_name(self, name: str) -> None:
         """Update the player name display."""
@@ -720,12 +718,7 @@ Brave sysadmin {player_name}, your session has been terminated.
             self._inv_panel.update_inventory(self._inventory_view)
             self._stats_panel.update_stats(self._player_view)
             if self._room_view:
-                room_name = self._room_view.get('name', '')
-                exits = self._room_view.get('exits', [])
-                enemies = self._room_view.get('enemies', [])
-                npcs = self._room_view.get('npcs', [])
-                self._room_strip.refresh_room(room_name, exits)
-                self._entity_strip.refresh_entities(enemies, npcs)
+                self._scene_view.show_explore(self._room_view)
 
         self.set_timer(0.1, delayed_panel_refresh)
         self.query_one("#input-field").placeholder = "Enter command..."
@@ -919,8 +912,7 @@ Brave sysadmin {player_name}, your session has been terminated.
         self._inv_panel.update("Inventory will appear here")
         self._stats_panel.update("Stats will appear here")
         self._combat_panel.show_idle()
-        self._room_strip.refresh_room("Loading...", [])
-        self._entity_strip.refresh_entities([], [])
+        self._scene_view.show_loading()
 
     # =====================================
     # TITLE SCREEN & UI UTILITIES

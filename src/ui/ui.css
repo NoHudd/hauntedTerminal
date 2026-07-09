@@ -27,8 +27,7 @@
    ============================================================================= */
 
 .intro-mode #sidebar { display: none; }
-.intro-mode #room-strip { display: none; }
-.intro-mode #entity-strip { display: none; }
+.intro-mode #scene-view { display: none; }
 .intro-mode #input-field { display: none; }
 
 .intro-mode #main-area {
@@ -46,19 +45,14 @@
 }
 
 /* =============================================================================
-   ROOM STRIP & ENTITY STRIP
+   SCENE VIEW (replaces room/entity strips) — docs/SCENE_VIEW_SPEC.md
    ============================================================================= */
 
-#room-strip {
-    height: 3;
+#scene-view {
+    height: 45%;
+    min-height: 3;
     border: round $primary;
-    padding: 0 2;
-}
-
-#entity-strip {
-    height: 3;
-    border: round $accent;
-    padding: 0 2;
+    padding: 0 1;
 }
 
 /* =============================================================================
