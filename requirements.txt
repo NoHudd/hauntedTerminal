@@ -2,7 +2,13 @@ rich>=13.3.3
 pyyaml>=6.0.1
 tqdm==4.65.0
 readchar==0.7
-textual==0.47.1
+# NOTE: the old textual==0.47.1 pin was stale — the venv had drifted newer and the
+# code uses newer APIs (e.g. Input.Blurred). 8.2.8 verified working 2026-07-09.
+textual==8.2.8
+
+# Scene view (pixel-art sprites rendered as half-blocks) — docs/SCENE_VIEW_SPEC.md
+rich-pixels>=3
+Pillow>=10
 
 # Rewrite engine (typed content schema) — see docs/REWRITE_PLAN.md
 pydantic>=2
