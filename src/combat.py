@@ -41,7 +41,7 @@ class CombatSystem:
         class_data = load_class_data()
         cls = class_data.get(player_class)
         attacks = (cls.attacks if cls else None) or ["strike"]
-        debug_log(f"Available attacks for {player_class} class: {attacks}")
+        debug_log(f"Available attacks for {player_class} class: {attacks}", category="combat")
         return attacks
     
     def initialize_cooldowns(self, player_id):
