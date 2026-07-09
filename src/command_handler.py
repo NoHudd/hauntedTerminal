@@ -10,7 +10,7 @@ from src.commands import build_registry
 from src.events import event_bus, EventType
 from src.game_states import GameState
 from src.state_manager import state_manager
-from src.ui.view_builder import ViewBuilder
+from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 from utils.typewriter import TypewriterPresets, create_typewriter_output_func
 from utils.particle_animation import GameOverAnimation

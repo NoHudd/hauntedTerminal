@@ -10,7 +10,7 @@ from typing import List, Optional
 import logging
 
 from src.room_paths import ROOM_ID_TO_PATH
-from src.ui.view_models import (
+from src.viewmodels.view_models import (
     StatsView,
     InventoryItemView,
     InventoryView,

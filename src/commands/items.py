@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from src.commands.base import Command
 from src.events import EventType, event_bus
-from src.ui.view_builder import ViewBuilder
+from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 from utils.typewriter import TypewriterPresets, create_typewriter_output_func
 
