@@ -49,7 +49,10 @@ class ViewBuilder:
                 health=getattr(player, 'health', 0),
                 max_health=getattr(player, 'max_health', 100),
                 damage=total_damage,
-                player_class=getattr(player, 'player_class', 'Unknown')
+                player_class=getattr(player, 'player_class', 'Unknown'),
+                level=getattr(player, 'level', 1),
+                cycles=getattr(player, 'harvesting_cycles', 0),
+                cycles_to_next=getattr(player, 'cycles_to_next_level', 0),
             )
         except Exception as e:
             logger.error(f"Error building stats view: {e}", exc_info=True)

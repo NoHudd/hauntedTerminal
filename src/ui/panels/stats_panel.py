@@ -24,6 +24,14 @@ class StatsPanel(Static):
         )
         stats_lines.append(f"Class: {player_class.title()}")
 
+        level = player_view.get('level', 1)
+        cycles = player_view.get('cycles', 0)
+        to_next = player_view.get('cycles_to_next', 0)
+        if to_next:
+            stats_lines.append(f"[yellow]Lvl {level}[/] [dim]· {cycles}/{to_next} cycles[/]")
+        else:
+            stats_lines.append(f"[yellow]Lvl {level}[/]")
+
         health = player_view.get('health', 0)
         max_health = player_view.get('max_health', 100)
 
@@ -60,6 +68,14 @@ class StatsPanel(Static):
             f"[bold green]{class_icon(player_class)}  {player_name.upper()}[/bold green]"
         )
         stats_lines.append(f"Class: {player_class.title()}")
+
+        level = player_view.get('level', 1)
+        cycles = player_view.get('cycles', 0)
+        to_next = player_view.get('cycles_to_next', 0)
+        if to_next:
+            stats_lines.append(f"[yellow]Lvl {level}[/] [dim]· {cycles}/{to_next} cycles[/]")
+        else:
+            stats_lines.append(f"[yellow]Lvl {level}[/]")
 
         if combat_view:
             health = combat_view.get('player_health', 0)

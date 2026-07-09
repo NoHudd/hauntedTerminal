@@ -18,6 +18,9 @@ class StatsView:
     max_health: int
     damage: int
     player_class: str
+    level: int = 1
+    cycles: int = 0
+    cycles_to_next: int = 0
 
     def to_dict(self) -> dict:
         """Convert to dictionary for event serialization."""
