@@ -66,7 +66,8 @@ def _make_backdrop_store(tmp_path):
 def test_backdrop_room_override_beats_zone(tmp_path):
     store = _make_backdrop_store(tmp_path)
     Image.new("RGBA", (10, 10), (255, 0, 0, 255)).save(tmp_path / "backdrops" / "dangerous.png")
-    Image.new("RGBA", (10, 10), (0, 0, 255, 255)).save(tmp_path / "backdrops" / "rooms" / "var_dungeon.png")
+    blue = Image.new("RGBA", (10, 10), (0, 0, 255, 255))
+    blue.save(tmp_path / "backdrops" / "rooms" / "var_dungeon.png")
     bd = store.get_backdrop("var_dungeon", "dangerous", 40, 20)
     assert bd.size == (40, 20)
     assert bd.getpixel((20, 10))[2] > bd.getpixel((20, 10))[0]  # blue (room) won

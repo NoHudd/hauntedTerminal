@@ -30,6 +30,8 @@ def test_loaders_validate_and_return_dicts():
 
 
 def test_bad_item_field_raises_at_validation():
+    from pydantic import ValidationError
+
     from engine.schema import Item
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         Item(id="x", name="X", type="weapon", damage="not-a-number")

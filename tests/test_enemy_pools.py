@@ -1,6 +1,11 @@
 """Pure enemy-pool building + rolling (no GameWorld)."""
 from __future__ import annotations
 
+import glob
+import os
+
+import yaml
+
 import src.rng as rng
 from src.enemy_pools import build_tier_pools, roll_room_enemies
 
@@ -52,8 +57,10 @@ def test_count_exceeding_pool_returns_available_without_error() -> None:
 
 def test_rolls_are_deterministic_under_seed() -> None:
     rooms = {"r": {"enemy_tier": 1, "enemy_count": 2}}
-    rng.seed(7); a = roll_room_enemies(rooms, ENEMIES, rng)["r"]
-    rng.seed(7); b = roll_room_enemies(rooms, ENEMIES, rng)["r"]
+    rng.seed(7)
+    a = roll_room_enemies(rooms, ENEMIES, rng)["r"]
+    rng.seed(7)
+    b = roll_room_enemies(rooms, ENEMIES, rng)["r"]
     assert a == b
 
 
@@ -71,12 +78,6 @@ def test_bosses_are_not_pooled() -> None:
     for boss in ("daemon_overlord.sys", "corruption_overlord.exe"):
         assert boss in enemies
         assert enemies[boss].tier is None, f"{boss} must not be pooled"
-
-
-import glob
-import os
-
-import yaml
 
 
 def _rooms() -> dict[str, dict]:
@@ -124,7 +125,8 @@ def test_ramp_rooms_are_tiered() -> None:
 def test_world_rolls_and_persists_enemies() -> None:
     from engine.api import GameSession
     rng.seed(123)
-    s = GameSession(); s.new_game("T", "guardian")
+    s = GameSession()
+    s.new_game("T", "guardian")
     try:
         world = s.engine.cmd_handler.world
         # a tier-2 count-2 room should hold exactly 2 distinct tier-2 enemies
@@ -142,8 +144,10 @@ def test_world_rolls_and_persists_enemies() -> None:
 
 def test_gauntlet_varies_and_ends_on_the_boss() -> None:
     from sim.gauntlet import main_path_enemy_ids
-    rng.seed(1); run_a = main_path_enemy_ids()
-    rng.seed(2); run_b = main_path_enemy_ids()
+    rng.seed(1)
+    run_a = main_path_enemy_ids()
+    rng.seed(2)
+    run_b = main_path_enemy_ids()
     assert run_a and run_b
     assert run_a[-1] == "daemon_overlord.sys"          # boss stays the finale
     assert run_a != run_b                              # different seeds -> different run

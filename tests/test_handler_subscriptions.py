@@ -18,8 +18,12 @@ def test_recreating_player_leaves_one_subscribed_handler():
     defeats = {"n": 0}
     orig_check = CH.CommandHandler.check_for_enemies
     orig_def = CH.CommandHandler._on_enemy_defeated
-    CH.CommandHandler.check_for_enemies = lambda self: (checks.__setitem__("n", checks["n"] + 1), orig_check(self))[1]
-    CH.CommandHandler._on_enemy_defeated = lambda self, ev: (defeats.__setitem__("n", defeats["n"] + 1), orig_def(self, ev))[1]
+    CH.CommandHandler.check_for_enemies = lambda self: (
+        checks.__setitem__("n", checks["n"] + 1), orig_check(self)
+    )[1]
+    CH.CommandHandler._on_enemy_defeated = lambda self, ev: (
+        defeats.__setitem__("n", defeats["n"] + 1), orig_def(self, ev)
+    )[1]
     try:
         eng = ImprovedGameEngine(ui=HeadlessUI())
         eng.create_player("A", "guardian")
@@ -32,7 +36,9 @@ def test_recreating_player_leaves_one_subscribed_handler():
 
         defeats["n"] = 0
         event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "nope"}, "test")
-        assert defeats["n"] == 1, f"ENEMY_DEFEATED fired _on_enemy_defeated {defeats['n']}x (expected 1)"
+        assert defeats["n"] == 1, (
+            f"ENEMY_DEFEATED fired _on_enemy_defeated {defeats['n']}x (expected 1)"
+        )
     finally:
         CH.CommandHandler.check_for_enemies = orig_check
         CH.CommandHandler._on_enemy_defeated = orig_def

@@ -102,6 +102,7 @@ def test_final_boss_has_a_legendary_loot_table() -> None:
 
 def test_some_enemy_can_drop_epic() -> None:
     import glob
+
     import yaml
     epic_droppers = []
     for path in glob.glob("data/enemies/*.y*ml"):

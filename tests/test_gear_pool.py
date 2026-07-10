@@ -29,7 +29,8 @@ def test_every_weapon_has_wired_positive_damage() -> None:
 
 def test_every_weapon_has_valid_rarity() -> None:
     for wid, w in _weapons().items():
-        assert w.get("rarity") in PLACEABLE_RARITIES, f"{wid} rarity {w.get('rarity')!r} not placeable"
+        rarity = w.get("rarity")
+        assert rarity in PLACEABLE_RARITIES, f"{wid} rarity {rarity!r} not placeable"
 
 
 def test_every_weapon_has_valid_classes_and_zones() -> None:
@@ -43,7 +44,8 @@ def test_no_rare_plus_weapon_in_early_zone() -> None:
     for wid, w in _weapons().items():
         if w.get("rarity") in RARE_PLUS:
             zones = set(w.get("allowed_zones") or [])
-            assert not (zones & EARLY_ZONES), f"{wid} ({w['rarity']}) leaks into early zone(s): {zones & EARLY_ZONES}"
+            leaked = zones & EARLY_ZONES
+            assert not leaked, f"{wid} ({w['rarity']}) leaks into early zone(s): {leaked}"
 
 
 def test_rare_tier_is_deepened_for_world_placement() -> None:
@@ -75,7 +77,8 @@ def test_no_rare_plus_armor_in_early_zone() -> None:
     for aid, a in _armor().items():
         if a.get("rarity") in RARE_PLUS:
             zones = set(a.get("allowed_zones") or [])
-            assert not (zones & EARLY_ZONES), f"{aid} leaks into early zone(s): {zones & EARLY_ZONES}"
+            leaked = zones & EARLY_ZONES
+            assert not leaked, f"{aid} leaks into early zone(s): {leaked}"
 
 
 def test_each_class_has_a_rare_or_better_armor() -> None:
@@ -104,7 +107,9 @@ def test_epic_legendary_entries_staged_for_phase2_drops() -> None:
     epic = [w for w in weapons.values() if w.get("rarity") == "epic"]
     legendary = [w for w in weapons.values() if w.get("rarity") == "legendary"]
     assert len(epic) >= 4, f"expected >=4 epic entries staged for Phase 2, got {len(epic)}"
-    assert len(legendary) >= 3, f"expected >=3 legendary entries staged for Phase 2, got {len(legendary)}"
+    assert len(legendary) >= 3, (
+        f"expected >=3 legendary entries staged for Phase 2, got {len(legendary)}"
+    )
     for w in epic + legendary:
         dmg = w.get("damage")
         assert isinstance(dmg, int) and dmg > 0, f"{w.get('name')} not drop-ready: damage {dmg!r}"

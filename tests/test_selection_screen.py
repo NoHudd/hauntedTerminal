@@ -5,7 +5,9 @@ from src.ui.screens.selection_screen import SelectionCard, SelectionScreen, digi
 def _cards():
     return [
         SelectionCard(command="1", title="Easy", subtitle="forgiving", art_key="difficulty_easy"),
-        SelectionCard(command="2", title="Medium", subtitle="intended", art_key="difficulty_medium"),
+        SelectionCard(
+            command="2", title="Medium", subtitle="intended", art_key="difficulty_medium"
+        ),
         SelectionCard(command="3", title="Hard", subtitle="punishing", art_key="difficulty_hard"),
     ]
 

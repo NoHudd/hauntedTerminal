@@ -14,7 +14,9 @@ def _sprite(color):
 
 
 def test_enemy_top_right_player_bottom_left():
-    img = compose_battle(_backdrop(), _sprite((0, 255, 0, 255)), _sprite((255, 0, 0, 255)), FxState())
+    img = compose_battle(
+        _backdrop(), _sprite((0, 255, 0, 255)), _sprite((255, 0, 0, 255)), FxState()
+    )
     # red (enemy) somewhere in the top-right quadrant
     tr = img.crop((50, 0, 100, 20))
     assert any(p[0] == 255 and p[1] == 0 for p in tr.getdata())
@@ -24,8 +26,9 @@ def test_enemy_top_right_player_bottom_left():
 
 
 def test_lunge_moves_player_right():
-    still = compose_battle(_backdrop(), _sprite((0, 255, 0, 255)), _sprite((255, 0, 0, 255)), FxState())
-    lunged = compose_battle(_backdrop(), _sprite((0, 255, 0, 255)), _sprite((255, 0, 0, 255)), FxState(player_dx=6))
+    player, enemy = _sprite((0, 255, 0, 255)), _sprite((255, 0, 0, 255))
+    still = compose_battle(_backdrop(), player, enemy, FxState())
+    lunged = compose_battle(_backdrop(), player, enemy, FxState(player_dx=6))
 
     def leftmost_green(im):
         px = list(im.getdata())
@@ -36,7 +39,9 @@ def test_lunge_moves_player_right():
 
 
 def test_flash_whitens_enemy():
-    flashed = compose_battle(_backdrop(), _sprite((0, 255, 0, 255)), _sprite((120, 0, 0, 255)), FxState(enemy_flash=True))
+    flashed = compose_battle(
+        _backdrop(), _sprite((0, 255, 0, 255)), _sprite((120, 0, 0, 255)), FxState(enemy_flash=True)
+    )
     tr = flashed.crop((50, 0, 100, 20))
     assert any(p[0] > 200 and p[1] > 200 and p[2] > 200 for p in tr.getdata())
 

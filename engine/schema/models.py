@@ -112,8 +112,8 @@ class Enemy(_Base):
     tier: int | None = None
     experience: int = 0
     dialogue: str = ""
-    attack_patterns: list = Field(default_factory=list)
-    loot_table: list = Field(default_factory=list)
+    attack_patterns: list[dict[str, object]] = Field(default_factory=list)
+    loot_table: list[dict[str, object]] = Field(default_factory=list)
 
     @field_validator("dialogue", mode="before")
     @classmethod
@@ -132,10 +132,10 @@ class Item(_Base):
     # key items only:
     unlocks: list[RoomId] = Field(default_factory=list)
     short_description: str = ""
-    tags: list = Field(default_factory=list)
-    allowed_zones: list = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    allowed_zones: list[str] = Field(default_factory=list)
     damage: int = 0
-    combat_effects: dict = Field(default_factory=dict)
+    combat_effects: dict[str, object] = Field(default_factory=dict)
     usable: bool = False
     usable_in_combat: bool = False
     consumed_on_use: bool = False

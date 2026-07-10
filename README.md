@@ -11,6 +11,16 @@ A narrative-driven text adventure where you play as a Sysadmin Spirit navigating
 
 ---
 
+<!-- Screenshots -->
+![Exploring the Graveyard](./assets/screenshot-explore.svg)
+*Exploring the Graveyard — pixel scene view, live panels, ECHO guiding your first `ls`*
+
+| Pokemon-style battles | Pick your difficulty |
+|---|---|
+| ![Battle](./assets/screenshot-battle.svg) | ![Difficulty](./assets/screenshot-difficulty.svg) |
+
+---
+
 ## 📖 Story Overview
 
 **The Great Kernel Panic has shattered the system.**

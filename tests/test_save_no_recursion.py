@@ -24,7 +24,9 @@ def test_save_game_does_not_emit_game_saved():
         event_bus.subscribe(EventType.GAME_SAVED, counter)
         try:
             save_manager.save_game(s.player, s.world.get_state())
-            assert hits["n"] == 0, "save_game must not emit GAME_SAVED (causes recursive save storm)"
+            assert hits["n"] == 0, (
+                "save_game must not emit GAME_SAVED (causes recursive save storm)"
+            )
         finally:
             event_bus.unsubscribe(EventType.GAME_SAVED, counter)
     finally:
