@@ -97,12 +97,14 @@ class CombatView:
     enemy_max_health: int
     player_health: int
     player_max_health: int
+    enemy_id: str = ""    # for scene sprite lookup
     available_attacks: List[AttackView] = field(default_factory=list)
     usable_items: List[InventoryItemView] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for event serialization."""
         return {
+            "enemy_id": self.enemy_id,
             "enemy_name": self.enemy_name,
             "enemy_health": self.enemy_health,
             "enemy_max_health": self.enemy_max_health,

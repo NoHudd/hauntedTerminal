@@ -28,10 +28,10 @@ from config.dev_config import SKIP_INTRO
 
 from src.ui.panels.inventory_panel import InventoryPanel
 from src.ui.panels.stats_panel import StatsPanel
-from src.ui.panels.combat_panel import CombatPanel
 from src.ui.panels.scene_view import SceneView
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
+from src.ui.screens.selection_screen import SelectionCard, SelectionScreen
 from src.ui.screens.settings_screen import SettingsScreen
 from src.ui.command_suggester import CommandSuggester
 from config.settings_manager import SettingsManager
@@ -121,7 +121,6 @@ class TextualGameUI(App):
             with Container(id="sidebar"):
                 yield InventoryPanel(id="inventory-panel")
                 yield StatsPanel(id="stats-panel")
-                yield CombatPanel(id="combat-panel")
         yield Footer()
         yield Input(placeholder="Enter command...", id="input-field")
 
@@ -131,13 +130,11 @@ class TextualGameUI(App):
             # Store panel references
             self._inv_panel = self.query_one("#inventory-panel", InventoryPanel)
             self._stats_panel = self.query_one("#stats-panel", StatsPanel)
-            self._combat_panel = self.query_one("#combat-panel", CombatPanel)
             self._scene_view = self.query_one("#scene-view", SceneView)
 
             # Set panel titles
             self._inv_panel.border_title = "📦 Inventory"
             self._stats_panel.border_title = "📊 Stats"
-            self._combat_panel.border_title = "⚔ Combat"
 
             self.ui_state = UIState.READY
             self._settings_manager.register_themes(self)
@@ -227,8 +224,9 @@ class TextualGameUI(App):
         self._combat_log.clear()
         self._available_attacks = []
 
-        # Remove combat UI styling
+        # Remove combat UI styling and leave battle mode
         self.remove_class("combat-active")
+        self._scene_view.end_battle()
 
         # Unbind any combat hotkeys
         self._unbind_combat_hotkeys()
@@ -304,11 +302,98 @@ class TextualGameUI(App):
             "TextualGameUI",
         )
 
+    # States where the player is picking difficulty/class/name — the game panels
+    # (scene, inventory, stats, combat) carry no information yet, so the output
+    # panel takes the whole screen (input stays for typing the choice).
+    _SELECTION_STATES = {
+        "waiting_for_difficulty",
+        "waiting_for_class",
+        "waiting_for_name",
+        "tutorial_name_input",
+    }
+
     def _on_ui_state_changed(self, event):
         """Handle UI state changed event - trigger UI styling changes only."""
-        new_state = event.data.get('new_state')
-        # State is managed by StateManager, UI just reacts to changes
-        # Trigger any UI-specific styling updates here if needed
+        new_state = str(event.data.get('new_state'))
+        if new_state in self._SELECTION_STATES:
+            self.add_class("selection-mode")
+        else:
+            self.remove_class("selection-mode")
+
+        # Art-card pickers for difficulty/class; name entry stays typed.
+        self._close_picker()
+        if new_state == "waiting_for_difficulty":
+            self._open_picker("Choose your difficulty", self._difficulty_cards())
+        elif new_state == "waiting_for_class":
+            self._open_picker("Choose your class", self._class_cards())
+
+    # -- art-card pickers -------------------------------------------------------
+
+    _picker: SelectionScreen | None = None
+
+    def _open_picker(self, heading: str, cards: list) -> None:
+        def on_pick(card: SelectionCard) -> None:
+            event_bus.emit_event(
+                EventType.COMMAND_ENTERED,
+                {"command": card.command, "game_state": state_manager.current_state},
+                "SelectionScreen",
+            )
+
+        self._picker = SelectionScreen(heading, cards, on_pick)
+        # Defer the push past the in-flight key event: pushing synchronously lets
+        # the SAME Enter that triggered this state change hit the new screen's
+        # "enter" binding and auto-confirm card 1 (observed: menu→easy in 1 ms).
+        self.call_after_refresh(self.push_screen, self._picker)
+
+    def _close_picker(self) -> None:
+        if self._picker is not None:
+            try:
+                if self._picker.is_current or self._picker in self.screen_stack:
+                    self._picker.dismiss()
+            except Exception as e:
+                logger.debug(f"Picker dismiss failed: {e}")
+            self._picker = None
+
+    @staticmethod
+    def _difficulty_cards() -> list:
+        from src.difficulty import MODES
+        info = {
+            "easy":   ("🌱\nGentler enemies, faster leveling.\nFor learning the ropes.", "green"),
+            "medium": ("⚖\nThe intended, balanced challenge.", "yellow"),
+            "hard":   ("🔥\nTougher enemies, longer fights;\nyou level slower.", "red"),
+        }
+        return [
+            SelectionCard(
+                command=str(i),
+                title=mode,
+                subtitle=info.get(mode, ("", "white"))[0],
+                art_key=f"difficulty_{mode}",
+                accent=info.get(mode, ("", "white"))[1],
+            )
+            for i, mode in enumerate(MODES, 1)
+        ]
+
+    @staticmethod
+    def _class_cards() -> list:
+        from src.data_loader import load_class_data
+        accents = {"guardian": "cyan", "weaver": "magenta", "shaman": "green"}
+        cards = []
+        for i, (class_id, data) in enumerate(load_class_data().items(), 1):
+            # data is a typed CharacterClass model; display carries labeled stats
+            tagline = (getattr(data, "description", "") or "").split(" - ")[0]
+            disp = getattr(data, "display", None)
+            if disp is not None:
+                stats = f"{disp.hp_label}\n{disp.dmg_label}\n⚔ {disp.weapon_name}"
+            else:
+                stats = f"HP {getattr(data, 'base_health', '?')} · DMG {getattr(data, 'base_damage', '?')}"
+            cards.append(SelectionCard(
+                command=str(i),
+                title=getattr(data, "name", class_id),
+                subtitle=f"{tagline}\n\n{stats}",
+                art_key=f"class_{class_id}",
+                accent=accents.get(class_id, "white"),
+            ))
+        return cards
 
     def _on_combat_started(self, event):
         """Handle combat started — one-shot initialization of combat UI."""
@@ -701,8 +786,13 @@ Brave sysadmin {player_name}, your session has been terminated.
     # =====================================
 
     def _show_combat_ui(self):
-        """Activate combat UI mode."""
+        """Activate combat UI mode: battle scene + combat styling."""
         self.add_class("combat-active")
+        self._scene_view.show_battle(
+            self._combat_view,
+            self._player_view or {},
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False)),
+        )
         self._update_combat_panels()
 
         input_field = self.query_one("#input-field")
@@ -711,7 +801,7 @@ Brave sysadmin {player_name}, your session has been terminated.
     def _hide_combat_ui(self):
         """Deactivate combat UI mode."""
         self.remove_class("combat-active")
-        self._combat_panel.show_idle()
+        self._scene_view.end_battle()
 
         # Delayed refresh ensures panels update after combat cleanup completes
         def delayed_panel_refresh():
@@ -728,7 +818,7 @@ Brave sysadmin {player_name}, your session has been terminated.
         if not self._combat_view:
             return
 
-        self._combat_panel.refresh_combat(self._combat_view, self._player_view)
+        self._scene_view.update_battle(self._combat_view)
         self._update_combat_main_output()
         self._stats_panel.refresh_combat(self._player_view, self._combat_view)
         self._inv_panel.update_inventory(self._inventory_view)
@@ -887,10 +977,9 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _show_floating_number(self, amount: int, effect_type: str, actor: str):
         """Show floating damage/heal numbers with visual feedback."""
-        # Floating number pop in combat panel for both directions.
+        # Floating number pop in the battle scene for both directions.
         try:
-            self._combat_panel.show_damage_pop(amount, actor, effect_type)
-            self.set_timer(0.7, self._combat_panel.clear_damage_pop)
+            self._scene_view.play_effect(effect_type, actor, amount)
         except Exception as e:
             logger.debug(f"Damage pop failed: {e}")
 
@@ -911,7 +1000,6 @@ Brave sysadmin {player_name}, your session has been terminated.
         """Set all panels to default states."""
         self._inv_panel.update("Inventory will appear here")
         self._stats_panel.update("Stats will appear here")
-        self._combat_panel.show_idle()
         self._scene_view.show_loading()
 
     # =====================================

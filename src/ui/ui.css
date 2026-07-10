@@ -16,7 +16,7 @@
 
 #sidebar {
     layout: grid;
-    grid-rows: 1fr 1fr 1fr;
+    grid-rows: 1fr 1fr;
     height: 100%;
     width: 1fr;
 }
@@ -29,6 +29,21 @@
 .intro-mode #sidebar { display: none; }
 .intro-mode #scene-view { display: none; }
 .intro-mode #input-field { display: none; }
+
+/* Selection mode (difficulty / class / name entry): the game panels carry no
+   information yet — give the output panel the whole screen, keep the input. */
+.selection-mode #sidebar { display: none; }
+.selection-mode #scene-view { display: none; }
+.selection-mode #main-area { width: 1fr; }
+
+/* Name entry etc.: center the prose block like the title screen does. */
+.selection-mode #output-panel {
+    padding: 2 6;
+}
+.selection-mode #output-display {
+    width: 100%;
+    content-align: center middle;
+}
 
 .intro-mode #main-area {
     width: 1fr;
@@ -73,19 +88,13 @@
     padding: 1 2;
 }
 
-#combat-panel {
-    border: round $error;
-    padding: 1 2;
-}
-
 /* =============================================================================
    COMBAT MODE — active state overrides
    ============================================================================= */
 
-.combat-active #combat-panel {
+.combat-active #scene-view {
     border: round $error;
     border-title-style: bold;
-    background: $error 5%;
 }
 
 .combat-active #stats-panel {

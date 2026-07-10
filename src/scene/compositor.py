@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 from PIL import Image
 
+from src.scene.effects import FxState
+
 MAX_PER_SIDE = 3
 _FLOOR_MARGIN = 1  # px above the bottom edge
 
@@ -49,3 +51,58 @@ def compose_explore(backdrop: Image.Image, entities: list[Placed]) -> tuple[Imag
         chips.append(f"[dim]+{overflow} more[/dim]")
     caption = "   ".join(chips)
     return img, caption
+
+
+# --- battle mode -------------------------------------------------------------
+
+_BATTLE_MARGIN = 2  # px from the arena edges
+
+
+def whiten(img: Image.Image) -> Image.Image:
+    """White-flash version of a sprite; transparent pixels stay transparent."""
+    white = Image.new("RGBA", img.size, (255, 255, 255, 255))
+    out = Image.blend(img.convert("RGBA"), white, 0.8)
+    out.putalpha(img.getchannel("A"))
+    return out
+
+
+def compose_battle(
+    backdrop: Image.Image,
+    player_img: Image.Image,
+    enemy_img: Image.Image,
+    fx: FxState,
+) -> Image.Image:
+    """Pokemon framing: enemy top-right, player bottom-left. dx moves toward opponent."""
+    img = backdrop.copy()
+    w, h = img.size
+
+    enemy = whiten(enemy_img) if fx.enemy_flash else enemy_img
+    player = whiten(player_img) if fx.player_flash else player_img
+
+    ew, eh = enemy.size
+    ex = max(0, w - ew - _BATTLE_MARGIN - fx.enemy_dx)   # enemy lunges LEFT
+    ey = _BATTLE_MARGIN
+    img.paste(enemy, (ex, ey), enemy)
+
+    pw, ph = player.size
+    px_ = min(w - pw, _BATTLE_MARGIN + fx.player_dx)     # player lunges RIGHT
+    py = max(0, h - ph - _BATTLE_MARGIN)
+    img.paste(player, (px_, py), player)
+    return img
+
+
+def hp_bar(hp: int, max_hp: int, width: int = 12) -> str:
+    """Rich-markup HP bar, colored by remaining fraction."""
+    max_hp = max(1, max_hp)
+    hp = max(0, min(hp, max_hp))
+    frac = hp / max_hp
+    filled = round(width * frac)
+    color = "green" if frac > 0.5 else ("yellow" if frac > 0.25 else "red")
+    return f"[{color}]{'▉' * filled}[/{color}][dim]{'░' * (width - filled)}[/dim]"
+
+
+def nameplate(name: str, hp: int, max_hp: int, icon: str = "", pop: str = "") -> str:
+    """One-line fighter nameplate for above/below the arena image."""
+    lead = f"{icon} " if icon else ""
+    tail = f"  {pop}" if pop else ""
+    return f"[bold]{lead}{name.upper()}[/bold]  HP {hp}/{max_hp} {hp_bar(hp, max_hp)}{tail}"
