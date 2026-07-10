@@ -311,7 +311,8 @@ class CombatSession:
             self.player,
             self.enemy_data,
             self.enemy_health,
-            combat_system
+            combat_system,
+            enemy_id=self.enemy_id
         )
 
         event_bus.emit_event(
@@ -755,7 +756,8 @@ class CombatSession:
             self.player,
             self.enemy_data,
             self.enemy_health,
-            combat_system
+            combat_system,
+            enemy_id=self.enemy_id
         )
 
         # Emit frame update so UI shows current health and cooldowns

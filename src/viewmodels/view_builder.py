@@ -164,7 +164,7 @@ class ViewBuilder:
 
     @staticmethod
     def build_combat_view(player, enemy_data: dict, enemy_health: int,
-                         combat_system) -> CombatView:
+                         combat_system, enemy_id: str = "") -> CombatView:
         """
         Build combat view from player, enemy, and combat system.
 
@@ -206,6 +206,7 @@ class ViewBuilder:
                 enemy_max_health=enemy_data.get('health', enemy_health),
                 player_health=getattr(player, 'health', 0),
                 player_max_health=getattr(player, 'max_health', 100),
+                enemy_id=enemy_id,
                 available_attacks=available_attacks,
                 usable_items=usable_items
             )
