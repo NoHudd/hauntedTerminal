@@ -11,12 +11,6 @@ A narrative-driven text adventure where you play as a Sysadmin Spirit navigating
 
 ---
 
-<!-- Intro Screenshot -->
-![Haunted Terminal Intro](./Intro.png)
-*The terminal interface of Haunted Terminal*
-
----
-
 ## 📖 Story Overview
 
 **The Great Kernel Panic has shattered the system.**
