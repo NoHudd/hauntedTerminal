@@ -42,3 +42,6 @@ var/
 *.swp
 *.swo
 .DS_Store
+
+# Design docs are local-only working notes
+docs/
