@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 # a migration step in _migrate_save so old saves keep loading (Phase 4a).
 SAVE_VERSION = 2
 
+# Autosaves fire on every room move; without a cap the pool grows unbounded and
+# every save/list operation slows with directory size (observed: 16k files).
+MAX_SAVE_FILES = 20
+
 
 def _migrate_save(save_data):
     """Normalize any save envelope to the current version.
@@ -83,6 +87,7 @@ class SaveManager:
                 json.dump(save_data, file, indent=2)
             
             logger.info(f"Game saved successfully to {save_path}")
+            self._prune_old_saves()
 
             # NOTE: do NOT emit GAME_SAVED here. GAME_SAVED is the *request* event
             # (_on_save_requested handles it by calling save_game); re-emitting it on
@@ -94,6 +99,24 @@ class SaveManager:
             logger.error(f"Failed to save game: {e}")
             raise
     
+    def _prune_old_saves(self):
+        """Keep only the newest MAX_SAVE_FILES saves; delete the rest."""
+        try:
+            files = [
+                os.path.join(self.save_dir, f)
+                for f in os.listdir(self.save_dir)
+                if f.endswith(".json")
+            ]
+            if len(files) <= MAX_SAVE_FILES:
+                return
+            files.sort(key=lambda p: (os.path.getmtime(p), p))
+            for path in files[: len(files) - MAX_SAVE_FILES]:
+                os.remove(path)
+            logger.info(f"Pruned {len(files) - MAX_SAVE_FILES} old saves (cap {MAX_SAVE_FILES})")
+        except Exception as e:
+            # Pruning must never break saving itself.
+            logger.warning(f"Save pruning failed: {e}")
+
     def load_game(self, filename):
         """
         Load a game from a save file.

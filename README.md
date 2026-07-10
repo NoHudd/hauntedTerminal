@@ -210,56 +210,6 @@ If you prefer to set things up manually:
 
 ---
 
-## 🛠️ Customizing the Game
-
-HFSE is fully data-driven through YAML files:
-
-### Data Structure
-```
-data/
-├── rooms/          # Room definitions, exits, NPCs, enemies
-├── items/          # Weapons, armor, consumables, lore fragments
-│   ├── weapons.yaml
-│   ├── armor.yaml
-│   ├── consumables.yaml
-│   ├── keys.yaml
-│   └── lore_fragments.yaml
-├── enemies/        # Enemy stats, loot, boss mechanics
-├── npcs/           # NPC dialogues, merchant inventories
-├── attacks.yml     # Class-specific combat abilities
-└── classes.yaml    # Character class definitions
-```
-
-### Adding Content
-
-**New Room**: Create `data/rooms/room_id.yml`
-```yaml
-name: The New Sector
-description: A mysterious directory...
-exits:
-  - connected_room_1
-  - connected_room_2
-items: []
-npcs: []
-enemies:
-  - enemy_id
-```
-
-**New Item**: Add to appropriate `data/items/*.yaml`
-```yaml
-item_id:
-  name: "Item Name"
-  description: "Item description"
-  type: "weapon"
-  damage: 15
-  rarity: "rare"
-  persistence: "persistent"
-  allowed_classes:
-    - guardian
-```
-
----
-
 ## 🎲 Game Mechanics
 
 ### Harvesting Cycles (XP System)
@@ -370,27 +320,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 **Special Thanks**: To all sysadmins who've faced kernel panics
 
 ---
-
-## 🚀 Roadmap
-
-- [x] Core gameplay loop with command-line interface
-- [x] Turn-based combat system with pixel-art battle scenes
-- [x] Harvesting Cycles (XP) progression
-- [x] Item persistence, rarity system, and enemy loot drops
-- [x] Story flags and narrative progression
-- [x] 12 NPCs and 24 enemies — all with pixel sprites
-- [x] 3 character classes with unique abilities and class-specific endings
-- [x] Difficulty modes (Easy / Medium / Hard) with tuned balance
-- [x] Victory finale with run-stats recap; defeat has its own scene
-- [x] Easter egg: the Great ASCII Bovine
-- [ ] Playtest round + polish (you are here)
-- [ ] Seed input + visible Seed ID for reproducible runs
-- [ ] Sprite frame animation (idle/attack poses)
-
----
-
-**Welcome to the corrupted filesystem, Sysadmin Spirit.**
-**The Great Kernel Panic awaits. Will you restore order... or choose a different path?**
 
 ```
  ________________________________________
