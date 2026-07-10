@@ -3,8 +3,6 @@
 </p>
 
 # Haunted Terminal
-## The Great Kernel Panic
-
 *(formerly Haunted Filesystem Experience — HFSE remains the internal code name)*
 
 A narrative-driven text adventure where you play as a Sysadmin Spirit navigating a corrupted filesystem in the aftermath of a catastrophic system failure. Learn command-line skills while uncovering the mystery of the Great Kernel Panic.
