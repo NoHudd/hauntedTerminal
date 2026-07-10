@@ -15,6 +15,7 @@ from src.scene.effects import (
     LUNGE_SECONDS,
     FxState,
     approach,
+    bob_offset,
     flash_on,
     lunge_offset,
 )
@@ -37,6 +38,8 @@ class SceneView(Static):
         self._room: dict | None = None
         self._battle: dict | None = None
         self._ticker = None
+        self._bob_timer = None
+        self._bob = 0
 
     # -- public API (called by TextualGameUI) --------------------------------
 
@@ -71,11 +74,25 @@ class SceneView(Static):
         }
         self.border_title = "⚔ BATTLE"
         self.border_subtitle = ""
-        self._render_battle(FxState())
+        self._render_battle(self._bob_fx())
+        if not reduce_motion and self._bob_timer is None:
+            self._bob_timer = self.set_interval(0.2, self._bob_tick)
 
     def update_battle(self, combat_view: dict) -> None:
         """Per-turn frame update (COMBAT_FRAME_UPDATED): new HP targets."""
         if not self._battle:
+            return
+        b = self._battle
+        prev = b["view"]
+        new_key = combat_view.get("enemy_id") or combat_view.get("enemy_name")
+        old_key = prev.get("enemy_id") or prev.get("enemy_name")
+        if new_key != old_key:
+            # Queue handoff: the next enemy walks in — fresh sprite, full bar.
+            b["enemy_dead"] = False
+            b["shown_enemy_hp"] = float(combat_view.get("enemy_health", 0))
+            b["pop_text"] = ""
+            b["view"] = combat_view
+            self._render_battle(self._bob_fx())
             return
         self._battle["view"] = combat_view
         if self._battle["reduce_motion"]:
@@ -119,21 +136,110 @@ class SceneView(Static):
                 self._render_battle(FxState())
             self._ensure_ticker()
 
+    def defeat_enemy(self) -> None:
+        """Enemy died: drain its bar to zero, then the sprite vanishes.
+        Covers one-tap kills where no frame update follows the killing blow."""
+        if not self._battle:
+            return
+        b = self._battle
+        b["view"]["enemy_health"] = 0
+        b["enemy_dead"] = True
+        if b["reduce_motion"]:
+            b["shown_enemy_hp"] = 0.0
+            self._render_battle(FxState())
+        else:
+            self._ensure_ticker()
+
     def end_battle(self) -> None:
         """Leave battle mode; restore the explore scene (COMBAT_ENDED / game over)."""
         self._stop_ticker()
+        if self._bob_timer is not None:
+            self._bob_timer.stop()
+            self._bob_timer = None
         self._battle = None
         if self._room is not None:
             self._render_scene()
         else:
             self.show_loading()
 
+    # -- finale ----------------------------------------------------------------
+
+    _FINALE_STEPS = 6
+    _FINALE_SECONDS = 3.0
+
+    def play_finale(self, reduce_motion: bool = False) -> None:
+        """Victory beat: corruption lifts — the room backdrop brightens to clean."""
+        self._stop_ticker()
+        if self._bob_timer is not None:
+            self._bob_timer.stop()
+            self._bob_timer = None
+        self._battle = None
+        self.border_title = "✨ SYSTEM CLEAN"
+        self.border_subtitle = ""
+        if reduce_motion:
+            self._render_finale(1.15)
+            return
+        for i in range(1, self._FINALE_STEPS + 1):
+            factor = 0.62 + (1.15 - 0.62) * (i / self._FINALE_STEPS)
+            self.set_timer(self._FINALE_SECONDS * i / self._FINALE_STEPS,
+                           lambda f=factor: self._render_finale(f))
+
+    def play_death(self, reduce_motion: bool = False) -> None:
+        """Defeat beat: the corruption wins — the scene drains to near-black."""
+        self._stop_ticker()
+        if self._bob_timer is not None:
+            self._bob_timer.stop()
+            self._bob_timer = None
+        self._battle = None
+        self.border_title = "☠ CONNECTION LOST"
+        self.border_subtitle = ""
+        if reduce_motion:
+            self._render_finale(0.12)
+            return
+        for i in range(1, self._FINALE_STEPS + 1):
+            factor = 0.62 - (0.62 - 0.12) * (i / self._FINALE_STEPS)
+            self.set_timer(self._FINALE_SECONDS * i / self._FINALE_STEPS,
+                           lambda f=factor: self._render_finale(f))
+
+    def _render_finale(self, brightness: float) -> None:
+        from PIL import ImageEnhance
+        room = self._room or {}
+        w_cells = max(20, self.content_size.width or 60)
+        h_rows = self.content_size.height or 0
+        if h_rows < MIN_SCENE_ROWS:
+            self.update(Text.from_markup("[bold green]✨ The corruption lifts.[/bold green]"))
+            return
+        img_w, img_h = w_cells, h_rows * 2
+        backdrop = self._store.get_backdrop(room.get("id", ""), room.get("zone", ""), img_w, img_h)
+        # Normalized against the install-time 0.62 dim: 1.15 reads "cleaner than ever".
+        bright = ImageEnhance.Brightness(backdrop).enhance(brightness / 0.62)
+        self.update(to_renderable(bright))
+
     # -- battle internals -----------------------------------------------------
 
     def _clear_pop(self) -> None:
         if self._battle:
             self._battle["pop_text"] = ""
-            self._render_battle(FxState())
+            self._render_battle(self._bob_fx())
+
+    def _bob_fx(self, base: FxState | None = None) -> FxState:
+        """Fold the current idle-bob lift into an FxState (opposite phases)."""
+        fx = base or FxState()
+        return FxState(
+            player_dx=fx.player_dx, enemy_dx=fx.enemy_dx,
+            player_flash=fx.player_flash, enemy_flash=fx.enemy_flash,
+            player_dy=self._bob, enemy_dy=1 - self._bob,
+        )
+
+    def _bob_tick(self) -> None:
+        """Slow idle heartbeat: re-render only when the bob offset flips."""
+        if not self._battle:
+            return
+        new_bob = bob_offset(time.monotonic())
+        if new_bob != self._bob:
+            self._bob = new_bob
+            if self._ticker is None:   # effect ticker owns rendering while active
+                self._render_battle(self._bob_fx())
 
     def _ensure_ticker(self) -> None:
         if self._ticker is None:
@@ -175,7 +281,8 @@ class SceneView(Static):
         if b["pop_text"] and now >= b["pop_until"]:
             b["pop_text"] = ""
 
-        self._render_battle(fx)
+        self._bob = bob_offset(now)
+        self._render_battle(self._bob_fx(fx))
 
         # Idle again? stop burning CPU.
         hp_settled = (
@@ -206,19 +313,27 @@ class SceneView(Static):
         # Two text rows (nameplates) + image
         img_w, img_h = w_cells, (h_rows - 2) * 2
         backdrop = self._store.get_backdrop(room.get("id", ""), room.get("zone", ""), img_w, img_h)
-        enemy_img = self._store.get_sprite(
-            "enemies", view.get("enemy_id") or view.get("enemy_name", "?"),
-            SPRITE_MAX_PX, SPRITE_MAX_PX,
-        )
+        enemy_gone = b.get("enemy_dead") and b["shown_enemy_hp"] < 0.5
+        if enemy_gone:
+            from PIL import Image as _Image
+            enemy_img = _Image.new("RGBA", (1, 1), (0, 0, 0, 0))   # vanished
+        else:
+            enemy_img = self._store.get_sprite(
+                "enemies", view.get("enemy_id") or view.get("enemy_name", "?"),
+                SPRITE_MAX_PX, SPRITE_MAX_PX,
+            )
         player_img = self._store.get_sprite("classes", b["player_class"], SPRITE_MAX_PX, SPRITE_MAX_PX)
 
         arena = compose_battle(backdrop, player_img, enemy_img, fx)
 
         pop = b["pop_text"]  # expiry is handled by the ticker / _clear_pop
-        enemy_line = nameplate(
-            view.get("enemy_name", "?"), int(b["shown_enemy_hp"]), view.get("enemy_max_health", 1),
-            icon="💀", pop=pop if b["pop_target"] == "enemy" else "",
-        )
+        if enemy_gone:
+            enemy_line = f"[dim]💀 {view.get('enemy_name', '?').upper()} — defeated[/dim]"
+        else:
+            enemy_line = nameplate(
+                view.get("enemy_name", "?"), int(b["shown_enemy_hp"]), view.get("enemy_max_health", 1),
+                icon="💀", pop=pop if b["pop_target"] == "enemy" else "",
+            )
         player_line = nameplate(
             b["player_name"], int(b["shown_player_hp"]), view.get("player_max_health", 1),
             icon=self._CLASS_ICONS.get(b["player_class"], "🧙"), pop=pop if b["pop_target"] == "player" else "",

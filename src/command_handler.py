@@ -938,6 +938,8 @@ class CommandHandler:
         if not enemy:
             return []
 
+        self.player.run_stats["kills"] = self.player.run_stats.get("kills", 0) + 1
+
         dropped = []
         for drop in enemy.get("drops", []) or []:
             item_id = drop.get("item")
@@ -1292,10 +1294,25 @@ Not because you fixed them. Because you forgave them.
         )
         self.player.story_flags["ending_chosen"] = choice
         self._game_won = True
-        self.output.write(message)
-        self.output.write(
-            "\n[bold white]The system is clean.[/bold white] "
-            "[green]n[/green] new game · [red]q[/red] quit"
+
+        # The UI performs the finale (paced reveal + scene beat + recap); the
+        # engine only supplies the material via one GAME_WON event.
+        sections = [part.strip() for part in message.split("\n\n") if part.strip()]
+        from src import difficulty
+        stats = {
+            "level": getattr(self.player, "level", 1),
+            "cycles": getattr(self.player, "harvesting_cycles", 0),
+            "kills": self.player.run_stats.get("kills", 0),
+            "items_found": self.player.run_stats.get("items_found", 0),
+            "difficulty": difficulty.current_mode(),
+            "ending": choice,
+            "player_name": getattr(self.player, "name", ""),
+            "player_class": getattr(self.player, "player_class", ""),
+        }
+        event_bus.emit_event(
+            EventType.GAME_WON,
+            {"ending_id": choice, "sections": sections, "stats": stats},
+            "CommandHandler",
         )
         # Reuse the post-game input flow (r/n/q) instead of hard-exiting the app.
         self._in_game_over_mode = True
@@ -1452,6 +1469,6 @@ Not because you fixed them. Because you forgave them.
 
     def _perform_quit(self):
         """Actually quit the game."""
-        self.output.write("[yellow]Goodbye! Thanks for playing The Haunted Filesystem.[/yellow]")
+        self.output.write("[yellow]Goodbye! Thanks for playing Haunted Terminal.[/yellow]")
         self.output.write("[dim]The system spirits fade back into the digital void...[/dim]")
         exit(0) 

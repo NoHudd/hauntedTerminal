@@ -383,6 +383,10 @@ class CombatSession:
         # Reset combat UI flag for new enemy
         self._combat_initialized = False
 
+        # Tell the UI the new fighter is in (battle scene swaps sprite + fresh
+        # HP bar immediately, not on the player's next action).
+        self._update_ui_panels()
+
         # Show status and request action
         self._show_combat_status()
         self._request_player_action()

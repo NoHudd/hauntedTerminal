@@ -21,6 +21,7 @@ class StatsView:
     level: int = 1
     cycles: int = 0
     cycles_to_next: int = 0
+    defense_pct: int = 0    # % damage reduction from equipped armor
 
     def to_dict(self) -> dict:
         """Convert to dictionary for event serialization."""

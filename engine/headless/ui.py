@@ -16,6 +16,8 @@ output still flows through the buffer.
 """
 from __future__ import annotations
 
+from typing import Any
+
 
 class HeadlessUI:
     """A UIProtocol-compatible sink that records output instead of rendering."""
@@ -27,6 +29,15 @@ class HeadlessUI:
         self._player_ref: object | None = None
         self._world_ref: object | None = None
         self._room_aliases_ref: object | None = None
+        # The finale is delivered by event (the TUI performs it; headless just
+        # records the text so tests/sim can assert on the ending).
+        from src.events import EventType, event_bus
+        event_bus.subscribe(EventType.GAME_WON, self._on_game_won)
+
+    def _on_game_won(self, event: Any) -> None:
+        data = getattr(event, "data", None) or {}
+        self.output_log.append("\n\n".join(data.get("sections", [])))
+        self.output_log.append(f"[stats] {data.get('stats', {})}")
 
     # --- output capture -----------------------------------------------------
 
@@ -59,7 +70,8 @@ class HeadlessUI:
         pass
 
     def shutdown(self) -> None:  # pragma: no cover - lifecycle no-op
-        pass
+        from src.events import EventType, event_bus
+        event_bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
 
     def update_inventory(self, content: str) -> None:
         pass

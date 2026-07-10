@@ -30,6 +30,7 @@ class Player:
         self.status_effects = {}
         # self.cooldowns = {} # Removed: Cooldowns are now managed by CombatSystem
         self.spells = []  # For special abilities later
+        self.run_stats = {"kills": 0, "items_found": 0}  # lifetime-of-run counters
         self.class_description = ""
 
         self.permanent_health_boost = 0
@@ -458,6 +459,7 @@ class Player:
         player.previous_room = data.get("previous_room", None)  # Load previous room
         player.spells = data.get("spells", [])
         player.inventory = data.get("inventory", {})
+        player.run_stats = data.get("runStats", {"kills": 0, "items_found": 0})
         player.equipped_weapon = data.get("equipped_weapon", None)
         # Restore player_id if it exists, otherwise keep the generated one
         if "player_id" in data:
@@ -494,5 +496,6 @@ class Player:
             "harvesting_cycles": self.harvesting_cycles,
             "level": self.level,
             "cycles_to_next_level": self.cycles_to_next_level,
-            "story_flags": self.story_flags
+            "story_flags": self.story_flags,
+            "runStats": self.run_stats
         }
