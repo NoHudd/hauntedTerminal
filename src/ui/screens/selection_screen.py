@@ -19,7 +19,7 @@ from textual.widgets import Static
 
 from src.scene.sprite_store import SpriteStore, to_renderable
 
-_CARD_ART_PX = 32
+_CARD_ART_PX = 40
 
 
 def digit_to_index(key: str, count: int) -> Optional[int]:
@@ -73,7 +73,9 @@ class SelectionScreen(ModalScreen):
         height: auto;
     }
     .picker-card {
-        width: 26;
+        /* Content must fit _CARD_ART_PX-wide pixel art: 1 px = 1 cell across.
+           46 = 40 art + 2x2 padding + 2 border, so the shield edge never clips. */
+        width: 46;
         height: auto;
         border: round $panel;
         padding: 1 2;
