@@ -49,6 +49,12 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
 - **Environmental Effects**: Void pull in `/dev/null`
 - **Dynamic Loot**: Item rarity based on directory depth (common in `/home`, legendary in `/root`)
 
+### Presentation (new!)
+- **Pixel-Art Scene View**: every room, NPC, and enemy rendered as pixel sprites in the terminal
+- **Pokemon-Style Battles**: sprite vs sprite with HP bars, attack lunges, hit flashes, idle animation
+- **Difficulty Modes**: pick Easy / Medium / Hard at the start of each run (locked for the run)
+- **Victory & Defeat Finales**: class-specific endings with a run recap (level, kills, items, difficulty)
+
 ### Story & Secrets
 - **Lore Fragments**: Piece together the truth about the Great Kernel Panic
 - **Sudo Trial**: Face your Shadow Process in `/proc/self` to earn superuser privileges
@@ -59,9 +65,20 @@ But first, you must remember who you are. Your `.bash_profile` drifts somewhere 
 
 ## 🎮 Getting Started
 
+### Step 0 — get the game and go INTO its folder
+
+All commands below must be run **from inside the repo folder**:
+
+```bash
+git clone https://github.com/NoHudd/HFSE.git
+cd HFSE
+```
+
+(Downloaded a ZIP instead? Unzip it, then `cd` into the unzipped folder.)
+
 ### Quick Start (Recommended)
 
-**The easiest way to start playing!** Just run the appropriate start script for your system:
+From inside the repo folder, run the start script for your system:
 
 **On Mac/Linux:**
 ```bash
@@ -88,29 +105,24 @@ The start script will automatically:
 If you prefer to set things up manually:
 
 #### Prerequisites
-- Python 3.7 or higher
+- Python 3.10 or higher
 - pip (Python package installer)
 
 #### Steps
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/NoHudd/HFSE.git
-   cd HFSE
-   ```
-
-2. Create a virtual environment:
+1. Make sure you are inside the repo folder (Step 0 above), then create a
+   virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install dependencies:
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Run the game:
+3. Run the game:
    ```bash
    python main.py
    ```
@@ -316,17 +328,14 @@ SKIP_INTRO = True
 
 ```
 main.py        # entry point → src.game_engine.main
-src/           # game logic (runtime): engine, world, player, combat, commands/, ui/
-engine/        # typed content schema + validation + headless driver (tests/sim use this)
-sim/           # difficulty simulation harness
+src/           # game logic (runtime): engine, world, player, combat, commands/, ui/, scene/
+engine/        # typed content schema + validation + headless test driver
 data/          # all game content as YAML — rooms/ enemies/ npcs/ items/ + classes/attacks/abilities
+assets/        # pixel-art sprites and backdrops (PNG)
+sim/           # difficulty simulation harness
 config/        # dev settings (settings.py gitignored)
-storyHFSE/     # narrative design docs (world, archetypes, item registry, env logs)
-tests/ · utils/ · docs/
+tests/ · utils/
 ```
-
-> Full architecture and the `src/` vs `engine/` explanation live in `CLAUDE.md`.
-> Content-authoring guide: `docs/extending_the_game.md`.
 
 ---
 
@@ -357,17 +366,18 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🚀 Roadmap
 
 - [x] Core gameplay loop with command-line interface
-- [x] Turn-based combat system
+- [x] Turn-based combat system with pixel-art battle scenes
 - [x] Harvesting Cycles (XP) progression
-- [x] Item persistence and rarity system
+- [x] Item persistence, rarity system, and enemy loot drops
 - [x] Story flags and narrative progression
-- [x] 12 NPCs with dialogues and lore
-- [x] 3 character classes with unique abilities
-- [x] Environmental effects and zone mechanics
-- [ ] Phase 5: Easter egg implementation (.moo → bovine → milk)
-- [ ] Phase 6: Multiple class-specific endings
-- [ ] Phase 7: Final testing and polish
-- [ ] Achievements and statistics tracking
+- [x] 12 NPCs and 24 enemies — all with pixel sprites
+- [x] 3 character classes with unique abilities and class-specific endings
+- [x] Difficulty modes (Easy / Medium / Hard) with tuned balance
+- [x] Victory finale with run-stats recap; defeat has its own scene
+- [x] Easter egg: the Great ASCII Bovine
+- [ ] Playtest round + polish (you are here)
+- [ ] Seed input + visible Seed ID for reproducible runs
+- [ ] Sprite frame animation (idle/attack poses)
 
 ---
 
