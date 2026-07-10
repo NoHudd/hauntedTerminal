@@ -93,6 +93,7 @@ class TakeCommand(Command):
         if success:
             debug_log(f"Player took item {actual_item_id} from room {current_room}")
             ctx.world.remove_item_from_room(actual_item_id)
+            ctx.player.run_stats["items_found"] = ctx.player.run_stats.get("items_found", 0) + 1
 
             from src.rarity import RaritySystem
 
@@ -148,20 +149,10 @@ class CatCommand(Command):
         if item_id:
             item = ctx.world.get_item(item_id)
             if item:
-                story_beat = self._render(ctx, item, item_id)
-                if story_beat:
-                    # A story beat printed "✦ Memory restored / ✓ saved". Let that
-                    # linger — the TUI re-lists the room after a short delay so the
-                    # message is readable first. Headless ignores the event.
-                    event_bus.emit_event(
-                        EventType.DELAYED_ROOM_REFRESH,
-                        {"room_id": current_room},
-                        "cat",
-                    )
-                else:
-                    # Ordinary file: reprint room contents so the player keeps the
-                    # room in view without retyping `ls`.
-                    ctx.relist_room()
+                self._render(ctx, item, item_id)
+                # No room re-list after cat: the scene view already shows who is
+                # here and the exits, and appending the full listing under the
+                # file text read as a glitchy wall. `ls` re-lists on demand.
             else:
                 ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
         elif ctx.player.has_item(filename) or ctx._find_item_in_inventory_by_name(filename):
@@ -416,7 +407,15 @@ class EquipCommand(Command):
                 return
             if ctx.player.equip_armor(weapon_id):
                 armor_name = weapon.get("name", weapon_id)
-                ctx.output.write(f"You have equipped [green]{armor_name}[/green].")
+                pct = round(getattr(ctx.player, "armor_mitigation", 0.0) * 100)
+                ctx.output.write(
+                    f"You have equipped [green]{armor_name}[/green]. "
+                    f"[cyan]🛡 Damage taken reduced by {pct}%.[/cyan]"
+                )
+                stats_view = ViewBuilder.build_stats_view(ctx.player)
+                event_bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
+                inv_view = ViewBuilder.build_inventory_view(ctx.player)
+                event_bus.emit_event(EventType.PLAYER_INVENTORY_CHANGED, inv_view.to_dict(), "CommandHandler")
             return
 
         is_weapon = (

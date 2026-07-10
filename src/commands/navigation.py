@@ -191,12 +191,35 @@ class CdCommand(Command):
 
         room_state = ctx.world.get_room_state(directory)
         if room_state.get("hidden", False):
-            debug_log(f"Attempt to access hidden room {directory} - access denied")
-            hint_message = ctx._get_hidden_room_hint(directory)
-            ctx._show_error("[bold red]That path doesn't appear to exist.[/bold red]")
-            if hint_message:
-                ctx.output.write(f"[dim yellow]{hint_message}[/dim yellow]")
-            return
+            # A key that explicitly unlocks this room also REVEALS it — otherwise
+            # a keyed player is told the path doesn't exist (mage with opt_key
+            # locked out of the mage tower).
+            key_required = room_state.get("key_required")
+            key_item = (
+                ctx.player.get_item_from_inventory(key_required)
+                if key_required and ctx.player.has_item(key_required)
+                else None
+            )
+            resolved_unlocks = [
+                ctx.room_aliases.get(r.lower(), r)
+                for r in (key_item or {}).get("unlocks", [])
+            ]
+            if key_item and directory in resolved_unlocks:
+                debug_log(f"Hidden room {directory} revealed by key {key_required}")
+                ctx.world.discover_room(directory)
+                key_name = key_item.get("name", key_required)
+                ctx.output.write(
+                    f"[yellow]✨ The {key_name} resonates — a hidden path to "
+                    f"{directory} reveals itself.[/yellow]"
+                )
+                can_move, reason = ctx.world.can_move_to(current_room, directory)
+            else:
+                debug_log(f"Attempt to access hidden room {directory} - access denied")
+                hint_message = ctx._get_hidden_room_hint(directory)
+                ctx._show_error("[bold red]That path doesn't appear to exist.[/bold red]")
+                if hint_message:
+                    ctx.output.write(f"[dim yellow]{hint_message}[/dim yellow]")
+                return
 
         if not can_move and "locked" in reason.lower():
             room_state = ctx.world.get_room_state(directory)

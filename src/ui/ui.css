@@ -15,8 +15,9 @@
 }
 
 #sidebar {
-    layout: grid;
-    grid-rows: 1fr 1fr;
+    /* Vertical flow: inventory sizes to its contents (scrolls past 60%),
+       stats sits right below it and grows with its own content. */
+    layout: vertical;
     height: 100%;
     width: 1fr;
 }
@@ -77,8 +78,10 @@
 #inventory-panel {
     border: round $warning;
     padding: 1 2;
-    /* The sidebar grid gives this panel a fixed 1/3 height; without scroll a
-       long inventory overflows and later items become invisible. */
+    /* Grows with its contents; caps at 65% of the sidebar and scrolls past
+       that so the stats panel always stays on screen below it. */
+    height: auto;
+    max-height: 65%;
     overflow-y: auto;
     scrollbar-size-vertical: 1;
 }
@@ -86,6 +89,8 @@
 #stats-panel {
     border: round $success;
     padding: 1 2;
+    /* Flows directly below the inventory, sized to its own content. */
+    height: auto;
 }
 
 /* =============================================================================

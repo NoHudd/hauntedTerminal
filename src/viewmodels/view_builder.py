@@ -53,6 +53,7 @@ class ViewBuilder:
                 level=getattr(player, 'level', 1),
                 cycles=getattr(player, 'harvesting_cycles', 0),
                 cycles_to_next=getattr(player, 'cycles_to_next_level', 0),
+                defense_pct=round(getattr(player, 'armor_mitigation', 0.0) * 100),
             )
         except Exception as e:
             logger.error(f"Error building stats view: {e}", exc_info=True)
@@ -79,6 +80,7 @@ class ViewBuilder:
         try:
             inventory = getattr(player, 'inventory', {})
             equipped_weapon = getattr(player, 'equipped_weapon', None)
+            equipped_armor = getattr(player, 'equipped_armor', None)
 
             items = []
             for item_id, item_data in inventory.items():
@@ -90,7 +92,7 @@ class ViewBuilder:
                     name=item_data.get('name', item_id),
                     item_type=item_data.get('type', 'unknown'),
                     rarity=item_data.get('rarity', 'common'),
-                    is_equipped=(item_id == equipped_weapon),
+                    is_equipped=(item_id in (equipped_weapon, equipped_armor)),
                     damage=item_data.get('damage'),
                     healing=item_data.get('healing')
                 ))

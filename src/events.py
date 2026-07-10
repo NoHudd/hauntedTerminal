@@ -36,6 +36,11 @@ class EventType(Enum):
     # Subscribed by: game_engine.py, textual_ui.py
     # Data: {"message": str, "action": str (optional)}
 
+    GAME_WON = auto()
+    # Emitted by: command_handler.py (win_game)
+    # Subscribed by: textual_ui.py (finale), engine/headless/ui.py (text passthrough)
+    # Data: {"ending_id": str, "sections": list[str], "stats": dict}
+
     GAME_SAVED = auto()
     # Emitted by: save.py, textual_ui.py
     # Subscribed by: game_engine.py

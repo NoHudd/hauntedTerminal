@@ -52,6 +52,9 @@ class StatsPanel(Static):
             "",
             f"[cyan]Attack: {damage}[/]",
         ])
+        defense_pct = player_view.get('defense_pct', 0)
+        if defense_pct:
+            stats_lines.append(f"[cyan]Defense: -{defense_pct}% dmg taken[/]")
 
         self.update("\n".join(stats_lines))
 
@@ -107,6 +110,9 @@ class StatsPanel(Static):
             "",
             f"[cyan]Base ATK: {base_attack}[/]",
         ])
+        defense_pct = player_view.get('defense_pct', 0)
+        if defense_pct:
+            stats_lines.append(f"[cyan]Defense: -{defense_pct}% dmg taken[/]")
 
         self.update("\n".join(stats_lines))
 
