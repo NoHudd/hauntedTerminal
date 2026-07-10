@@ -225,6 +225,9 @@ class ImprovedGameEngine:
         command = event.data.get('command', '')
         game_state = event.data.get('game_state', state_manager.current_state)
 
+        # New command: its first output write replaces the panel (see _forward_output).
+        self._fresh_command_output = True
+
         logger.debug(f"Command entered: '{command}' (UI state: {game_state}, Engine state: {state_manager.current_state})")
         
         try:
@@ -261,16 +264,27 @@ class ImprovedGameEngine:
     def _forward_output(self, content):
         """Render one line from the domain output sink to the UI (Phase 2b).
 
+        The FIRST write of a command replaces the output panel; subsequent
+        writes from the SAME command append. Without this, multi-line commands
+        (item use message + consumed, take + file list) overwrite themselves
+        and only the last line is ever visible.
+
         Thread-safe: the game-over animation writes from a background thread, so
         use Textual's call_from_thread when the UI provides it.
         """
+        first = getattr(self, "_fresh_command_output", True)
+        self._fresh_command_output = False
+        sink = self.ui.update_output
+        if not first and hasattr(self.ui, "append_output"):
+            sink = self.ui.append_output
+
         if hasattr(self.ui, 'call_from_thread'):
             try:
-                self.ui.call_from_thread(self.ui.update_output, content)
+                self.ui.call_from_thread(sink, content)
                 return
             except Exception:
                 pass
-        self.ui.update_output(content)
+        sink(content)
 
     def _on_ui_ready(self, event):
         """Handle UI ready event."""
@@ -355,8 +369,12 @@ class ImprovedGameEngine:
             sys.exit(0)
             
         elif action == "start_new_game":
-            logger.info("Player chose to start new game - restarting")
-            self._restart_new_game()
+            # Full setup flow: a new run re-offers difficulty + class (the old
+            # shortcut restarted as a default guardian on the same difficulty).
+            logger.info("Player chose to start new game - full setup flow")
+            state_manager.set_state(GameState.MENU, emit_event=False)
+            event_bus.clear_history()
+            self._start_new_game()
             
         elif action == "restart_from_save":
             logger.info("Player chose to restart from save - loading most recent save")
@@ -415,7 +433,8 @@ class ImprovedGameEngine:
             
             if not save_data:
                 logger.warning("No save data found, starting new game instead")
-                self._restart_new_game()
+                state_manager.set_state(GameState.MENU, emit_event=False)
+                self._start_new_game()
                 return
             
             # Restore player state
@@ -430,7 +449,12 @@ class ImprovedGameEngine:
             world_data = save_data.get("world", {})
             self.world.set_state(world_data)
 
-            # Create new command handler
+            # Create new command handler — unsubscribe the old one first, or the
+            # dead run's handler keeps reacting to ROOM_ENTERED/ENEMY_DEFEATED with
+            # its stale player (observed: fresh game instantly fighting the boss
+            # from the previous run's room).
+            if self.cmd_handler:
+                self.cmd_handler.cleanup_event_subscriptions()
             self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()
 
@@ -442,7 +466,8 @@ class ImprovedGameEngine:
         except Exception as e:
             logger.error(f"Failed to restart from save: {e}")
             self.ui.display_message(f"[bold red]Failed to load save: {e}. Starting new game instead...[/bold red]")
-            self._restart_new_game()
+            state_manager.set_state(GameState.MENU, emit_event=False)
+            self._start_new_game()
     
     def _handle_menu_command(self, command: str):
         """Handle commands in menu state."""
@@ -523,7 +548,10 @@ class ImprovedGameEngine:
             world_data = save_data.get("world", {})
             self.world.set_state(world_data)
             
-            # Create command handler
+            # Create command handler — unsubscribe the old one first (see
+            # _restart_from_save: stale handlers double every event).
+            if self.cmd_handler:
+                self.cmd_handler.cleanup_event_subscriptions()
             self.cmd_handler = CommandHandler(self.player, self.world, self.output)
             self._bind_ui_refs()
 
@@ -1038,7 +1066,7 @@ def main(ui):
             logger.error(f"Failed to save on interrupt: {save_error}")
             print("[red]Failed to save game[/red]")
             
-        print("[yellow]Goodbye! Thanks for playing The Haunted Filesystem.[/yellow]")
+        print("[yellow]Goodbye! Thanks for playing Haunted Terminal.[/yellow]")
         sys.exit(0)
         
     except DataLoadError as e:

@@ -103,6 +103,8 @@ class TextualGameUI(App):
         (EventType.COMBAT_FRAME_UPDATED, "_on_combat_frame_updated"),
         (EventType.COMBAT_ACTION_RESULT, "_on_combat_action_result"),
         (EventType.COMBAT_ENDED, "_on_combat_ended"),
+        (EventType.ENEMY_DEFEATED, "_on_enemy_defeated"),
+        (EventType.GAME_WON, "_on_game_won"),
     ]
 
     def _setup_event_subscriptions(self):
@@ -178,7 +180,7 @@ class TextualGameUI(App):
     # REACTIVE VARIABLES & WATCHERS
     # =====================================
 
-    header_content = var("The Haunted Filesystem")
+    header_content = var("Haunted Terminal")
     output_content = var("")
     message_history = []
     max_messages = 100
@@ -432,6 +434,71 @@ class TextualGameUI(App):
             if state_manager.is_in_combat():
                 self._update_combat_panels()
 
+    def _on_enemy_defeated(self, event):
+        """Enemy died: scene drains its HP bar to zero and removes the sprite.
+        Needed for one-tap kills — no combat frame update follows the killing blow."""
+        self._scene_view.defeat_enemy()
+
+    # -- victory finale ---------------------------------------------------------
+
+    _FINALE_SECTION_SECONDS = 2.5
+
+    def _on_game_won(self, event):
+        """Victory: scene brightens; epilogue arrives in beats; recap card last."""
+        data = event.data or {}
+        reduce_motion = bool(self._settings_manager.settings.get("reduce_motion", False))
+        self._scene_view.play_finale(reduce_motion=reduce_motion)
+
+        parts = list(data.get("sections", [])) + [self._build_recap(data.get("stats", {}))]
+        self._finale_queue = parts
+        self._finale_timers = []
+
+        first = self._finale_queue.pop(0)
+        if reduce_motion:
+            self.update_output(first)
+            for part in self._finale_queue:
+                self.append_output(part)
+            self._finale_queue = []
+            return
+        self.update_output(first)
+        for i, part in enumerate(self._finale_queue, 1):
+            self._finale_timers.append(
+                self.set_timer(self._FINALE_SECTION_SECONDS * i,
+                               lambda p=part: self._finale_step(p))
+            )
+
+    def _finale_step(self, part: str) -> None:
+        if part in getattr(self, "_finale_queue", []):
+            self._finale_queue.remove(part)
+        self.append_output(part)
+        if not self._finale_queue:
+            self._finale_timers = []
+
+    def _skip_finale(self) -> None:
+        """Any key during the reveal: dump everything remaining at once."""
+        if not getattr(self, "_finale_timers", None):
+            return
+        for t in self._finale_timers:
+            t.stop()
+        self._finale_timers = []
+        for part in self._finale_queue:
+            self.append_output(part)
+        self._finale_queue = []
+
+    @staticmethod
+    def _build_recap(stats: dict) -> str:
+        return (
+            "── YOUR RUN ──────────────────────────\n"
+            f"[bold]{stats.get('player_name', '?')}[/bold] · "
+            f"{str(stats.get('player_class', '?')).title()} · "
+            f"ending: [cyan]{str(stats.get('ending', '?')).upper()}[/cyan]\n"
+            f"Level {stats.get('level', 1)} · {stats.get('cycles', 0)} cycles harvested\n"
+            f"{stats.get('kills', 0)} enemies purged · {stats.get('items_found', 0)} items recovered\n"
+            f"difficulty: {stats.get('difficulty', '?')}\n"
+            "──────────────────────────────────────\n"
+            "[green]n[/green] new run · [red]q[/red] quit"
+        )
+
     def _on_combat_ended(self, event):
         """Handle combat ended event with styling reset."""
         logger.debug("Combat ended event received")
@@ -481,6 +548,12 @@ class TextualGameUI(App):
 
     def on_key(self, event):
         """Handle key press events."""
+        # Victory finale in progress: any key fast-forwards the reveal.
+        if getattr(self, "_finale_timers", None):
+            self._skip_finale()
+            event.stop()
+            return
+
         if event.key == "escape":
             # Defer to active modal screen (e.g., Settings) — its own ESC binding handles dismiss.
             if len(self.screen_stack) > 1:
@@ -697,7 +770,7 @@ class TextualGameUI(App):
             self.message_history.pop(0)
 
     def update_output(self, content: str) -> None:
-        """Update the main output display."""
+        """Update the main output display (replaces the panel content)."""
         self._check_ready()
         self._add_to_history(content)
 
@@ -720,11 +793,34 @@ class TextualGameUI(App):
         except Exception as e:
             logger.debug(f"update_output_renderable failed: {e}")
 
-    def append_output(self, content: str) -> None:
-        """Append content to the current output display."""
+    def append_output(self, content) -> None:
+        """Append content to the current output display.
+
+        Style-safe: content may be a plain/markup string OR a Rich Text object.
+        Joining with an f-string would stringify Text and flatten its colors,
+        so mixed content is joined as Text."""
         self._check_ready()
         self._add_to_history(content)
-        self.output_content = (self.output_content + "\n" + content) if self.output_content else content
+
+        # During combat the output panel is the combat log — same path as update_output.
+        if state_manager.is_in_combat() and self._combat_view:
+            self._combat_log.append({"actor": "system", "message": content})
+            if len(self._combat_log) > 10:
+                self._combat_log.pop(0)
+            self._update_combat_main_output()
+            return
+
+        old = self.output_content
+        if not old:
+            self.output_content = content
+        elif isinstance(old, Text) or isinstance(content, Text):
+            joined = Text()
+            joined.append(old if isinstance(old, Text) else Text.from_markup(str(old)))
+            joined.append("\n")
+            joined.append(content if isinstance(content, Text) else Text.from_markup(str(content)))
+            self.output_content = joined
+        else:
+            self.output_content = f"{old}\n{content}"
 
     def update_inventory(self, content: str) -> None:
         """Update the inventory panel."""
@@ -747,7 +843,7 @@ class TextualGameUI(App):
     def update_player_name(self, name: str) -> None:
         """Update the player name display."""
         self._check_ready()
-        self.header_content = f"The Haunted Filesystem - {name}"
+        self.header_content = f"Haunted Terminal - {name}"
 
     def clear_console(self) -> None:
         """Clear the output display."""
@@ -761,6 +857,10 @@ class TextualGameUI(App):
             return
 
         self.clear_console()
+        # Death beat: the scene drains to black instead of showing the cheery room.
+        self._scene_view.play_death(
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
+        )
 
         player_name = self._player_view.get('player_name', 'Unknown Sysadmin')
 
@@ -807,7 +907,8 @@ Brave sysadmin {player_name}, your session has been terminated.
         def delayed_panel_refresh():
             self._inv_panel.update_inventory(self._inventory_view)
             self._stats_panel.update_stats(self._player_view)
-            if self._room_view:
+            # Not on death: the game-over flow owns the scene (play_death).
+            if self._room_view and not state_manager.is_in_game_over():
                 self._scene_view.show_explore(self._room_view)
 
         self.set_timer(0.1, delayed_panel_refresh)
@@ -1016,12 +1117,12 @@ Brave sysadmin {player_name}, your session has been terminated.
 ██║  ██║██║  ██║╚██████╔╝██║ ╚████║   ██║   ███████╗██████╔╝
 ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═════╝
 
-███████╗██╗██╗     ███████╗███████╗██╗   ██╗███████╗████████╗███████╗███╗   ███╗
-██╔════╝██║██║     ██╔════╝██╔════╝╚██╗ ██╔╝██╔════╝╚══██╔══╝██╔════╝████╗ ████║
-█████╗  ██║██║     █████╗  ███████╗ ╚████╔╝ ███████╗   ██║   █████╗  ██╔████╔██║
-██╔══╝  ██║██║     ██╔══╝  ╚════██║  ╚██╔╝  ╚════██║   ██║   ██╔══╝  ██║╚██╔╝██║
-██║     ██║███████╗███████╗███████║   ██║   ███████║   ██║   ███████╗██║ ╚═╝ ██║
-╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝   ╚═╝   ╚══════╝   ╚═╝   ╚══════╝╚═╝     ╚═╝
+████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗
+╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║
+   ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║
+   ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║
+   ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗
+   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
 
 A Terminal Adventure by Duhon Young'''
 

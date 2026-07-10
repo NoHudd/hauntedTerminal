@@ -12,15 +12,19 @@ FLASH_SECONDS = 0.5
 FLASH_PERIOD = 0.1   # on/off toggle interval
 HP_DRAIN_SECONDS = 0.4
 LUNGE_MAX_PX = 10
+BOB_PERIOD = 1.6     # idle bob: full up/down cycle
 
 
 @dataclass(frozen=True)
 class FxState:
-    """Per-frame effect offsets applied by the compositor. dx = px toward opponent."""
+    """Per-frame effect offsets applied by the compositor. dx = px toward opponent,
+    dy = px of idle-bob lift."""
     player_dx: int = 0
     enemy_dx: int = 0
     player_flash: bool = False
     enemy_flash: bool = False
+    player_dy: int = 0
+    enemy_dy: int = 0
 
 
 def lunge_offset(t: float, duration: float = LUNGE_SECONDS, max_px: int = LUNGE_MAX_PX) -> int:
@@ -37,6 +41,11 @@ def flash_on(t: float, duration: float = FLASH_SECONDS) -> bool:
     if t < 0 or t >= duration:
         return False
     return int(t / FLASH_PERIOD) % 2 == 0
+
+
+def bob_offset(t: float, period: float = BOB_PERIOD) -> int:
+    """Idle bob: 2-frame square wave — up (1 px) half the period, down the other."""
+    return 1 if (t % period) < period / 2 else 0
 
 
 def approach(current: float, target: float, dt: float, seconds: float = HP_DRAIN_SECONDS) -> float:

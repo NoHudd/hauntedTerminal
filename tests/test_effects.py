@@ -41,3 +41,13 @@ def test_fxstate_defaults():
     fx = FxState()
     assert fx.player_dx == 0 and fx.enemy_dx == 0
     assert fx.player_flash is False and fx.enemy_flash is False
+    assert fx.player_dy == 0 and fx.enemy_dy == 0
+
+
+def test_bob_offset_square_wave():
+    from src.scene.effects import BOB_PERIOD, bob_offset
+    half = BOB_PERIOD / 2
+    assert bob_offset(0.0) == 1
+    assert bob_offset(half - 0.01) == 1
+    assert bob_offset(half + 0.01) == 0
+    assert bob_offset(BOB_PERIOD + 0.01) == 1   # wraps

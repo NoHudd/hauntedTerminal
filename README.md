@@ -1,13 +1,19 @@
-# Haunted Filesystem Experience (HFSE)
+<p align="center">
+  <img src="./assets/logo.png" alt="Haunted Terminal" width="480">
+</p>
+
+# Haunted Terminal
 ## The Great Kernel Panic
+
+*(formerly Haunted Filesystem Experience — HFSE remains the internal code name)*
 
 A narrative-driven text adventure where you play as a Sysadmin Spirit navigating a corrupted filesystem in the aftermath of a catastrophic system failure. Learn command-line skills while uncovering the mystery of the Great Kernel Panic.
 
 ---
 
 <!-- Intro Screenshot -->
-![HFSE Intro](./Intro.png)
-*The terminal interface of Haunted Filesystem Experience*
+![Haunted Terminal Intro](./Intro.png)
+*The terminal interface of Haunted Terminal*
 
 ---
 

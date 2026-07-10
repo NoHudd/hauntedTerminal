@@ -1,5 +1,8 @@
-"""A story-beat `cat` defers the room re-list (so the '✦ saved' message is readable);
-an ordinary `cat` re-lists immediately as before.
+"""`cat` shows the file and nothing else — no room re-list, deferred or immediate.
+
+The scene view shows who is in the room and the exits, so appending/replacing the
+output with a full room listing after every cat was noise (and with append-mode
+output it read as a glitchy wall). Story-beat messages must still appear.
 """
 from __future__ import annotations
 
@@ -18,7 +21,7 @@ def _count_delayed_refresh(fn):
     return hits["n"]
 
 
-def test_story_beat_cat_emits_delayed_refresh():
+def test_story_beat_cat_shows_message_without_relist():
     s = GameSession()
     try:
         s.new_game("T", "guardian")
@@ -28,19 +31,24 @@ def test_story_beat_cat_emits_delayed_refresh():
 
         out_lines = []
         n = _count_delayed_refresh(lambda: out_lines.extend(s.submit("cat system_err_log")))
+        joined = "".join(str(x) for x in out_lines)
 
-        assert "Memory restored" in "".join(out_lines), "story beat message missing"
-        assert n == 1, f"story-beat cat should emit one DELAYED_ROOM_REFRESH, got {n}"
+        assert "Memory restored" in joined, "story beat message missing"
+        assert n == 0, f"cat must not defer a room re-list anymore, got {n}"
+        assert "Where you can go" not in joined, "cat must not append the room listing"
     finally:
         s.close()
 
 
-def test_ordinary_cat_does_not_defer():
+def test_ordinary_cat_does_not_relist():
     s = GameSession()
     try:
         s.new_game("T", "guardian")
         # readme_txt_corrupt lives in home_grove and has no story_flag
-        n = _count_delayed_refresh(lambda: s.submit("cat readme_txt_corrupt"))
-        assert n == 0, "ordinary cat must not defer the re-list"
+        out = []
+        n = _count_delayed_refresh(lambda: out.extend(s.submit("cat readme_txt_corrupt")))
+        joined = "".join(str(x) for x in out)
+        assert n == 0
+        assert "Where you can go" not in joined, "cat must not append the room listing"
     finally:
         s.close()

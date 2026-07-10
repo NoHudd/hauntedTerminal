@@ -81,12 +81,12 @@ def compose_battle(
 
     ew, eh = enemy.size
     ex = max(0, w - ew - _BATTLE_MARGIN - fx.enemy_dx)   # enemy lunges LEFT
-    ey = _BATTLE_MARGIN
+    ey = max(0, _BATTLE_MARGIN + fx.enemy_dy)            # bob: enemy drifts down
     img.paste(enemy, (ex, ey), enemy)
 
     pw, ph = player.size
     px_ = min(w - pw, _BATTLE_MARGIN + fx.player_dx)     # player lunges RIGHT
-    py = max(0, h - ph - _BATTLE_MARGIN)
+    py = max(0, h - ph - _BATTLE_MARGIN - fx.player_dy)  # bob: player lifts up
     img.paste(player, (px_, py), player)
     return img
 
