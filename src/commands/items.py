@@ -17,7 +17,6 @@ from src.commands.base import Command
 from src.events import EventType, event_bus
 from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
-from utils.typewriter import TypewriterPresets, create_typewriter_output_func
 
 if TYPE_CHECKING:  # pragma: no cover
     from src.command_handler import CommandHandler
@@ -358,21 +357,13 @@ class TalkCommand(Command):
 
         ctx.player.met_npcs.add(npc_id)
         dialogue = rng.choice(dialogues)
-        dialogue_text = (
+        # Render in ONE write. A char-by-char typewriter can't animate a string
+        # that contains Rich markup — a mid-word frame like "[bold cyan]…[/b"
+        # is unbalanced markup and raises MarkupError.
+        ctx.output.write(
             f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"
             f'[italic yellow]"{dialogue}"[/italic yellow]'
         )
-
-        output_callback = create_typewriter_output_func(
-            lambda text: ctx.output.write_frame(text)
-        )
-
-        try:
-            TypewriterPresets.DIALOGUE.type_text_sync(dialogue_text, output_callback)
-            ctx.output.write_frame(dialogue_text)
-        except Exception as e:
-            debug_log(f"Typewriter effect failed for NPC {npc_id}: {e}")
-            ctx.output.write_frame(dialogue_text)
 
         if "on_talk" in npc:
             ctx.execute_effect(npc["on_talk"])

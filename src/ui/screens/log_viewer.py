@@ -62,34 +62,41 @@ class LogViewerScreen(ModalScreen):
         yield RichLog(highlight=True, markup=True, id="log-display", max_lines=5000)
 
     def _colorize_log_line(self, line: str) -> str:
-        """Return the line wrapped in Rich markup based on content."""
+        """Return the line wrapped in Rich markup based on content.
+
+        Log lines contain brackets ([SYSTEM] timestamps, error text with
+        [bold red] tags); those must be ESCAPED before wrapping or RichLog's
+        markup parser raises MarkupError on the unbalanced result."""
+        from rich.markup import escape
+
+        safe = escape(line)
         # Level detection takes priority
         if "- ERROR -" in line:
-            return f"[bold red]{line}[/bold red]"
+            return f"[bold red]{safe}[/bold red]"
         if "- WARNING -" in line:
-            return f"[yellow]{line}[/yellow]"
+            return f"[yellow]{safe}[/yellow]"
         if "- INFO -" in line:
-            return line
+            return safe
         if "- DEBUG -" in line:
-            return f"[dim]{line}[/dim]"
+            return f"[dim]{safe}[/dim]"
 
         # Category detection
         if "[COMBAT]" in line:
-            return f"[red]{line}[/red]"
+            return f"[red]{safe}[/red]"
         if "[COMMAND]" in line:
-            return f"[cyan]{line}[/cyan]"
+            return f"[cyan]{safe}[/cyan]"
         if "[ITEM]" in line:
-            return f"[green]{line}[/green]"
+            return f"[green]{safe}[/green]"
         if "[ROOM]" in line:
-            return f"[blue]{line}[/blue]"
+            return f"[blue]{safe}[/blue]"
         if "[PLAYER]" in line:
-            return f"[magenta]{line}[/magenta]"
+            return f"[magenta]{safe}[/magenta]"
         if "[WORLD]" in line:
-            return f"[dim cyan]{line}[/dim cyan]"
+            return f"[dim cyan]{safe}[/dim cyan]"
         if "[SYSTEM]" in line:
-            return f"[dim]{line}[/dim]"
+            return f"[dim]{safe}[/dim]"
 
-        return line
+        return safe
 
     def on_mount(self) -> None:
         """Initialize log viewer when mounted."""

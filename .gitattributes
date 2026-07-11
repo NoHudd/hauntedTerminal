@@ -1,0 +1,4 @@
+# Batch files must be CRLF — LF-only .bat parses unreliably on Windows
+*.bat text eol=crlf
+# Shell scripts stay LF
+*.sh text eol=lf
