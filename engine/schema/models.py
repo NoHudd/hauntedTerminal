@@ -177,4 +177,7 @@ class NPC(_Base):
     short_description: str = ""
     description: str = ""
     dialogues: list[str] = Field(default_factory=list)
+    # Story-aware dialogue (docs/NPC_DIALOGUE_SPEC.md): named banks + ordered rules.
+    dialogue: dict[str, object] = Field(default_factory=dict)
+    dialogue_rules: list[dict[str, object]] = Field(default_factory=list)
     location: RoomId | None = None

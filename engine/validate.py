@@ -14,6 +14,7 @@ from collections import deque
 from engine.content import (
     GameContent,
     find_broken_references,
+    find_dialogue_problems,
     find_reference_warnings,
     load_all,
 )
@@ -49,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"CONTENT LOAD FAILED:\n{exc}", file=sys.stderr)
         return 1
 
-    problems = find_broken_references(content)
+    problems = find_broken_references(content) + find_dialogue_problems(content)
     if problems:
         print(f"LINK FAILED — {len(problems)} dangling reference(s):", file=sys.stderr)
         for p in problems:

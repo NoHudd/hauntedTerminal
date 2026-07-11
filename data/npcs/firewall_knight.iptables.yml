@@ -54,3 +54,9 @@ special_mechanics:
   key_check: chmod_key
   grants_access_to: core
   cannot_be_bypassed: true
+
+dialogue_rules:
+  - {bank: farewell,    when: {game_won: true}}
+  - {bank: with_key,    when: {has_item: chmod_key}}
+  - {bank: greeting,    when: {first_meeting: true}}
+  - {banks: [without_key, lore]}

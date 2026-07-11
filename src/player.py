@@ -31,6 +31,7 @@ class Player:
         # self.cooldowns = {} # Removed: Cooldowns are now managed by CombatSystem
         self.spells = []  # For special abilities later
         self.run_stats = {"kills": 0, "items_found": 0}  # lifetime-of-run counters
+        self.met_npcs: set = set()  # npc ids the player has talked to (greetings fire once)
         self.class_description = ""
 
         self.permanent_health_boost = 0
@@ -460,6 +461,7 @@ class Player:
         player.spells = data.get("spells", [])
         player.inventory = data.get("inventory", {})
         player.run_stats = data.get("runStats", {"kills": 0, "items_found": 0})
+        player.met_npcs = set(data.get("metNpcs", []))
         player.equipped_weapon = data.get("equipped_weapon", None)
         # Restore player_id if it exists, otherwise keep the generated one
         if "player_id" in data:
@@ -497,5 +499,6 @@ class Player:
             "level": self.level,
             "cycles_to_next_level": self.cycles_to_next_level,
             "story_flags": self.story_flags,
-            "runStats": self.run_stats
+            "runStats": self.run_stats,
+            "metNpcs": sorted(self.met_npcs)
         }

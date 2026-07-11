@@ -120,6 +120,7 @@ milk_of_motherboard:
   tags: ["consumable", "legendary", "easter_egg", "bovine"]
   allowed_zones: []  # Does not spawn in loot tables
   persistence: "persistent"
+  story_flag: "milk_claimed"
   usable: true
   usable_in_combat: true
   consumed_on_use: true

@@ -69,3 +69,7 @@ special_mechanics:
   story_flag_on_defeat: sudo_trial_complete
   cannot_flee: true
   respawns_on_trial_retry: true
+
+dialogue_rules:
+  - {bank: on_defeat,    when: {story_flag: sudo_trial_complete}}
+  - {bank: combat_start}

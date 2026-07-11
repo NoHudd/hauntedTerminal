@@ -77,3 +77,8 @@ special_mechanics:
   one_time_gift: milk_of_motherboard
   spawned_by_trigger: cat_moo_file
   humorous_tone: true
+
+dialogue_rules:
+  - {bank: already_claimed, when: {story_flag: milk_claimed}}
+  - {bank: first_encounter, when: {first_meeting: true}}
+  - {banks: [greeting, bovine_wisdom, lore]}
