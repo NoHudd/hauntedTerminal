@@ -364,15 +364,15 @@ class TalkCommand(Command):
         )
 
         output_callback = create_typewriter_output_func(
-            lambda text: ctx.output.write(text)
+            lambda text: ctx.output.write_frame(text)
         )
 
         try:
             TypewriterPresets.DIALOGUE.type_text_sync(dialogue_text, output_callback)
-            ctx.output.write(dialogue_text)
+            ctx.output.write_frame(dialogue_text)
         except Exception as e:
             debug_log(f"Typewriter effect failed for NPC {npc_id}: {e}")
-            ctx.output.write(dialogue_text)
+            ctx.output.write_frame(dialogue_text)
 
         if "on_talk" in npc:
             ctx.execute_effect(npc["on_talk"])

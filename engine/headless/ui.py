@@ -44,6 +44,13 @@ class HeadlessUI:
     def update_output(self, content: str) -> None:
         self.output_log.append(str(content))
 
+    def update_output_frame(self, content: str) -> None:
+        """Streaming animation frame: coalesce — replace the previous frame."""
+        if self.output_log:
+            self.output_log[-1] = str(content)
+        else:
+            self.output_log.append(str(content))
+
     def append_output(self, content: str) -> None:
         self.output_log.append(str(content))
 

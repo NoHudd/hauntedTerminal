@@ -23,8 +23,15 @@ from typing import Any
 class GameOutput:
     """A text sink that either forwards live or accumulates."""
 
-    def __init__(self, forward: Callable[[Any], None] | None = None) -> None:
+    def __init__(
+        self,
+        forward: Callable[[Any], None] | None = None,
+        forward_frame: Callable[[Any], None] | None = None,
+    ) -> None:
         self._forward = forward
+        # Frame writes are streaming animation updates (typewriter): each frame
+        # REPLACES the previous one on screen instead of appending a new line.
+        self._forward_frame = forward_frame or forward
         self.messages: list[str] = []
 
     def write(self, content: Any) -> None:
@@ -41,6 +48,19 @@ class GameOutput:
             self._forward(content)
         else:
             self.messages.append(str(content))
+
+    def write_frame(self, content: Any) -> None:
+        """Emit one animation frame: replaces the previous frame on screen.
+
+        Accumulate mode keeps only the latest frame (coalesced), so headless
+        logs show the final text once instead of a per-character flood."""
+        if self._forward_frame is not None:
+            self._forward_frame(content)
+        else:
+            if self.messages:
+                self.messages[-1] = str(content)
+            else:
+                self.messages.append(str(content))
 
     def drain(self) -> list[str]:
         """Return accumulated output (forward-unset mode), then clear."""
