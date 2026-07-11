@@ -152,3 +152,17 @@ def test_validate_catches_dangling_bank():
                           classes={}, abilities={}, attacks={})
     problems = find_dialogue_problems(content)
     assert any("nope" in p for p in problems)
+
+
+def test_talk_output_is_one_line_not_a_frame_flood():
+    """Typewriter frames must coalesce (replace), not append per character."""
+    from engine.api import GameSession
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        out = s.submit("talk home_guardian.sys")
+        # Headless coalesces frames: a handful of entries, not one per character.
+        assert len(out) < 10, f"frame flood: {len(out)} entries"
+        assert any("Grove Guardian" in str(x) for x in out)
+    finally:
+        s.close()

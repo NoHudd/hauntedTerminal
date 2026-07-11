@@ -65,7 +65,10 @@ class ImprovedGameEngine:
         self.ui = ui
         # Domain output sink: command/combat text is written here and forwarded
         # live to the UI (Phase 2b). The domain no longer references the UI.
-        self.output = GameOutput(forward=self._forward_output)
+        self.output = GameOutput(
+            forward=self._forward_output,
+            forward_frame=self._forward_output_frame,
+        )
 
         # Setup
         self._setup_directories()
@@ -278,6 +281,19 @@ class ImprovedGameEngine:
         if not first and hasattr(self.ui, "append_output"):
             sink = self.ui.append_output
 
+        if hasattr(self.ui, 'call_from_thread'):
+            try:
+                self.ui.call_from_thread(sink, content)
+                return
+            except Exception:
+                pass
+        sink(content)
+
+    def _forward_output_frame(self, content):
+        """Streaming animation frame: always replaces the panel content and
+        counts as this command's output (later writes append after it)."""
+        self._fresh_command_output = False
+        sink = getattr(self.ui, "update_output_frame", None) or self.ui.update_output
         if hasattr(self.ui, 'call_from_thread'):
             try:
                 self.ui.call_from_thread(sink, content)
