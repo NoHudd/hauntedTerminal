@@ -1,7 +1,12 @@
 """Content loading + linking. Load into typed models, then enforce id-refs."""
 from __future__ import annotations
 
-from .linker import find_broken_references, find_reference_warnings, link
+from .linker import (
+    find_broken_references,
+    find_dialogue_problems,
+    find_reference_warnings,
+    link,
+)
 from .loader import (
     load_abilities,
     load_attacks,
@@ -18,6 +23,7 @@ __all__ = [
     "load_all",
     "link",
     "find_broken_references",
+    "find_dialogue_problems",
     "find_reference_warnings",
     "load_rooms",
     "load_items",

@@ -94,6 +94,9 @@ class TakeCommand(Command):
             debug_log(f"Player took item {actual_item_id} from room {current_room}")
             ctx.world.remove_item_from_room(actual_item_id)
             ctx.player.run_stats["items_found"] = ctx.player.run_stats.get("items_found", 0) + 1
+            take_flag = item.get("story_flag")
+            if take_flag:
+                ctx.player.set_story_flag(take_flag)
 
             from src.rarity import RaritySystem
 
@@ -331,7 +334,20 @@ class TalkCommand(Command):
 
         npc_name = npc.get("name", npc_id)
 
-        dialogues = npc.get("dialogues", [])
+        # Story-aware dialogue: ordered rules pick the right bank for the current
+        # game state; NPCs without rules keep the legacy flat list.
+        from src.npc_dialogue import resolve_dialogue_bank
+
+        rules = npc.get("dialogue_rules") or []
+        banks = npc.get("dialogue") if isinstance(npc.get("dialogue"), dict) else {}
+        state = {
+            "flags": getattr(ctx.player, "story_flags", {}) or {},
+            "items": set(getattr(ctx.player, "inventory", {}) or {}),
+            "met": getattr(ctx.player, "met_npcs", set()),
+            "npc_id": npc_id,
+            "game_won": bool((getattr(ctx.player, "story_flags", {}) or {}).get("ending_chosen")),
+        }
+        dialogues = resolve_dialogue_bank(rules, banks, state) or npc.get("dialogues", [])
         if not dialogues:
             ctx.output.write(
                 f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"
@@ -340,6 +356,7 @@ class TalkCommand(Command):
             )
             return
 
+        ctx.player.met_npcs.add(npc_id)
         dialogue = rng.choice(dialogues)
         dialogue_text = (
             f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"

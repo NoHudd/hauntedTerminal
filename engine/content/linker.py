@@ -122,3 +122,41 @@ def link(content: GameContent) -> GameContent:
             + "\n  - ".join(problems)
         )
     return content
+
+
+DIALOGUE_WHEN_KEYS = {"story_flag", "not_story_flag", "has_item", "first_meeting", "game_won"}
+
+
+def find_dialogue_problems(content: GameContent) -> list[str]:
+    """Dangling dialogue-rule references: every rule bank must exist as a
+    non-empty list of strings in that NPC's dialogue mapping, and every `when`
+    key must be from the known vocabulary (docs/NPC_DIALOGUE_SPEC.md)."""
+    problems: list[str] = []
+    for npc_id, npc in content.npcs.items():
+        rules = npc.dialogue_rules
+        if not rules:
+            continue
+        banks = npc.dialogue
+        for i, rule in enumerate(rules):
+            raw_banks = rule.get("banks")
+            names: list[object] = (
+                list(raw_banks) if isinstance(raw_banks, list)
+                else [rule["bank"]] if rule.get("bank") else []
+            )
+            if not names:
+                problems.append(f"npc {npc_id}: dialogue rule {i} names no bank")
+            for name in names:
+                lines = banks.get(str(name)) if isinstance(banks, dict) else None
+                ok = isinstance(lines, list) and bool(lines) and all(
+                    isinstance(x, str) for x in lines
+                )
+                if not ok:
+                    problems.append(
+                        f"npc {npc_id}: dialogue rule {i} -> bank {name!r} "
+                        "missing or not a list of strings"
+                    )
+            when = rule.get("when")
+            for key in (when if isinstance(when, dict) else {}):
+                if key not in DIALOGUE_WHEN_KEYS:
+                    problems.append(f"npc {npc_id}: dialogue rule {i} unknown condition {key!r}")
+    return problems

@@ -58,3 +58,9 @@ special_mechanics:
   lore_guide: true
   provides_hints: true
   non_hostile: true
+dialogue_rules:
+  - {bank: farewell,        when: {game_won: true}}
+  - {bank: about_panic,     when: {story_flag: typo_discovered}}
+  - {bank: fragments_found, when: {story_flag: identity_retrieved}}
+  - {bank: greeting,        when: {first_meeting: true}}
+  - {banks: [lore_guidance, library_lore]}

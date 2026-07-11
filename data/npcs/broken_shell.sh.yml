@@ -39,3 +39,8 @@ interaction_hints:
 special_mechanics:
   dialogue_stutters: true
   random_syntax_errors: true
+
+dialogue_rules:
+  - {bank: farewell, when: {game_won: true}}
+  - {bank: greeting, when: {first_meeting: true}}
+  - {banks: [quest_related, lore]}

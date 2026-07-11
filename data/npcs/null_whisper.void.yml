@@ -56,3 +56,8 @@ special_mechanics:
   awakening_npc: true
   lore_provider: true
   ethereal_speech: true
+dialogue_rules:
+  - {bank: farewell,          when: {game_won: true}}
+  - {bank: awakening_lore,    when: {first_meeting: true}}
+  - {bank: kernel_panic_lore, when: {story_flag: typo_discovered}}
+  - {banks: [greeting, hints, lore_fragments]}
