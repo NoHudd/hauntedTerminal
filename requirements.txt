@@ -1,7 +1,5 @@
 rich>=13.3.3
 pyyaml>=6.0.1
-tqdm>=4.66.3
-readchar==0.7
 # NOTE: the old textual==0.47.1 pin was stale — the venv had drifted newer and the
 # code uses newer APIs (e.g. Input.Blurred). 8.2.8 verified working 2026-07-09.
 textual==8.2.8
