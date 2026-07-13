@@ -10,27 +10,20 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# ASCII Art Banner
+# Banner
 clear
 echo -e "${PURPLE}${BOLD}"
 cat << "EOF"
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   ██╗  ██╗███████╗███████╗███████╗                          ║
-║   ██║  ██║██╔════╝██╔════╝██╔════╝                          ║
-║   ███████║█████╗  ███████╗█████╗                            ║
-║   ██╔══██║██╔══╝  ╚════██║██╔══╝                            ║
-║   ██║  ██║██║     ███████║███████╗                          ║
-║   ╚═╝  ╚═╝╚═╝     ╚══════╝╚══════╝                          ║
-║                                                               ║
-║        Haunted Filesystem Experience                          ║
-║        Learn command-line skills through adventure!           ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
+═══════════════════════════════════════════════════════════════
+
+         H A U N T E D   T E R M I N A L
+         Learn command-line skills through adventure!
+
+═══════════════════════════════════════════════════════════════
 EOF
 echo -e "${NC}"
 
-echo -e "${CYAN}${BOLD}[HFSE Launcher]${NC} Initializing..."
+echo -e "${CYAN}${BOLD}[Haunted Terminal Launcher]${NC} Initializing..."
 echo ""
 
 # Check Python installation
@@ -93,7 +86,7 @@ fi
 # Launch the game
 echo ""
 echo -e "${PURPLE}${BOLD}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}${BOLD}        🎮 Launching Haunted Filesystem Experience! 🎮${NC}"
+echo -e "${GREEN}${BOLD}        🎮 Launching Haunted Terminal! 🎮${NC}"
 echo -e "${PURPLE}${BOLD}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 python main.py
