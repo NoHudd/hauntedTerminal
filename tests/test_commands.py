@@ -188,6 +188,13 @@ def test_tutorial_prescribed_commands_work(session: GameSession) -> None:
     for cmd in ("ls", "take segfault_shield", "equip segfault_shield"):
         out = _text(session.submit(cmd))
         assert "Unknown command" not in out and "digital void" not in out, cmd
+    # Equipping the starter weapon spawns the tutorial enemy and starts combat
+    # (command_handler.py: equip -> spawn_tutorial_enemy + check_for_enemies).
+    # A real player must resolve that fight before moving on; flee to get back
+    # to free navigation without depending on random damage rolls.
+    from src.game_states import GameState
+    if session.state == GameState.IN_COMBAT:
+        session.submit("flee")
     before = session.player.current_room
     session.submit("cd /var")
     assert session.player.current_room != before, "cd /var (tutorial nav) must move"

@@ -65,7 +65,7 @@ class CommandHandler:
         (EventType.ALL_ENEMIES_DEFEATED, "_on_all_enemies_defeated"),
         (EventType.ROOM_CHANGED, "_on_room_changed_for_npc"),
         (EventType.COMBAT_ENDED, "_on_combat_ended_tutorial"),
-        (EventType.TUTORIAL_SELECTION_MODE_USED, "_on_tutorial_selection_mode_used"),
+        (EventType.COMBAT_ACTION_RESULT, "_on_combat_action_result_tutorial"),
     ]
 
     def setup_event_subscriptions(self):
@@ -124,17 +124,22 @@ class CommandHandler:
         ts = self.player.tutorial_state
         if ts.get("completed", False):
             return
-        if ts.get("combat_typed", False) and not ts.get("navigation_ls", False):
+        if ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
             if event.data.get("victory", False):
                 self.show_tutorial_hint("step5_postcombat")
                 self.show_tutorial_hint("step6")
 
-    def _on_tutorial_selection_mode_used(self, event):
-        """Handle tutorial selection mode used event (TAB pressed during tutorial combat)."""
+    def _on_combat_action_result_tutorial(self, event):
+        """Step 4 gate: first landed attack (typed OR hotkey — both emit this
+        event identically) shows the Step 5 hint."""
         ts = self.player.tutorial_state
-        if ts.get("combat_typed", False) and not ts.get("combat_selection", False):
-            ts["combat_selection"] = True
-            debug_log("Tutorial: combat_selection gate passed (TAB used in combat)")
+        if ts.get("completed", False):
+            return
+        data = event.data or {}
+        if data.get("actor") == "player" and data.get("action") == "attack":
+            if not ts.get("combat_action_taken", False):
+                ts["combat_action_taken"] = True
+                self.show_tutorial_hint("step5")
 
     def _trigger_automatic_npc_dialogue(self, room_id, context):
         """Automatically trigger NPC dialogue for guidance."""
@@ -994,13 +999,6 @@ class CommandHandler:
             "CommandHandler"
         )
 
-        # Step 4 gate: first typed attack → show Step 5 hint (Selection Mode)
-        ts = self.player.tutorial_state
-        if not ts.get("completed", False) and ts.get("equipped_weapon", False):
-            if not ts.get("combat_typed", False):
-                ts["combat_typed"] = True
-                self.show_tutorial_hint("step5")
-
     def check_for_enemies(self):
         """Check for enemies in the current room and start combat if found."""
         current_room = self.player.current_room
@@ -1353,10 +1351,8 @@ Not because you fixed them. Because you forgave them.
             return "step2"
         if not ts.get("equipped_weapon", False):
             return "step3"
-        if not ts.get("combat_typed", False):
+        if not ts.get("combat_action_taken", False):
             return "step4"
-        if not ts.get("selection_mode_used", False):
-            return "step5"
         if not ts.get("navigation_ls", False):
             return "step6"
         if not ts.get("navigation_moved", False):

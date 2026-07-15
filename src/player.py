@@ -51,8 +51,7 @@ class Player:
             "found_weapon": False,      # Step 2 (ls revealed weapon)
             "took_weapon": False,       # Step 2 gate
             "equipped_weapon": False,   # Step 3 gate (also triggers enemy spawn)
-            "combat_typed": False,      # Step 4 gate (used typed attack)
-            "combat_selection": False,  # Step 5 gate (used TAB + number)
+            "combat_action_taken": False,  # Step 4 gate (player landed an attack)
             "navigation_ls": False,     # Step 6 gate (typed ls post-combat)
             "navigation_moved": False,  # Step 6 gate (moved to new room)
             "completed": False          # Step 7 — tutorial fully done

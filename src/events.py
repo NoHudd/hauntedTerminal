@@ -153,11 +153,6 @@ class EventType(Enum):
     # Subscribed by: command_handler.py, game_engine.py, textual_ui.py
     # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str, "enemies_defeated": int}
 
-    TUTORIAL_SELECTION_MODE_USED = auto()
-    # Emitted by: textual_ui.py (on_input_blurred, when TAB is pressed during tutorial combat)
-    # Subscribed by: command_handler.py
-    # Data: {}
-
 @dataclass
 class Event:
     """Represents an event with data."""
