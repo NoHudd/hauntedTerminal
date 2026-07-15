@@ -599,16 +599,6 @@ class TextualGameUI(App):
             self._settings_manager.save()
             self.push_screen(CombatModeHintScreen())
 
-        # Tutorial: detect Selection Mode usage during tutorial combat
-        if state_manager.is_in_combat() and self._player_ref is not None:
-            ts = getattr(self._player_ref, 'tutorial_state', {})
-            if ts.get('combat_typed', False) and not ts.get('combat_selection', False):
-                event_bus.emit_event(
-                    EventType.TUTORIAL_SELECTION_MODE_USED,
-                    {},
-                    "TextualGameUI"
-                )
-
     # =====================================
     # DEV TOOLS ACTIONS
     # =====================================
