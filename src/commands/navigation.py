@@ -108,6 +108,7 @@ class LsCommand(Command):
                     output.append(f"  {enemy_id} - Unknown Enemy\n", style="red")
             has_content = True
 
+        discovered_any = False
         if show_hidden:
             hidden_rooms = ctx._get_discoverable_hidden_rooms(room_id)
             if hidden_rooms:
@@ -123,6 +124,7 @@ class LsCommand(Command):
 
                 for hidden_room_id in hidden_rooms:
                     if ctx.world.discover_room(hidden_room_id):
+                        discovered_any = True
                         output.append(
                             f"\n[bold green]Discovered hidden directory: "
                             f"{hidden_room_id}![/bold green]\n"
@@ -148,6 +150,19 @@ class LsCommand(Command):
 
         ctx.output.write(output)
 
+        if discovered_any:
+            # The sidebar/scene only rebuilds on ROOM_ENTERED (normally fired
+            # by cd). Without this, a newly discovered exit stays invisible
+            # in the persistent UI until the player leaves and re-enters —
+            # the one-line "Discovered hidden directory!" text above is the
+            # only place it ever showed, and the next command overwrites it.
+            room_view = ViewBuilder.build_room_view(ctx.world, room_id)
+            event_bus.emit_event(
+                EventType.ROOM_ENTERED,
+                {"room": room_view.to_dict(), "player_name": ctx.player.name},
+                "CommandHandler",
+            )
+
         ts = ctx.player.tutorial_state
         if not ts.get("completed", False):
             if not ts.get("first_ls", False):
@@ -161,7 +176,7 @@ class LsCommand(Command):
                             weapon_item_id = item_id
                             break
                     ctx.show_tutorial_hint("step2", weapon_item_id)
-            elif ts.get("combat_typed", False) and not ts.get("navigation_ls", False):
+            elif ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
                 ts["navigation_ls"] = True
                 ctx.show_tutorial_hint("step6b")
 
