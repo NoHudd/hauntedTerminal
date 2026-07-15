@@ -20,6 +20,8 @@ def _field(e, key):
 def build_tier_pools(enemies: dict) -> dict[int, list[str]]:
     pools: dict[int, list[str]] = {t: [] for t in POOL_TIERS}
     for eid, edata in enemies.items():
+        if _field(edata, "pool_excluded"):
+            continue
         tier = _field(edata, "tier")
         if tier in pools:
             pools[tier].append(eid)

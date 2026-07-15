@@ -110,6 +110,10 @@ class Enemy(_Base):
     auto_attack: bool = True
     drops: list[Drop] = Field(default_factory=list)
     tier: int | None = None
+    # Has a tier (so scale_enemy_stats etc. still work) but must never be drawn
+    # into a room's random tier pool — a scripted/dynamically-placed encounter
+    # (e.g. the tutorial fight) rather than regular world-init content.
+    pool_excluded: bool = False
     experience: int = 0
     dialogue: str = ""
     attack_patterns: list[dict[str, object]] = Field(default_factory=list)

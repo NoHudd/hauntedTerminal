@@ -15,6 +15,7 @@ ENEMIES = {
     "c1": {"tier": 3},
     "boss": {},                      # no tier -> never pooled
     "pinnedC": {"tier": 3},          # tier 3 but pinned in a room below
+    "scripted": {"tier": 1, "pool_excluded": True},  # has a tier, but reserved
 }
 
 
@@ -24,6 +25,7 @@ def test_build_tier_pools_groups_and_sorts() -> None:
     assert pools[2] == ["b1", "b2"]
     assert set(pools[3]) == {"c1", "pinnedC"}
     assert "boss" not in pools[1] + pools[2] + pools[3]
+    assert "scripted" not in pools[1]
 
 
 def test_pinned_rooms_are_preserved_and_reserved() -> None:
@@ -67,7 +69,10 @@ def test_rolls_are_deterministic_under_seed() -> None:
 def test_live_pools_are_six_each() -> None:
     from src.data_loader import load_enemy_data
     pools = build_tier_pools(load_enemy_data())
-    assert len(pools[1]) == 6, pools[1]
+    # Tier 1 is 5, not 6: glitched_process.tmp has tier=1 (scale_enemy_stats
+    # etc. still need it) but is pool_excluded — it's the scripted tutorial
+    # encounter (spawn_tutorial_enemy), never a random world-init draw.
+    assert len(pools[1]) == 5, pools[1]
     assert len(pools[2]) == 6, pools[2]
     assert len(pools[3]) == 6, pools[3]
 
@@ -78,6 +83,20 @@ def test_bosses_are_not_pooled() -> None:
     for boss in ("daemon_overlord.sys", "corruption_overlord.exe"):
         assert boss in enemies
         assert enemies[boss].tier is None, f"{boss} must not be pooled"
+
+
+def test_tutorial_enemy_is_pool_excluded() -> None:
+    """Regression: glitched_process.tmp used to land in a random tier-1 room
+    via world-init pool rolling. spawn_tutorial_enemy's placement guard
+    (enemy_id not already in enemy_locations) then silently no-op'd when the
+    pool had already claimed it elsewhere, so the tutorial fight never
+    started."""
+    from src.data_loader import load_enemy_data
+    enemies = load_enemy_data()
+    assert enemies["glitched_process.tmp"].tier == 1
+    assert enemies["glitched_process.tmp"].pool_excluded is True
+    pools = build_tier_pools(enemies)
+    assert "glitched_process.tmp" not in pools[1]
 
 
 def _rooms() -> dict[str, dict]:

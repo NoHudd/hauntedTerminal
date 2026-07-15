@@ -11,4 +11,5 @@ on_defeat:
   message: The corrupted process terminates cleanly. Its memory is freed.
 
 tier: 1
+pool_excluded: true  # scripted tutorial encounter, spawned by spawn_tutorial_enemy — never a random pool draw
 experience: 16
