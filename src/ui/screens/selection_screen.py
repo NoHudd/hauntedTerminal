@@ -11,15 +11,18 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional
 
 from rich.console import Group
+from rich.padding import Padding
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
+from src.scene.effects import bob_offset
 from src.scene.sprite_store import SpriteStore, to_renderable
 
 _CARD_ART_PX = 40
+_BOB_TICK_SECONDS = 0.2
 
 
 def digit_to_index(key: str, count: int) -> Optional[int]:
@@ -97,7 +100,7 @@ class SelectionScreen(ModalScreen):
     """
 
     def __init__(self, heading: str, cards: List[SelectionCard],
-                 on_pick: Callable[[SelectionCard], None]):
+                 on_pick: Callable[[SelectionCard], None], reduce_motion: bool = False):
         super().__init__()
         self._heading = heading
         self._cards = cards
@@ -106,6 +109,9 @@ class SelectionScreen(ModalScreen):
         self._picked = False
         self._store = SpriteStore()
         self._mounted_at = 0.0
+        self._reduce_motion = reduce_motion
+        self._bob_timer = None
+        self._bob_start = 0.0
 
     def compose(self) -> ComposeResult:
         with Vertical(id="picker-body"):
@@ -122,10 +128,21 @@ class SelectionScreen(ModalScreen):
 
     def on_mount(self) -> None:
         self._mounted_at = time.monotonic()
+        self._bob_start = self._mounted_at
         self._highlight()
+        if not self._reduce_motion:
+            self._bob_timer = self.set_interval(_BOB_TICK_SECONDS, self._bob_tick)
 
-    def _card_body(self, card: SelectionCard) -> Group:
+    def on_unmount(self) -> None:
+        if self._bob_timer is not None:
+            self._bob_timer.stop()
+            self._bob_timer = None
+
+    def _card_body(self, card: SelectionCard, bob: int = 0) -> Group:
         art = to_renderable(self._store.get_sprite("ui", card.art_key, _CARD_ART_PX, _CARD_ART_PX))
+        # bob shifts the art 1 row up/down (Padding total stays 1 line either
+        # way, so the card's height never changes while it bobs).
+        art = Padding(art, (bob, 0, 1 - bob, 0))
         title = Text(card.title.upper(), style=f"bold {card.accent}", justify="center")
         subtitle = Text(card.subtitle, style="dim", justify="center")
         return Group(art, Text(""), title, subtitle)
@@ -135,9 +152,22 @@ class SelectionScreen(ModalScreen):
             widget = self.query_one(f"#picker-card-{i}", Static)
             widget.set_class(i == self._index, "card-selected")
 
+    def _bob_tick(self) -> None:
+        if not self.is_mounted or self._picked:
+            return
+        bob = bob_offset(time.monotonic() - self._bob_start)
+        widget = self.query_one(f"#picker-card-{self._index}", Static)
+        widget.update(self._card_body(self._cards[self._index], bob=bob))
+
     def _move(self, delta: int) -> None:
+        old_index = self._index
         self._index = max(0, min(len(self._cards) - 1, self._index + delta))
         if self.is_mounted:
+            # Reset the old card to its resting pose so only the newly
+            # selected one bobs.
+            self.query_one(f"#picker-card-{old_index}", Static).update(
+                self._card_body(self._cards[old_index])
+            )
             self._highlight()
 
     def _confirm(self) -> None:
