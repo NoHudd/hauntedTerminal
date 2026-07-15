@@ -341,7 +341,8 @@ class TextualGameUI(App):
                 "SelectionScreen",
             )
 
-        self._picker = SelectionScreen(heading, cards, on_pick)
+        reduce_motion = bool(self._settings_manager.settings.get("reduce_motion", False))
+        self._picker = SelectionScreen(heading, cards, on_pick, reduce_motion=reduce_motion)
         # Defer the push past the in-flight key event: pushing synchronously lets
         # the SAME Enter that triggered this state change hit the new screen's
         # "enter" binding and auto-confirm card 1 (observed: menu→easy in 1 ms).
