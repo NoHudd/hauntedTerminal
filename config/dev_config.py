@@ -26,16 +26,16 @@ except ImportError:
     print("Warning: config/settings.py not found. Using default settings.")
     print("Copy config/settings.example.py to config/settings.py to customize.")
 
-    DEV_MODE = True
-    DEBUG_MODE = True
-    DEBUG_COMMAND = True
-    DEBUG_ITEM = True
-    DEBUG_COMBAT = True
-    DEBUG_ROOM = True
-    DEBUG_PLAYER = True
-    DEBUG_WORLD = True
-    SKIP_INTRO = True
-    DISABLE_ANIMATIONS = True
+    DEV_MODE = False
+    DEBUG_MODE = False
+    DEBUG_COMMAND = False
+    DEBUG_ITEM = False
+    DEBUG_COMBAT = False
+    DEBUG_ROOM = False
+    DEBUG_PLAYER = False
+    DEBUG_WORLD = False
+    SKIP_INTRO = False
+    DISABLE_ANIMATIONS = False
     DEBUG_LOG_FILE = "debug.log"
 
 # Runtime-mutable UX flags (not part of settings.py). SettingsManager updates
