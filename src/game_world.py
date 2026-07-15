@@ -97,10 +97,8 @@ class GameWorld:
         if enemy_id not in self.enemies:
             debug_log(f"Tutorial enemy {enemy_id} not found in enemies data")
             return
-        if room_id not in self.enemy_locations:
-            self.enemy_locations[room_id] = []
-        if enemy_id not in self.enemy_locations[room_id]:
-            self.enemy_locations[room_id].append(enemy_id)
+        if enemy_id not in self.enemy_locations:
+            self.enemy_locations[enemy_id] = room_id
             debug_log(f"Tutorial enemy {enemy_id} spawned in {room_id}")
 
     def scale_enemy_stats(self, enemy_data, player_class):
