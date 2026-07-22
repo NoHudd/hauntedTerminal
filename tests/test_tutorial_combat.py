@@ -64,3 +64,34 @@ def test_get_current_tutorial_step_reaches_step6_after_combat():
         assert h._get_current_tutorial_step() == "step6"
     finally:
         s.close()
+
+
+def test_step4_hint_does_not_instruct_typed_attack():
+    """The tutorial must never tell the player to type 'attack' — combat has
+    never accepted that literal word (playtester got stuck on this)."""
+    from engine.api import GameSession
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        h = s.engine.cmd_handler
+        h.world.item_locations["segfault_shield"] = s.player.current_room
+        s.submit("take segfault_shield")
+        out = "\n".join(s.submit("equip segfault_shield"))
+        assert "type: [bold]attack[/bold]" not in out.lower()
+        assert "selection mode" in out.lower()
+    finally:
+        s.close()
+
+
+def test_completed_hint_documents_flee_hotkey():
+    from engine.api import GameSession
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        h = s.engine.cmd_handler
+        h.show_tutorial_hint("completed")
+        out = "\n".join(s.ui.drain())
+    finally:
+        s.close()
+    assert "[bold]0[/bold]" in out
+    assert "flee" in out.lower()

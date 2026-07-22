@@ -298,10 +298,10 @@ class CommandHandler:
             # Step 0: skip summary (player chose to skip)
             "skip_summary": (
                 "[bold green]ECHO>[/bold green] Got it. Quick reference: "
-                "[bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items, "
-                "[bold]attack[/bold] fights enemies. In combat, press [bold]TAB[/bold] to enter "
-                "Selection Mode then [bold]1-9[/bold] to attack. [bold]flee[/bold] escapes a fight. "
-                "[bold]help[/bold] if stuck. Good luck."
+                "[bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. "
+                "Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to "
+                "attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type "
+                "[bold]use [item][/bold] instead. [bold]help[/bold] if stuck. Good luck."
             ),
             # Step 1: welcome + ls instruction
             "step1": (
@@ -322,17 +322,18 @@ class CommandHandler:
                 f"Equipping means it'll be used in combat."
             ),
             # Step 4: combat - typed attack instruction
+            # Step 4: combat - Selection Mode is already active
             "step4": (
-                "[bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat. "
-                "Type: [bold]attack[/bold] to strike it. "
-                "Or press [bold]TAB[/bold] to enter Selection Mode and pick an attack with [bold]1-9[/bold]."
+                "[bold green]ECHO>[/bold green] A corrupted process just spawned — this is "
+                "combat, and you're already in Selection Mode. Press [bold]1[/bold] to "
+                "attack."
             ),
-            # Step 5: combat - Selection Mode instruction (fires after first typed attack)
+            # Step 5: fires after the player's first landed attack
             "step5": (
                 "[bold green]ECHO>[/bold green] Nice hit. One more should finish it. "
-                "Try this: press [bold]TAB[/bold] to enter Selection Mode, "
-                "then press [bold]1[/bold] to attack without typing anything. "
-                "TAB switches you back to typing whenever you need it."
+                "Need to use an item or flee instead? Press [bold]TAB[/bold] to type "
+                "[bold]use [item][/bold] or [bold]flee[/bold] — TAB again to get back "
+                "to Selection Mode."
             ),
             # Step 5 post-combat informational (no gate)
             "step5_postcombat": (
@@ -359,8 +360,9 @@ class CommandHandler:
                 f"  • [bold]cd /path[/bold] — move (e.g. cd /var)\n"
                 f"  • [bold]cat[/bold] — read a file\n"
                 f"  • [bold]take / equip[/bold] — grab and ready items\n"
-                f"  • [bold]attack[/bold] or TAB + number — fight enemies\n"
-                f"  • [bold]flee[/bold] — escape a fight\n"
+                f"  • [bold]1-9[/bold] in combat — attack (Selection Mode, opens automatically)\n"
+                f"  • [bold]0[/bold] in combat — flee\n"
+                f"  • [bold]TAB[/bold] in combat — type 'use [item]' instead\n"
                 f"  • [bold]help[/bold] — if you get stuck\n"
                 f"Good luck out there."
             ),
