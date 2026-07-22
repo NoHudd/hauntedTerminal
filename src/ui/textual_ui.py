@@ -403,6 +403,7 @@ class TextualGameUI(App):
         self._combat_view = event.data
         self._available_attacks = event.data.get('available_attacks', [])
         self._bind_combat_hotkeys()
+        self.query_one("#input-field", Input).blur()
         self._apply_game_state_styling("in_combat")
         self._show_combat_ui()
 
@@ -624,7 +625,8 @@ class TextualGameUI(App):
         event_bus.emit_event(EventType.GAME_RESTART_REQUESTED, {}, "TextualGameUI")
 
     def _bind_combat_hotkeys(self):
-        """Dynamically bind combat hotkeys with actual attack names."""
+        """Dynamically bind combat hotkeys with actual attack names, plus the
+        always-available flee key."""
         # Unbind any existing combat keys first
         self._unbind_combat_hotkeys()
 
@@ -653,6 +655,11 @@ class TextualGameUI(App):
                 self.bind(key, action, description=attack_name, show=True)
                 self._bound_combat_keys.append(key)
 
+            # Flee is always available (boss fights still block it — combat.py
+            # shows the existing "cannot flee from a boss" message).
+            self.bind("0", "combat_flee", description="Flee", show=True)
+            self._bound_combat_keys.append("0")
+
         except Exception as e:
             logger.error(f"Error binding combat hotkeys: {e}")
 
@@ -679,6 +686,17 @@ class TextualGameUI(App):
     def action_combat_hotkey_7(self) -> None: self._execute_combat_hotkey(7)
     def action_combat_hotkey_8(self) -> None: self._execute_combat_hotkey(8)
     def action_combat_hotkey_9(self) -> None: self._execute_combat_hotkey(9)
+
+    def action_combat_flee(self) -> None:
+        """0 = flee. Emits the same event typed 'flee' produces, so
+        combat.py's existing boss-block/success handling needs no changes."""
+        if not state_manager.is_in_combat():
+            return
+        event_bus.emit_event(
+            EventType.COMBAT_ACTION_SELECTED,
+            {"choice": "flee"},
+            "TextualGameUI",
+        )
 
     def _execute_combat_hotkey(self, hotkey_number: int):
         """Execute combat action based on hotkey number - only available attacks."""
@@ -950,8 +968,8 @@ Brave sysadmin {player_name}, your session has been terminated.
             output_lines.extend([
                 "[bold yellow]⚔ BATTLE STARTED ⚔[/bold yellow]",
                 "=" * 40,
-                "[dim]Press [bold]TAB[/bold] for selection mode, or type an attack. "
-                "'flee' to escape.[/dim]",
+                "[dim]Selection Mode active — press 1-9 to attack, 0 to flee. "
+                "TAB to type 'use <item>' instead.[/dim]",
                 "",
                 self._get_dynamic_hotkey_display(),
             ])
