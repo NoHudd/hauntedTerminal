@@ -273,7 +273,12 @@ class CommandHandler:
         # Check if hidden (shouldn't appear here, but just in case)
         if room_state.get("hidden", False):
             indicators.append("❓")
-            
+
+        # Check if fully cleared — distinct from the icons above, which are
+        # all about access, not combat state.
+        if self.world.is_room_cleared(room_id):
+            indicators.append("✓")
+
         return " ".join(indicators) if indicators else ""
 
     def _get_player_keys(self):
