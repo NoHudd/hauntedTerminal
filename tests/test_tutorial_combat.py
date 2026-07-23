@@ -95,3 +95,29 @@ def test_completed_hint_documents_flee_hotkey():
         s.close()
     assert "[bold]0[/bold]" in out
     assert "flee" in out.lower()
+
+
+def test_post_combat_hint_fires_once_not_doubled():
+    """step5_postcombat now folds the 'ls to see where you can go' nudge in
+    directly — step6 must not auto-fire right after it (that was two ECHO
+    messages back to back saying almost the same thing)."""
+    from engine.api import GameSession
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        h = _start_tutorial_fight(s)
+        attack_id = next(iter(h.current_combat_session.available_attacks))
+        # One-shot the tutorial enemy (15 HP) so combat ends on this action.
+        s.ui.clear_console()
+        for _ in range(5):
+            if not h.current_combat_session:
+                break
+            event_bus.emit_event(
+                EventType.COMBAT_ACTION_SELECTED, {"choice": attack_id}, "Test"
+            )
+        out = "\n".join(s.ui.drain())
+        assert out.count("You won") == 1
+        assert "where you can go" in out.lower()
+        assert "let's move" not in out.lower()  # old step6 wording must not appear here
+    finally:
+        s.close()
