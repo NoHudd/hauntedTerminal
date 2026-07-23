@@ -142,7 +142,8 @@ class LsCommand(Command):
                     # Show the filesystem path (cd /var) — matches the exits strip
                     # and teaches real path navigation. Falls back to the room id.
                     path = ROOM_ID_TO_PATH.get(exit_room, exit_room)
-                    output.append(f"  → cd {path}\n", style="dim cyan")
+                    marker = " ✓" if ctx.world.is_room_cleared(exit_room) else ""
+                    output.append(f"  → cd {path}{marker}\n", style="dim cyan")
                 has_content = True
 
         if not has_content:
