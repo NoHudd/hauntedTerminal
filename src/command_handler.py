@@ -81,10 +81,19 @@ class CommandHandler:
         __init__, not via _EVENT_HANDLERS). A missed unsubscribe leaves a stale
         handler alive: ROOM_ENTERED then fires check_for_enemies twice (fight each
         enemy twice) and ENEMY_DEFEATED fires twice (double loot).
+
+        Also aborts any still-active combat session. A CombatSession only
+        unsubscribes its own COMBAT_ACTION_SELECTED listener when it reaches a
+        real victory/defeat/flee outcome; if the player restarts, loads a save,
+        or (in tests) tears down mid-fight, that listener would otherwise leak
+        and double-process the next combat's actions.
         """
         for event_type, handler_name in self._EVENT_HANDLERS:
             event_bus.unsubscribe(event_type, getattr(self, handler_name))
         event_bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
+        if self.current_combat_session is not None:
+            self.current_combat_session.abort()
+            self.current_combat_session = None
         debug_log("CommandHandler event subscriptions cleaned up")
     
     def _on_room_entered(self, event):
@@ -127,7 +136,6 @@ class CommandHandler:
         if ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
             if event.data.get("victory", False):
                 self.show_tutorial_hint("step5_postcombat")
-                self.show_tutorial_hint("step6")
 
     def _on_combat_action_result_tutorial(self, event):
         """Step 4 gate: first landed attack (typed OR hotkey — both emit this
@@ -337,9 +345,10 @@ class CommandHandler:
             ),
             # Step 5 post-combat informational (no gate)
             "step5_postcombat": (
-                "[bold green]ECHO>[/bold green] You won. Two more things to know: "
-                "[bold]use [item][/bold] uses a consumable mid-fight, "
-                "and [bold]flee[/bold] lets you escape if things go badly."
+                "[bold green]ECHO>[/bold green] You won. [bold]use [item][/bold] uses "
+                "something mid-fight, [bold]flee[/bold] or [bold]0[/bold] lets you "
+                "escape a losing fight. When you're ready, [bold]ls[/bold] to see "
+                "where you can go."
             ),
             # Step 6: navigation ls instruction
             "step6": (
