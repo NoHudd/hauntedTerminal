@@ -1229,7 +1229,22 @@ class GameWorld:
             
             # Clear the fled enemies list for this room
             self.fled_enemies[room_id] = []
-    
+
+    def is_room_cleared(self, room_id):
+        """Whether a room's enemies are genuinely dealt with — not merely
+        absent right now. A fled enemy is removed from enemy_locations too,
+        but respawn_fled_enemies puts it right back on the player's next
+        ROOM_ENTERED for this room, so "currently no enemies present" alone
+        is not enough; fled_enemies must also be empty for this room."""
+        room = self.get_room(room_id)
+        ever_had_enemies = bool(getattr(room, "enemies", None)) or \
+            getattr(room, "enemy_tier", None) is not None
+        if not ever_had_enemies:
+            return False
+        still_present = bool(self.get_enemies_in_room(room_id))
+        still_fled_pending = bool(self.fled_enemies.get(room_id))
+        return not still_present and not still_fled_pending
+
     def get_exits(self, room_id):
         """Get available exits from a room"""
         room = self.get_room(room_id)
