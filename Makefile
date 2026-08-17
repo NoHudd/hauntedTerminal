@@ -1,7 +1,7 @@
 .PHONY: check test lint types validate install
 
 install:
-	pip install -r requirements.txt
+	pip install -r requirements-dev.txt
 
 # Full quality gate — run before commit / in CI.
 check: lint types test validate

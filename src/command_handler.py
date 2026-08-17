@@ -81,10 +81,19 @@ class CommandHandler:
         __init__, not via _EVENT_HANDLERS). A missed unsubscribe leaves a stale
         handler alive: ROOM_ENTERED then fires check_for_enemies twice (fight each
         enemy twice) and ENEMY_DEFEATED fires twice (double loot).
+
+        Also aborts any still-active combat session. A CombatSession only
+        unsubscribes its own COMBAT_ACTION_SELECTED listener when it reaches a
+        real victory/defeat/flee outcome; if the player restarts, loads a save,
+        or (in tests) tears down mid-fight, that listener would otherwise leak
+        and double-process the next combat's actions.
         """
         for event_type, handler_name in self._EVENT_HANDLERS:
             event_bus.unsubscribe(event_type, getattr(self, handler_name))
         event_bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
+        if self.current_combat_session is not None:
+            self.current_combat_session.abort()
+            self.current_combat_session = None
         debug_log("CommandHandler event subscriptions cleaned up")
     
     def _on_room_entered(self, event):
@@ -127,7 +136,6 @@ class CommandHandler:
         if ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
             if event.data.get("victory", False):
                 self.show_tutorial_hint("step5_postcombat")
-                self.show_tutorial_hint("step6")
 
     def _on_combat_action_result_tutorial(self, event):
         """Step 4 gate: first landed attack (typed OR hotkey — both emit this
@@ -265,7 +273,12 @@ class CommandHandler:
         # Check if hidden (shouldn't appear here, but just in case)
         if room_state.get("hidden", False):
             indicators.append("❓")
-            
+
+        # Check if fully cleared — distinct from the icons above, which are
+        # all about access, not combat state.
+        if self.world.is_room_cleared(room_id):
+            indicators.append("✓")
+
         return " ".join(indicators) if indicators else ""
 
     def _get_player_keys(self):
@@ -298,10 +311,10 @@ class CommandHandler:
             # Step 0: skip summary (player chose to skip)
             "skip_summary": (
                 "[bold green]ECHO>[/bold green] Got it. Quick reference: "
-                "[bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items, "
-                "[bold]attack[/bold] fights enemies. In combat, press [bold]TAB[/bold] to enter "
-                "Selection Mode then [bold]1-9[/bold] to attack. [bold]flee[/bold] escapes a fight. "
-                "[bold]help[/bold] if stuck. Good luck."
+                "[bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. "
+                "Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to "
+                "attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type "
+                "[bold]use [item][/bold] instead. [bold]help[/bold] if stuck. Good luck."
             ),
             # Step 1: welcome + ls instruction
             "step1": (
@@ -322,23 +335,25 @@ class CommandHandler:
                 f"Equipping means it'll be used in combat."
             ),
             # Step 4: combat - typed attack instruction
+            # Step 4: combat - Selection Mode is already active
             "step4": (
-                "[bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat. "
-                "Type: [bold]attack[/bold] to strike it. "
-                "Or press [bold]TAB[/bold] to enter Selection Mode and pick an attack with [bold]1-9[/bold]."
+                "[bold green]ECHO>[/bold green] A corrupted process just spawned — this is "
+                "combat, and you're already in Selection Mode. Press [bold]1[/bold] to "
+                "attack."
             ),
-            # Step 5: combat - Selection Mode instruction (fires after first typed attack)
+            # Step 5: fires after the player's first landed attack
             "step5": (
                 "[bold green]ECHO>[/bold green] Nice hit. One more should finish it. "
-                "Try this: press [bold]TAB[/bold] to enter Selection Mode, "
-                "then press [bold]1[/bold] to attack without typing anything. "
-                "TAB switches you back to typing whenever you need it."
+                "Need to use an item or flee instead? Press [bold]TAB[/bold] to type "
+                "[bold]use [item][/bold] or [bold]flee[/bold] — TAB again to get back "
+                "to Selection Mode."
             ),
             # Step 5 post-combat informational (no gate)
             "step5_postcombat": (
-                "[bold green]ECHO>[/bold green] You won. Two more things to know: "
-                "[bold]use [item][/bold] uses a consumable mid-fight, "
-                "and [bold]flee[/bold] lets you escape if things go badly."
+                "[bold green]ECHO>[/bold green] You won. [bold]use [item][/bold] uses "
+                "something mid-fight, [bold]flee[/bold] or [bold]0[/bold] lets you "
+                "escape a losing fight. When you're ready, [bold]ls[/bold] to see "
+                "where you can go."
             ),
             # Step 6: navigation ls instruction
             "step6": (
@@ -359,8 +374,9 @@ class CommandHandler:
                 f"  • [bold]cd /path[/bold] — move (e.g. cd /var)\n"
                 f"  • [bold]cat[/bold] — read a file\n"
                 f"  • [bold]take / equip[/bold] — grab and ready items\n"
-                f"  • [bold]attack[/bold] or TAB + number — fight enemies\n"
-                f"  • [bold]flee[/bold] — escape a fight\n"
+                f"  • [bold]1-9[/bold] in combat — attack (Selection Mode, opens automatically)\n"
+                f"  • [bold]0[/bold] in combat — flee\n"
+                f"  • [bold]TAB[/bold] in combat — type 'use [item]' instead\n"
                 f"  • [bold]help[/bold] — if you get stuck\n"
                 f"Good luck out there."
             ),

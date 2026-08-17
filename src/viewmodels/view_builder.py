@@ -130,7 +130,8 @@ class ViewBuilder:
                     if state.get('hidden', False):
                         continue
                 path = ROOM_ID_TO_PATH.get(exit_id, exit_id)
-                exit_commands.append(path)
+                is_cleared = getattr(world, 'is_room_cleared', lambda r: False)(exit_id)
+                exit_commands.append(f"{path} ✓" if is_cleared else path)
 
             # Enemies: keep (id, name) pairs so the scene can resolve sprites
             enemy_ids = [

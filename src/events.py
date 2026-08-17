@@ -194,8 +194,14 @@ class EventBus:
         if len(self._event_history) > self._max_history:
             self._event_history.pop(0)
         
-        # Notify listeners
-        listeners = self._listeners.get(event.type, [])
+        # Notify listeners. Snapshot the list — a handler that unsubscribes
+        # itself (or another handler) mid-dispatch mutates the live list, and
+        # iterating that list directly then skips whatever callback shifted
+        # into the removed slot (classic mutate-while-iterating). Real impact:
+        # CommandHandler._on_combat_ended self-unsubscribes on every combat,
+        # so any handler registered next to it in the COMBAT_ENDED listener
+        # list could silently never run.
+        listeners = list(self._listeners.get(event.type, []))
         callback_errors = 0
         
         for callback in listeners:

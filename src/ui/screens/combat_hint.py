@@ -31,16 +31,20 @@ class CombatModeHintScreen(ModalScreen):
         """Set up the hint content."""
         hint_content = """
 [bold cyan]═══════════════════════════════════════════════════════════════[/bold cyan]
-[bold yellow]                    ⚔  SELECTION MODE ACTIVE  ⚔[/bold yellow]
+[bold yellow]                    ⚔  SELECTION MODE  ⚔[/bold yellow]
 [bold cyan]═══════════════════════════════════════════════════════════════[/bold cyan]
 
-[white]You are currently in [bold]Selection Mode[/bold].[/white]
+[white]Combat opens in [bold]Selection Mode[/bold] automatically.[/white]
 
 [bold green]To attack:[/bold green]
-  • Press [bold cyan]1-9[/bold cyan] to use quick attacks
+  • Press [bold cyan]1-9[/bold cyan] for a quick attack
 
-[bold green]To return to typing mode:[/bold green]
-  • Press [bold cyan]TAB[/bold cyan] to refocus the command input
+[bold green]To flee:[/bold green]
+  • Press [bold cyan]0[/bold cyan]
+
+[bold green]To use an item instead:[/bold green]
+  • Press [bold cyan]TAB[/bold cyan] to type [bold]use [item][/bold], then
+    [bold cyan]TAB[/bold cyan] again to return to Selection Mode
 
 [dim]────────────────────────────────────────────────────────────────[/dim]
 [dim italic]Press ENTER or a number key to continue...[/dim italic]

@@ -806,5 +806,26 @@ class CombatSession:
             "CombatSession"
         )
 
+    def abort(self):
+        """Force-end this session with no victory/defeat/flee outcome and no
+        COMBAT_ENDED emission.
+
+        Used when the owning CommandHandler is torn down (restart, save/load,
+        test teardown) while this session is still active. Without this, the
+        session's COMBAT_ACTION_SELECTED subscription (set in __init__) never
+        gets removed and keeps processing the NEXT combat's actions on the
+        shared event bus — including its own now-stale enemy_health hitting 0
+        and emitting a second, phantom COMBAT_ENDED for a fight nobody is
+        watching anymore. Deliberately skips _end_combat's COMBAT_ENDED emit:
+        the caller (CommandHandler.cleanup_event_subscriptions) already knows
+        it's tearing down and clears current_combat_session itself — no
+        listener should react to this fight as if it had a real outcome.
+        """
+        if not self.is_active:
+            return
+        self.is_active = False
+        self.awaiting_action = False
+        event_bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
+
 # Create a singleton instance that can be imported elsewhere
 combat_system = CombatSystem() 
