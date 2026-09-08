@@ -43,17 +43,6 @@ def test_registry_covers_every_verb() -> None:
         assert name in registry
 
 
-def test_legacy_dispatch_is_empty() -> None:
-    # Phase 3 complete: no verb should remain on the legacy dict.
-    from src.commands import build_registry  # noqa: F401
-    s = GameSession()
-    try:
-        s.new_game("T", "guardian")
-        assert s.engine.cmd_handler.commands == {}
-    finally:
-        s.close()
-
-
 def test_inventory_alias_matches(session: GameSession) -> None:
     assert _text(session.submit("inv")) == _text(session.submit("inventory"))
 

@@ -26,7 +26,9 @@ def _text(lines: list[str]) -> str:
 # --- unit: the hint builder --------------------------------------------------
 
 def test_hint_suggests_close_match() -> None:
-    hint = not_found_hint("segfault_sheld", ["health_packet", "segfault_shield"], label="Items here")
+    hint = not_found_hint(
+        "segfault_sheld", ["health_packet", "segfault_shield"], label="Items here"
+    )
     assert "Did you mean" in hint and "segfault_shield" in hint
 
 

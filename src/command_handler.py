@@ -44,14 +44,8 @@ class CommandHandler:
         from src import room_paths
         self.room_aliases = room_paths.refresh_from_rooms(self.world.rooms)
         
-        # Migrated verbs (Phase 3 command-pattern). Checked before the legacy
-        # dict below; verbs move here one at a time. See src/commands/.
+        # Every verb is a Phase 3 command-pattern object. See src/commands/.
         self.command_registry = build_registry()
-
-        # Legacy dispatch is now empty — every verb lives in command_registry.
-        # Kept (empty) so the fallback path in handle_command stays valid.
-        self.commands = {}
-        self.commands_with_args = set()
 
         debug_log(f"Registered {len(self.command_registry)} commands")
     
@@ -190,52 +184,8 @@ class CommandHandler:
 
         self.output.write(output)
         debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
-    
-    def _get_discoverable_hidden_rooms(self, current_room_id):
-        """Get hidden rooms that can be discovered from the current location."""
-        discoverable_rooms = {}
-        
-        # Define discovery rules based on the hidden rooms guide
-        discovery_rules = {
-            "usr_lib_arcane": {
-                "etc_hidden_configs": "Configuration directory (accessible via ls -a)"
-            },
-            "bin_armory": {
-                "dev_null_void": "The mysterious /dev/null (try 'find /dev -name null')"
-            },
-            "mnt_forest": {
-                "proc_secrets": "Process information chamber (try 'ps' command)"
-            },
-            "usr_share_games": {
-                "cowsay_secret": "The Bovine Sanctuary (hidden cowsay temple)"
-            },
-            "root": {
-                "archive": "The dusty Archive (forgotten data)"
-            }
-        }
-        
-        # Check if current room has discoverable hidden rooms
-        if current_room_id in discovery_rules:
-            for hidden_room_id, hint in discovery_rules[current_room_id].items():
-                # Only show if the room is still hidden
-                room_state = self.world.get_room_state(hidden_room_id)
-                if room_state and room_state.get("hidden", False):
-                    discoverable_rooms[hidden_room_id] = hint
-        
-        return discoverable_rooms
 
-    def _get_hidden_room_hint(self, room_id):
-        """Get a helpful hint for accessing hidden rooms."""
-        hints = {
-            "opt_mage_tower": "🔒 This area requires an 'opt_key' and is restricted to mages. Try exploring to find keys!",
-            "srv_warrior_tomb": "🔒 This area requires an 'opt_key' and is restricted to fighters.",
-            "etc_hidden_configs": "💡 Try using 'ls -a' in the Arcane Library to discover hidden directories.",
-            "dev_null_void": "💡 Try using 'find /dev -name null' in the Binary Armory.",
-            "proc_secrets": "💡 Try using 'ps' command in the Mount Forest to discover process secrets."
-        }
-        return hints.get(room_id, "This area might be discoverable through exploration.")
-
-    def _show_error(self, message: str, log_message: str = None):
+    def _show_error(self, message: str, log_message: str | None = None):
         """Display error to UI and log it for debugging."""
         self.output.write(message)
         clean_message = re.sub(r'\[.*?\]', '', log_message or message)
@@ -380,19 +330,10 @@ class CommandHandler:
         
         debug_log(f"Processing command: '{cmd}' with args: {args}")
 
-        # Migrated command-pattern verbs take precedence and receive the full
-        # argument list (the legacy path below only forwarded the first token).
+        # Every verb is a command-pattern object in the registry; see src/commands/.
         if cmd in self.command_registry:
             debug_log(f"Executing migrated command '{cmd}' with args {args}")
             self.command_registry[cmd].execute(self, args)
-        elif cmd in self.commands:
-            if cmd in self.commands_with_args:
-                arg = args[0] if args else ""
-                debug_log(f"Executing command '{cmd}' with arg '{arg}'")
-                self.commands[cmd](arg)
-            else:
-                debug_log(f"Executing command '{cmd}' with no args")
-                self.commands[cmd]()
         else:
             debug_log(f"Unknown command: '{cmd}'")
             self.handle_unknown_command(command)
