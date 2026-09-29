@@ -21,7 +21,7 @@ import config.dev_config as dev_cfg
 from src import room_paths
 from src.commands.base import Command
 from src.commands.hints import show_not_found
-from src.events import EventType, event_bus
+from src.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
@@ -134,7 +134,7 @@ class CdCommand(Command):
         )
 
         room_view = ViewBuilder.build_room_view(ctx.world, target)
-        event_bus.emit_event(
+        ctx.bus.emit_event(
             EventType.ROOM_ENTERED,
             {"room": room_view.to_dict(), "player_name": ctx.player.name},
             "CommandHandler",
@@ -236,7 +236,7 @@ class LsCommand(Command):
             # newly revealed directory stays invisible in the persistent UI until
             # the player leaves and comes back.
             room_view = ViewBuilder.build_room_view(ctx.world, room_id)
-            event_bus.emit_event(
+            ctx.bus.emit_event(
                 EventType.ROOM_ENTERED,
                 {"room": room_view.to_dict(), "player_name": ctx.player.name},
                 "CommandHandler",

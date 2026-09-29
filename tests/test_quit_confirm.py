@@ -10,7 +10,7 @@ from collections.abc import Iterator
 import pytest
 
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from src.events import EventType
 from src.ui.screens.quit_confirm import CHOICES, QuitConfirmScreen
 
 
@@ -67,12 +67,12 @@ def test_quit_requests_the_chooser(session: GameSession) -> None:
     """The UI is told to offer a chooser; the headless driver ignores it and
     falls back to the printed y/n/c, which is why both still work."""
     seen: list[object] = []
-    event_bus.subscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
+    session.bus.subscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
     try:
         session.submit("quit")
         assert seen, "quit did not request the confirmation chooser"
     finally:
-        event_bus.unsubscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
+        session.bus.unsubscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
 
 
 # --- the chooser itself ------------------------------------------------------

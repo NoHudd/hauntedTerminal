@@ -8,7 +8,7 @@ Assertion is object-identity based (is the OLD handler still subscribed?)
 because the module-singleton bus can carry handlers leaked by other tests.
 """
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
 def test_load_game_unsubscribes_old_handler():
@@ -26,7 +26,7 @@ def test_load_game_unsubscribes_old_handler():
         s.engine._load_game()
 
         assert s.engine.cmd_handler is not old_handler, "load did not build a new handler"
-        subs = event_bus._listeners.get(EventType.ROOM_ENTERED, [])
+        subs = s.bus._listeners.get(EventType.ROOM_ENTERED, [])
         assert all(getattr(cb, "__self__", None) is not old_handler for cb in subs), (
             "old CommandHandler still subscribed after load — its stale player "
             "will re-trigger fights from the previous run"

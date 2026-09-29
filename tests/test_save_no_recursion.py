@@ -10,7 +10,7 @@ depend on how many _on_save_requested handlers are subscribed to the singleton b
 from __future__ import annotations
 
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
 def test_save_game_does_not_emit_game_saved():
@@ -21,13 +21,13 @@ def test_save_game_does_not_emit_game_saved():
 
         hits = {"n": 0}
         counter = lambda ev: hits.__setitem__("n", hits["n"] + 1)  # noqa: E731
-        event_bus.subscribe(EventType.GAME_SAVED, counter)
+        s.bus.subscribe(EventType.GAME_SAVED, counter)
         try:
             save_manager.save_game(s.player, s.world.get_state())
             assert hits["n"] == 0, (
                 "save_game must not emit GAME_SAVED (causes recursive save storm)"
             )
         finally:
-            event_bus.unsubscribe(EventType.GAME_SAVED, counter)
+            s.bus.unsubscribe(EventType.GAME_SAVED, counter)
     finally:
         s.close()

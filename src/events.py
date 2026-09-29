@@ -256,6 +256,3 @@ class EventBus:
     def clear_history(self) -> None:
         """Clear the event history."""
         self._event_history.clear()
-
-# Global event bus instance
-event_bus = EventBus()

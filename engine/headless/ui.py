@@ -33,10 +33,17 @@ class HeadlessUI:
         self._world_ref: object | None = None
         self._room_aliases_ref: object | None = None
         # The finale is delivered by event (the TUI performs it; headless just
-        # records the text so tests/sim can assert on the ending).
-        from src.events import EventType, event_bus
-        event_bus.subscribe(EventType.GAME_WON, self._on_game_won)
-        event_bus.subscribe(EventType.GAME_QUIT, self._on_game_quit)
+        # records the text so tests/sim can assert on the ending). The bus
+        # arrives from the engine via attach_bus.
+        self.bus: Any = None
+
+    def attach_bus(self, bus: Any, state_manager: Any) -> None:
+        from src.events import EventType
+        self.shutdown()
+        self.bus = bus
+        self.state_manager = state_manager
+        bus.subscribe(EventType.GAME_WON, self._on_game_won)
+        bus.subscribe(EventType.GAME_QUIT, self._on_game_quit)
 
     def _on_game_quit(self, event: Any) -> None:
         self.quit_requested = True
@@ -77,10 +84,13 @@ class HeadlessUI:
     def run(self) -> None:  # pragma: no cover - lifecycle no-op
         pass
 
-    def shutdown(self) -> None:  # pragma: no cover - lifecycle no-op
-        from src.events import EventType, event_bus
-        event_bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
-        event_bus.unsubscribe(EventType.GAME_QUIT, self._on_game_quit)
+    def shutdown(self) -> None:
+        if self.bus is None:
+            return
+        from src.events import EventType
+        self.bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
+        self.bus.unsubscribe(EventType.GAME_QUIT, self._on_game_quit)
+        self.bus = None
 
     def update_inventory(self, content: str) -> None:
         pass

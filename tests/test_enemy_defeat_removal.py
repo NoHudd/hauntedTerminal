@@ -7,7 +7,7 @@ the enemy stays, and combat re-triggers on it (fight each enemy twice).
 from __future__ import annotations
 
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
 def test_defeating_enemy_removes_it_from_room():
@@ -25,7 +25,7 @@ def test_defeating_enemy_removes_it_from_room():
         assert room_id and enemy_id, "expected some room with an enemy"
         h.player.current_room = room_id
 
-        event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": enemy_id}, "test")
+        s.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": enemy_id}, "test")
 
         assert enemy_id not in world.get_enemies_in_room(room_id), (
             f"{enemy_id} still present after ENEMY_DEFEATED — drop-award crashed before removal"

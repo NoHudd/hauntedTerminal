@@ -1,7 +1,7 @@
 """Tutorial combat gating: combat_action_taken fires for BOTH typed and
 hotkey-simulated attacks, since both paths emit the same COMBAT_ACTION_RESULT
 event that CommandHandler now listens for."""
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
 def _start_tutorial_fight(s):
@@ -42,7 +42,7 @@ def test_hotkey_simulated_attack_sets_combat_action_taken():
         attack_id = next(iter(h.current_combat_session.available_attacks))
         assert s.player.tutorial_state["combat_action_taken"] is False
         s.ui.clear_console()
-        event_bus.emit_event(
+        s.bus.emit_event(
             EventType.COMBAT_ACTION_SELECTED, {"choice": attack_id}, "Test"
         )
         s.ui.drain()
@@ -112,7 +112,7 @@ def test_post_combat_hint_fires_once_not_doubled():
         for _ in range(5):
             if not h.current_combat_session:
                 break
-            event_bus.emit_event(
+            s.bus.emit_event(
                 EventType.COMBAT_ACTION_SELECTED, {"choice": attack_id}, "Test"
             )
         out = "\n".join(s.ui.drain())

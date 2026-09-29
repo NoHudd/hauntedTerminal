@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from src.commands.base import Command
 from src.commands.hints import inventory_names, show_not_found
-from src.events import EventType, event_bus
+from src.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
@@ -115,7 +115,7 @@ class TakeCommand(Command):
             ctx.output.write(f"Added {formatted_name} to your inventory.")
 
             inventory_view = ViewBuilder.build_inventory_view(ctx.player)
-            event_bus.emit_event(
+            ctx.bus.emit_event(
                 EventType.PLAYER_INVENTORY_CHANGED,
                 inventory_view.to_dict(),
                 "CommandHandler",
@@ -450,9 +450,9 @@ class EquipCommand(Command):
                     f"[cyan]🛡 Damage taken reduced by {pct}%.[/cyan]"
                 )
                 stats_view = ViewBuilder.build_stats_view(ctx.player)
-                event_bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
+                ctx.bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
                 inv_view = ViewBuilder.build_inventory_view(ctx.player)
-                event_bus.emit_event(EventType.PLAYER_INVENTORY_CHANGED, inv_view.to_dict(), "CommandHandler")
+                ctx.bus.emit_event(EventType.PLAYER_INVENTORY_CHANGED, inv_view.to_dict(), "CommandHandler")
             return
 
         is_weapon = (
@@ -492,7 +492,7 @@ class EquipCommand(Command):
                 ctx.check_for_enemies()
 
             stats_view = ViewBuilder.build_stats_view(ctx.player)
-            event_bus.emit_event(
+            ctx.bus.emit_event(
                 EventType.PLAYER_STATS_CHANGED,
                 stats_view.to_dict(),
                 "CommandHandler",

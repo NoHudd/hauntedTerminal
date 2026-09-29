@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 from utils.debug_tools import debug_log
-from src.events import event_bus, EventType
+from src.events import EventBus, EventType
 
 
 class GameWorld:
     """Manages the game world, including rooms, items, enemies, and NPCs"""
     
-    def __init__(self, rooms, items, enemies, npcs, initialize_state=True):
+    def __init__(self, rooms, items, enemies, npcs, initialize_state=True, bus=None):
         """Initialize with data loaded from YAML files
         
         Args:
@@ -17,6 +17,7 @@ class GameWorld:
         import uuid
         self.instance_id = str(uuid.uuid4())[:8]
         debug_log(f"Initializing GameWorld instance {self.instance_id} (initialize_state={initialize_state})")
+        self.bus = bus if bus is not None else EventBus()
         self.rooms = rooms
         self.items = items
         self.enemies = enemies
@@ -392,7 +393,7 @@ class GameWorld:
         if room_id:
             # Emit enemy defeated event
             enemy_data = self.get_enemy(enemy_id)
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.ENEMY_DEFEATED,
                 {
                     "enemy_id": enemy_id,
@@ -406,7 +407,7 @@ class GameWorld:
             # Check if all enemies in room are defeated
             remaining_enemies = self.get_enemies_in_room(room_id)
             if not remaining_enemies:
-                event_bus.emit_event(
+                self.bus.emit_event(
                     EventType.ALL_ENEMIES_DEFEATED,
                     {
                         "room": room_id,

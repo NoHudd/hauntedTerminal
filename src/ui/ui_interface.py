@@ -11,6 +11,11 @@ from typing import Protocol, Any, Optional
 class UIProtocol(Protocol):
     """Protocol defining the UI interface contract."""
     
+    def attach_bus(self, bus: Any, state_manager: Any) -> None:
+        """Adopt the owning engine's EventBus and StateManager (called once,
+        from the engine's constructor, before the engine subscribes)."""
+        ...
+
     def run(self) -> None:
         """Start the UI main loop."""
         ...

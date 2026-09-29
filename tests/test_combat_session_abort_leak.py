@@ -11,13 +11,13 @@ double-processing the NEXT combat's actions: its own leftover enemy_health hit
 COMBAT_ENDED that the live CommandHandler (a different instance, but the same
 event type) also reacted to.
 
-Assertion is object-identity based (matching test_load_no_handler_leak.py's
-pattern) because the module-singleton bus can carry handlers leaked by other
-tests.
+Since each engine now owns its bus, a leak across sessions can no longer reach
+the next session; the in-engine leak (restart, load mid-fight) is still pinned
+by the identity check on the closed session's own bus.
 """
 from engine.api import GameSession
 from src import rng
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
 def _start_unresolved_fight(s):
@@ -41,7 +41,7 @@ def test_closing_mid_combat_unsubscribes_the_session():
         s.close()
 
     assert old_session is not None
-    subs = event_bus._listeners.get(EventType.COMBAT_ACTION_SELECTED, [])
+    subs = s.bus._listeners.get(EventType.COMBAT_ACTION_SELECTED, [])
     assert all(getattr(cb, "__self__", None) is not old_session for cb in subs), (
         "old CombatSession still subscribed after teardown — it will "
         "double-process the next combat's actions"
@@ -75,13 +75,13 @@ def test_next_combat_after_unresolved_close_gets_single_ended_event():
         def counter(_ev):
             ended_count["n"] += 1
 
-        event_bus.subscribe(EventType.COMBAT_ENDED, counter)
+        s.bus.subscribe(EventType.COMBAT_ENDED, counter)
         try:
-            event_bus.emit_event(
+            s.bus.emit_event(
                 EventType.COMBAT_ACTION_SELECTED, {"choice": attack_id}, "Test"
             )
         finally:
-            event_bus.unsubscribe(EventType.COMBAT_ENDED, counter)
+            s.bus.unsubscribe(EventType.COMBAT_ENDED, counter)
             rng.randint = original_randint
 
         assert ended_count["n"] == 1, f"COMBAT_ENDED fired {ended_count['n']} times, expected 1"

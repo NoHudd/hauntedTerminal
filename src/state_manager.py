@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 import logging
 from src.game_states import GameState
-from src.events import event_bus, EventType
+from src.events import EventBus, EventType
 from utils.debug_tools import debug_log
 
 logger = logging.getLogger(__name__)
 
 
 class StateManager:
-    """Centralized singleton for game state management."""
-
-    _instance = None
+    """Game-state machine for one engine; emits transitions on that engine's bus."""
 
     # Define valid state transitions for validation
     _valid_transitions = {
@@ -28,20 +26,11 @@ class StateManager:
         GameState.EXIT: []  # Terminal state
     }
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if self._initialized:
-            return
-
+    def __init__(self, bus: EventBus):
+        self._bus = bus
         self._current_state = GameState.MENU
         self._previous_state = None
         self._combat_context = None  # Track combat-specific state
-        self._initialized = True
         debug_log("StateManager initialized")
 
     @property
@@ -78,7 +67,7 @@ class StateManager:
         debug_log(f"State transition: {old_state} -> {new_state}")
 
         if emit_event:
-            event_bus.emit_event(
+            self._bus.emit_event(
                 EventType.UI_STATE_CHANGED,
                 {"new_state": new_state, "old_state": old_state},
                 "StateManager"
@@ -128,6 +117,3 @@ class StateManager:
         """Check if game can accept player commands."""
         return self._current_state in [GameState.PLAYING, GameState.IN_COMBAT]
 
-
-# Singleton instance
-state_manager = StateManager()

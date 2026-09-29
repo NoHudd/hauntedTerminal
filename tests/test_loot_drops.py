@@ -13,7 +13,7 @@ import pytest
 
 import src.rng as rng
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def test_existing_drops_are_awarded_into_the_room(session: GameSession) -> None:
     }
     h.world.enemy_locations["test_dropper"] = room
 
-    event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper"}, "test")
+    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper"}, "test")
 
     assert drop_item in h.world.get_items_in_room(room)
 
@@ -53,8 +53,8 @@ def test_drops_are_awarded_only_once(session: GameSession) -> None:
     }
     h.world.enemy_locations["test_dropper2"] = room
 
-    event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
-    event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
+    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
+    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
 
     assert "test_dropper2" in h._awarded_drops
 
@@ -69,7 +69,7 @@ def test_loot_table_drops_class_appropriate_gear(session: GameSession) -> None:
     h.world.enemy_locations["test_boss"] = room
     rng.seed(1)
 
-    event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_boss"}, "test")
+    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_boss"}, "test")
 
     room_items = set(h.world.get_items_in_room(room))
     epics = {iid for iid, d in h.world.items.items() if str(d.rarity).lower() == "epic"}

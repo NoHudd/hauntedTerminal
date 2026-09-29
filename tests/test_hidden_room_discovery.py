@@ -12,17 +12,17 @@ overwrites that output panel. Looks like the room vanished.
 from __future__ import annotations
 
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from src.events import EventType
 
 
-def _capture_room_entered(fn):
+def _capture_room_entered(bus, fn):
     rooms = []
     cb = lambda ev: rooms.append(ev.data.get("room", {}))  # noqa: E731
-    event_bus.subscribe(EventType.ROOM_ENTERED, cb)
+    bus.subscribe(EventType.ROOM_ENTERED, cb)
     try:
         fn()
     finally:
-        event_bus.unsubscribe(EventType.ROOM_ENTERED, cb)
+        bus.unsubscribe(EventType.ROOM_ENTERED, cb)
     return rooms
 
 
@@ -39,7 +39,7 @@ def test_ls_a_discovery_refreshes_room_view():
         }
         assert h.world.get_room_state("cowsay_secret")["hidden"] is True
 
-        room_updates = _capture_room_entered(lambda: s.submit("ls -a"))
+        room_updates = _capture_room_entered(s.bus, lambda: s.submit("ls -a"))
 
         assert h.world.get_room_state("cowsay_secret")["hidden"] is False
         assert room_updates, "discovering a hidden room must emit a room-view refresh"
@@ -64,7 +64,7 @@ def test_ls_a_with_no_new_discovery_does_not_refresh():
         }
         s.submit("ls -a")  # first discovery
 
-        room_updates = _capture_room_entered(lambda: s.submit("ls -a"))
+        room_updates = _capture_room_entered(s.bus, lambda: s.submit("ls -a"))
 
         assert room_updates == []
     finally:

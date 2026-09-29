@@ -4,7 +4,7 @@ import logging
 from rich.text import Text
 from src.combat import CombatSession
 from src.commands import build_registry
-from src.events import event_bus, EventType
+from src.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 from utils.particle_animation import GameOverAnimation
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     """Handles processing of player commands"""
     
-    def __init__(self, player, world, output):
-        """Initialize with player, world, and a GameOutput sink.
+    def __init__(self, player, world, output, bus):
+        """Initialize with player, world, a GameOutput sink and the engine's EventBus.
 
         Phase 2b: the handler no longer holds a UI reference — it writes to
         ``self.output`` (a src.game_output.GameOutput). The engine drains it and
@@ -25,6 +25,7 @@ class CommandHandler:
         self.player = player
         self.world = world
         self.output = output
+        self.bus = bus
         self.current_combat_session = None
         self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
         self._in_game_over_mode = False  # Track if we're in game over screen mode
@@ -35,7 +36,7 @@ class CommandHandler:
         self._awarded_drops: set[str] = set()
 
         # Subscribe to enemy defeated event to remove enemies from room
-        event_bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
+        self.bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         
         # Navigation aliases (path/name -> room id) are built from each room's
         # own `path`/`aliases` YAML fields, so there is one source of truth per
@@ -59,7 +60,7 @@ class CommandHandler:
     def setup_event_subscriptions(self):
         """Set up event subscriptions for the command handler."""
         for event_type, handler_name in self._EVENT_HANDLERS:
-            event_bus.subscribe(event_type, getattr(self, handler_name))
+            self.bus.subscribe(event_type, getattr(self, handler_name))
         debug_log("CommandHandler event subscriptions set up")
 
     def cleanup_event_subscriptions(self):
@@ -77,8 +78,8 @@ class CommandHandler:
         and double-process the next combat's actions.
         """
         for event_type, handler_name in self._EVENT_HANDLERS:
-            event_bus.unsubscribe(event_type, getattr(self, handler_name))
-        event_bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
+            self.bus.unsubscribe(event_type, getattr(self, handler_name))
+        self.bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         if self.current_combat_session is not None:
             self.current_combat_session.abort()
             self.current_combat_session = None
@@ -292,10 +293,10 @@ class CommandHandler:
         if self._in_game_over_mode:
             result = self._handle_game_over_choice(command.strip())
             if result == "quit":
-                event_bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")
+                self.bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")
             elif result == "restart_from_save" or result == "start_new_game":
                 # Signal the game engine to restart
-                event_bus.emit_event(
+                self.bus.emit_event(
                     EventType.GAME_OVER,
                     {"action": result},
                     "CommandHandler"
@@ -685,7 +686,7 @@ class CommandHandler:
 
         # Emit stats update so UI reflects the new HP/mana
         stats_view = ViewBuilder.build_stats_view(self.player)
-        event_bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
+        self.bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
     
     def _handle_upgrade_item(self, item_id, item):
         """Handle using an upgrade item"""
@@ -738,11 +739,11 @@ class CommandHandler:
         debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
 
         # Create combat session with enemy queue
-        self.current_combat_session = CombatSession(self.player, enemies_queue, self.output)
+        self.current_combat_session = CombatSession(self.player, enemies_queue, self.output, self.bus)
         self.current_combat_session.start()
 
         # Subscribe to combat ended event (no more COMBAT_VICTORY_CHECK)
-        event_bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+        self.bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
 
     def _on_combat_ended(self, event):
         """Handle combat ended event - cleanup and state management."""
@@ -755,7 +756,7 @@ class CommandHandler:
         enemy_id = event.data.get("enemy_id")
 
         # Unsubscribe from combat events
-        event_bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+        self.bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
 
         # Clear combat session
         self.current_combat_session = None
@@ -782,7 +783,7 @@ class CommandHandler:
 
                 # Emit ROOM_ENTERED so UI re-themes panels and clears combat styling.
                 room_view = ViewBuilder.build_room_view(self.world, prev_room)
-                event_bus.emit_event(
+                self.bus.emit_event(
                     EventType.ROOM_ENTERED,
                     {"room": room_view.to_dict(), "player_name": self.player.name},
                     "CommandHandler"
@@ -879,7 +880,7 @@ class CommandHandler:
         debug_log(f"Handling combat command: {command}")
 
         # Emit combat action selected event
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_ACTION_SELECTED,
             {"choice": command},
             "CommandHandler"
@@ -1201,7 +1202,7 @@ Not because you fixed them. Because you forgave them.
             "player_name": getattr(self.player, "name", ""),
             "player_class": getattr(self.player, "player_class", ""),
         }
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.GAME_WON,
             {"ending_id": choice, "sections": sections, "stats": stats},
             "CommandHandler",
@@ -1366,4 +1367,4 @@ Not because you fixed them. Because you forgave them.
         """
         self.output.write("[yellow]Goodbye! Thanks for playing Haunted Terminal.[/yellow]")
         self.output.write("[dim]The system spirits fade back into the digital void...[/dim]")
-        event_bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")
+        self.bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")

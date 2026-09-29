@@ -7,7 +7,7 @@ found' warning). Creating a player must leave exactly one subscribed handler.
 from __future__ import annotations
 
 from engine.headless import HeadlessUI
-from src.events import EventType, event_bus
+from src.events import EventType
 from src.game_engine import ImprovedGameEngine
 
 
@@ -31,11 +31,11 @@ def test_recreating_player_leaves_one_subscribed_handler():
         eng.start_game()
 
         checks["n"] = 0
-        event_bus.emit_event(EventType.ROOM_ENTERED, {}, "test")
+        eng.bus.emit_event(EventType.ROOM_ENTERED, {}, "test")
         assert checks["n"] == 1, f"ROOM_ENTERED fired check_for_enemies {checks['n']}x (expected 1)"
 
         defeats["n"] = 0
-        event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "nope"}, "test")
+        eng.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "nope"}, "test")
         assert defeats["n"] == 1, (
             f"ENEMY_DEFEATED fired _on_enemy_defeated {defeats['n']}x (expected 1)"
         )

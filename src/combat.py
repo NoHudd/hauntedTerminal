@@ -2,7 +2,7 @@
 import yaml
 from src import rng
 from utils.debug_tools import debug_log
-from src.events import event_bus, EventType
+from src.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
 
 class CombatSystem:
@@ -271,7 +271,7 @@ class CombatSystem:
 class CombatSession:
     """Manages an active combat session using event-driven approach."""
 
-    def __init__(self, player, enemies_queue, output):
+    def __init__(self, player, enemies_queue, output, bus):
         """
         Initialize combat session with enemy queue.
 
@@ -279,11 +279,13 @@ class CombatSession:
             player: Player object
             enemies_queue: List of (enemy_id, enemy_data) tuples
             output: GameOutput sink (Phase 2b — no direct UI reference)
+            bus: the owning engine's EventBus
         """
         self.player = player
         self.enemies_queue = enemies_queue  # List of (enemy_id, enemy_data)
         self.current_enemy_index = 0
         self.output = output
+        self.bus = bus
         self.is_active = True
         self.awaiting_action = False
 
@@ -298,7 +300,7 @@ class CombatSession:
         debug_log(f"CombatSession created with {len(enemies_queue)} enemies in queue")
 
         # Subscribe to combat events
-        event_bus.subscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
+        self.bus.subscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
     
     def start(self):
         """Start the combat session."""
@@ -314,7 +316,7 @@ class CombatSession:
             enemy_id=self.enemy_id
         )
 
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_STARTED,
             combat_view.to_dict(),
             "CombatSession"
@@ -325,7 +327,7 @@ class CombatSession:
         if "dialogue" in self.enemy_data:
             combat_intro += f" | {enemy_name}: {self.enemy_data['dialogue']}"
 
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_ACTION_RESULT,
             {
                 "actor": "system",
@@ -626,7 +628,7 @@ class CombatSession:
                 item_message = f"{self.player.name} used {item_name}"
 
             # Emit combat action result event for item usage
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.COMBAT_ACTION_RESULT,
                 {
                     "actor": "player",
@@ -644,7 +646,7 @@ class CombatSession:
             attack_result = combat_system.perform_attack(self.player, action_value)
 
             # Emit combat action result event (UI will display via combat log)
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.COMBAT_ACTION_RESULT,
                 {
                     "actor": "player",
@@ -668,7 +670,7 @@ class CombatSession:
             self.output.write(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
 
             # Emit enemy defeated event (for loot, achievements, etc)
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.ENEMY_DEFEATED,
                 {
                     "enemy_id": self.enemy_id,
@@ -734,7 +736,7 @@ class CombatSession:
         self.player.take_damage(damage)
 
         # Emit combat action result event for enemy action (UI will display via combat log)
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_ACTION_RESULT,
             {
                 "actor": "enemy",
@@ -753,7 +755,6 @@ class CombatSession:
     def _update_ui_panels(self):
         """Update UI panels during combat."""
         # Emit events to update UI panels
-        from src.events import event_bus, EventType
 
         # Build updated combat view with current health values
         combat_view = ViewBuilder.build_combat_view(
@@ -765,7 +766,7 @@ class CombatSession:
         )
 
         # Emit frame update so UI shows current health and cooldowns
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_FRAME_UPDATED,
             combat_view.to_dict(),
             "CombatSession"
@@ -773,7 +774,7 @@ class CombatSession:
 
         # Also update player stats
         stats_view = ViewBuilder.build_stats_view(self.player)
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.PLAYER_STATS_CHANGED,
             stats_view.to_dict(),
             "CombatSession"
@@ -785,7 +786,7 @@ class CombatSession:
         self.awaiting_action = False
 
         # Unsubscribe from events
-        event_bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
+        self.bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
 
         if defeat:
             self.output.write("\n[bold red]You have been defeated.[/bold red]")
@@ -794,7 +795,7 @@ class CombatSession:
         combat_system.reset_cooldowns(self.player)
 
         # Emit combat ended event with primitive data only
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_ENDED,
             {
                 "victory": victory,
@@ -825,7 +826,7 @@ class CombatSession:
             return
         self.is_active = False
         self.awaiting_action = False
-        event_bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
+        self.bus.unsubscribe(EventType.COMBAT_ACTION_SELECTED, self._on_combat_action)
 
 # Create a singleton instance that can be imported elsewhere
 combat_system = CombatSystem() 

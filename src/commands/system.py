@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.commands.base import Command
-from src.events import EventType, event_bus
+from src.events import EventType
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -58,6 +58,6 @@ class QuitCommand(Command):
             # A frontend that can do better than three typed letters shows a
             # chooser; one that cannot (headless) ignores this and reads the
             # text above. Either way the answer arrives as y/n/c.
-            event_bus.emit_event(EventType.QUIT_CONFIRM_REQUESTED, {}, "QuitCommand")
+            ctx.bus.emit_event(EventType.QUIT_CONFIRM_REQUESTED, {}, "QuitCommand")
         else:
             ctx._perform_quit()
