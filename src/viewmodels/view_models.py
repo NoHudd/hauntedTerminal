@@ -6,8 +6,10 @@ These dataclasses define the exact data the UI needs without coupling to backend
 All view models are immutable and serializable.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional
+from typing import Any, List, Optional
 
 
 @dataclass(frozen=True)
@@ -23,9 +25,15 @@ class StatsView:
     cycles_to_next: int = 0
     defense_pct: int = 0    # % damage reduction from equipped armor
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> StatsView:
+        """Rebuild from an event payload made by to_dict()."""
+        return cls(**data)
+
 
 
 @dataclass(frozen=True)
@@ -39,9 +47,15 @@ class InventoryItemView:
     damage: Optional[int] = None
     healing: Optional[int] = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> InventoryItemView:
+        """Rebuild from an event payload made by to_dict()."""
+        return cls(**data)
+
 
 
 @dataclass(frozen=True)
@@ -49,11 +63,17 @@ class InventoryView:
     """Full inventory representation."""
     items: List[InventoryItemView] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
         return {
             "items": [item.to_dict() for item in self.items]
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> InventoryView:
+        """Rebuild from an event payload made by to_dict()."""
+        return cls(items=[InventoryItemView.from_dict(i) for i in data.get("items", [])])
+
 
 
 @dataclass(frozen=True)
@@ -69,9 +89,15 @@ class RoomView:
     enemy_ids: List[str] = field(default_factory=list)    # same order as enemies
     npc_ids: List[str] = field(default_factory=list)      # same order as npcs
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RoomView:
+        """Rebuild from an event payload made by to_dict()."""
+        return cls(**data)
+
 
 
 @dataclass(frozen=True)
@@ -85,9 +111,15 @@ class AttackView:
     on_cooldown: bool = False
     accuracy: int = 100
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AttackView:
+        """Rebuild from an event payload made by to_dict()."""
+        return cls(**data)
+
 
 
 @dataclass(frozen=True)
@@ -102,7 +134,7 @@ class CombatView:
     available_attacks: List[AttackView] = field(default_factory=list)
     usable_items: List[InventoryItemView] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
         return {
             "enemy_id": self.enemy_id,
@@ -114,4 +146,19 @@ class CombatView:
             "available_attacks": [attack.to_dict() for attack in self.available_attacks],
             "usable_items": [item.to_dict() for item in self.usable_items]
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CombatView:
+        """Rebuild from an event payload made by to_dict()."""
+        return cls(
+            enemy_name=data["enemy_name"],
+            enemy_health=data["enemy_health"],
+            enemy_max_health=data["enemy_max_health"],
+            player_health=data["player_health"],
+            player_max_health=data["player_max_health"],
+            enemy_id=data.get("enemy_id", ""),
+            available_attacks=[AttackView.from_dict(a) for a in data.get("available_attacks", [])],
+            usable_items=[InventoryItemView.from_dict(i) for i in data.get("usable_items", [])],
+        )
+
 

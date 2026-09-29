@@ -22,6 +22,7 @@ from src.ui.ui_interface import UIInitializationError, UIStateError
 from src.events import EventBus, EventType
 from src.game_states import GameState, UIState
 from src.state_manager import StateManager
+from src.viewmodels.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
 from utils.typewriter import TypewriterPresets, request_skip as request_typewriter_skip
 from config.dev_config import SKIP_INTRO
 
@@ -39,6 +40,7 @@ from config.settings_manager import SettingsManager
 import logging
 import os
 import threading
+from dataclasses import replace
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -69,13 +71,13 @@ class TextualGameUI(App):
         # Store view data (dicts) instead of backend objects
         self._settings_manager = SettingsManager()
         self._settings_manager.load()
-        self._player_view = {}  # StatsView dict
-        self._inventory_view = {}  # InventoryView dict
-        self._room_view = {}  # RoomView dict
-        self._combat_view = {}  # CombatView dict
+        self._player_view: Optional[StatsView] = None
+        self._inventory_view: Optional[InventoryView] = None
+        self._room_view: Optional[RoomView] = None
+        self._combat_view: Optional[CombatView] = None
         self._combat_log = []  # Store recent combat actions
         self._bound_combat_keys = []  # Track bound combat keys
-        self._available_attacks = []  # Attack list from combat view data
+        self._available_attacks: list[AttackView] = []
         self._combat_hint_shown = False  # Track if selection mode hint was shown
         self._player_ref = None  # Set by game engine after player creation; used for tutorial checks
         self._world_ref = None   # Set by game engine; used by autocomplete suggester
@@ -231,9 +233,9 @@ class TextualGameUI(App):
         # State is managed by StateManager, not UI
         # Extract view data from event
         if 'stats' in event.data:
-            self._player_view = event.data['stats']
+            self._player_view = StatsView.from_dict(event.data['stats'])
         if 'inventory' in event.data:
-            self._inventory_view = event.data['inventory']
+            self._inventory_view = InventoryView.from_dict(event.data['inventory'])
         self._stats_panel.update_stats(self._player_view)
 
     def _reset_ui_state(self):
@@ -241,10 +243,10 @@ class TextualGameUI(App):
         logger.debug("Resetting UI state")
 
         # Clear all view data
-        self._player_view = {}
-        self._inventory_view = {}
-        self._room_view = {}
-        self._combat_view = {}
+        self._player_view = None
+        self._inventory_view = None
+        self._room_view = None
+        self._combat_view = None
 
         # Clear combat data
         self._combat_log.clear()
@@ -279,29 +281,26 @@ class TextualGameUI(App):
 
     def _on_player_created(self, event):
         """Handle player created event."""
-        # Event data is now StatsView dict
-        self._player_view = event.data
+        self._player_view = StatsView.from_dict(event.data)
         self._stats_panel.update_stats(self._player_view)
 
     def _on_player_stats_changed(self, event):
         """Handle player stats changed event."""
-        # Event data is now StatsView dict
-        self._player_view = event.data
+        self._player_view = StatsView.from_dict(event.data)
         self._stats_panel.update_stats(self._player_view)
         if self.state_manager.is_in_combat():
             self._update_combat_panels()
 
     def _on_player_inventory_changed(self, event):
         """Handle player inventory changed event."""
-        # Event data is now InventoryView dict
-        self._inventory_view = event.data
+        self._inventory_view = InventoryView.from_dict(event.data)
         self._inv_panel.update_inventory(self._inventory_view)
 
     def _on_room_entered(self, event):
         """Handle room entered event with enhanced theming."""
         if 'room' in event.data:
-            self._room_view = event.data['room']
-            room_name = self._room_view.get('name', '')
+            self._room_view = RoomView.from_dict(event.data['room'])
+            room_name = self._room_view.name
             self._scene_view.show_explore(self._room_view)
 
             # Apply dynamic room theming using room view data
@@ -420,8 +419,8 @@ class TextualGameUI(App):
 
     def _on_combat_started(self, event):
         """Handle combat started — one-shot initialization of combat UI."""
-        self._combat_view = event.data
-        self._available_attacks = event.data.get('available_attacks', [])
+        self._combat_view = CombatView.from_dict(event.data)
+        self._available_attacks = self._combat_view.available_attacks
         self._bind_combat_hotkeys()
         self.query_one("#input-field", Input).blur()
         self._apply_game_state_styling("in_combat")
@@ -429,8 +428,8 @@ class TextualGameUI(App):
 
     def _on_combat_frame_updated(self, event):
         """Handle per-turn combat frame update — refresh health and cooldowns."""
-        self._combat_view = event.data
-        self._available_attacks = event.data.get('available_attacks', [])
+        self._combat_view = CombatView.from_dict(event.data)
+        self._available_attacks = self._combat_view.available_attacks
         self._update_combat_panels()
 
     def _on_combat_action_result(self, event):
@@ -459,6 +458,8 @@ class TextualGameUI(App):
     def _on_enemy_defeated(self, event):
         """Enemy died: scene drains its HP bar to zero and removes the sprite.
         Needed for one-tap kills — no combat frame update follows the killing blow."""
+        if self._combat_view is not None:
+            self._combat_view = replace(self._combat_view, enemy_health=0)
         self._scene_view.defeat_enemy()
 
     # -- victory finale ---------------------------------------------------------
@@ -531,7 +532,7 @@ class TextualGameUI(App):
 
         # Clear combat data immediately (state is managed by StateManager)
         logger.debug("Clearing combat data")
-        self._combat_view = {}
+        self._combat_view = None
         self._combat_log.clear()
         self._available_attacks = []
 
@@ -698,7 +699,7 @@ class TextualGameUI(App):
             available_list = [
                 attack
                 for attack in self._available_attacks
-                if not attack.get('on_cooldown', False)
+                if not attack.on_cooldown
             ]
 
             # Bind keys dynamically
@@ -708,7 +709,7 @@ class TextualGameUI(App):
 
                 key = str(i)
                 action = f"combat_hotkey_{i}"
-                attack_name = attack_data.get('name', attack_data.get('id', 'Unknown'))
+                attack_name = attack_data.name
 
                 # Bind the key
                 self.bind(key, action, description=attack_name, show=True)
@@ -767,9 +768,9 @@ class TextualGameUI(App):
             # Log all available attacks with cooldown status
             logger.debug(f"Hotkey {hotkey_number} pressed. Available attacks: {len(self._available_attacks)}")
             for i, attack in enumerate(self._available_attacks, 1):
-                on_cd = attack.get('on_cooldown', False)
-                cd_remaining = attack.get('cooldown_remaining', 0)
-                attack_name = attack.get('name', 'Unknown')
+                on_cd = attack.on_cooldown
+                cd_remaining = attack.cooldown_remaining
+                attack_name = attack.name
                 logger.debug(f"  [{i}] {attack_name}: on_cooldown={on_cd}, remaining={cd_remaining}")
 
             # Use available attacks from combat view data (list of AttackView dicts)
@@ -777,15 +778,15 @@ class TextualGameUI(App):
             available_list = [
                 attack
                 for attack in self._available_attacks
-                if not attack.get('on_cooldown', False)
+                if not attack.on_cooldown
             ]
 
             logger.debug(f"After cooldown filter: {len(available_list)} attacks available")
 
             if 1 <= hotkey_number <= len(available_list):
                 attack_data = available_list[hotkey_number - 1]
-                attack_id = attack_data.get('id')
-                attack_name = attack_data.get('name')
+                attack_id = attack_data.id
+                attack_name = attack_data.name
 
                 logger.debug(f"Executing attack: {attack_name} (id={attack_id})")
 
@@ -801,9 +802,9 @@ class TextualGameUI(App):
                 # Check if hotkey corresponds to an attack on cooldown
                 if 1 <= hotkey_number <= len(self._available_attacks):
                     attack_data = self._available_attacks[hotkey_number - 1]
-                    if attack_data.get('on_cooldown', False):
-                        attack_name = attack_data.get('name', 'Attack')
-                        cd_remaining = attack_data.get('cooldown_remaining', 0)
+                    if attack_data.on_cooldown:
+                        attack_name = attack_data.name
+                        cd_remaining = attack_data.cooldown_remaining
 
                         # Push cooldown notice to combat log so panel stays intact.
                         self._combat_log.append({
@@ -862,7 +863,7 @@ class TextualGameUI(App):
         self._add_to_history(content)
 
         # During combat, preserve combat panel: append to log instead of replacing.
-        if self.state_manager.is_in_combat() and self._combat_view:
+        if self.state_manager.is_in_combat() and self._combat_view is not None:
             self._combat_log.append({"actor": "system", "message": content})
             if len(self._combat_log) > 10:
                 self._combat_log.pop(0)
@@ -890,7 +891,7 @@ class TextualGameUI(App):
         self._add_to_history(content)
 
         # During combat the output panel is the combat log — same path as update_output.
-        if self.state_manager.is_in_combat() and self._combat_view:
+        if self.state_manager.is_in_combat() and self._combat_view is not None:
             self._combat_log.append({"actor": "system", "message": content})
             if len(self._combat_log) > 10:
                 self._combat_log.pop(0)
@@ -922,9 +923,8 @@ class TextualGameUI(App):
     def update_exits(self, exits: list) -> None:
         """Update the scene's exits display (border subtitle)."""
         self._check_ready()
-        if self._room_view:
-            room = dict(self._room_view)
-            room['exits'] = exits
+        if self._room_view is not None:
+            room = replace(self._room_view, exits=list(exits))
             self._ui_call(self._scene_view.show_explore, room)
 
     def update_player_name(self, name: str) -> None:
@@ -949,7 +949,7 @@ class TextualGameUI(App):
             reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
         )
 
-        player_name = self._player_view.get('player_name', 'Unknown Sysadmin')
+        player_name = self._player_view.player_name if self._player_view else 'Unknown Sysadmin'
 
         game_over_content = f"""[bold red]GAME OVER[/bold red]
 
@@ -977,7 +977,7 @@ Brave sysadmin {player_name}, your session has been terminated.
         self.add_class("combat-active")
         self._scene_view.show_battle(
             self._combat_view,
-            self._player_view or {},
+            self._player_view,
             reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False)),
         )
         self._update_combat_panels()
@@ -1006,7 +1006,7 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _update_combat_panels(self):
         """Update all combat-related panels."""
-        if not self._combat_view:
+        if self._combat_view is None:
             return
 
         self._scene_view.update_battle(self._combat_view)
@@ -1016,7 +1016,7 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _update_combat_main_output(self):
         """Update main output panel with combat log and actions."""
-        if not self._combat_view:
+        if self._combat_view is None:
             return
 
         output_lines = []
@@ -1062,7 +1062,7 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _get_dynamic_hotkey_display(self):
         """Generate dynamic hotkey display based on available attacks."""
-        if not self._player_view:
+        if self._player_view is None:
             return "[dim]Attack options loading...[/dim]"
 
         try:
@@ -1070,23 +1070,22 @@ Brave sysadmin {player_name}, your session has been terminated.
             hotkey_lines = ["[bold green]QUICK ATTACKS:[/bold green]"]
 
             # Get base damage from player view
-            base_damage = self._player_view.get('damage', 0)
+            base_damage = self._player_view.damage
 
             hotkey_num = 1
             for attack_data in self._available_attacks:
                 if hotkey_num > 9:
                     break
 
-                attack_name = attack_data.get('name', attack_data.get('id', 'Unknown'))
-                on_cooldown = attack_data.get('on_cooldown', False)
+                attack_name = attack_data.name
+                on_cooldown = attack_data.on_cooldown
 
                 # Calculate total damage and gather metadata
-                bonus_damage = attack_data.get('bonus_damage', 0)
-                total_damage = base_damage + bonus_damage
-                accuracy = attack_data.get('accuracy', 100)
-                cooldown = attack_data.get('cooldown', 0)
-                atk_type = attack_data.get('type', '')
-                type_icon = {"physical": "⚔", "magical": "✨", "nature": "🌿"}.get(atk_type, "•")
+                total_damage = base_damage + attack_data.bonus_damage
+                accuracy = attack_data.accuracy
+                cooldown = attack_data.cooldown
+                # AttackView carries no attack type, so every row gets the plain bullet.
+                type_icon = "•"
                 cd_label = f"CD {cooldown}t" if cooldown > 0 else "no CD"
 
                 if not on_cooldown:
@@ -1097,7 +1096,7 @@ Brave sysadmin {player_name}, your session has been terminated.
                     )
                     hotkey_num += 1
                 else:
-                    cooldown_remaining = attack_data.get('cooldown_remaining', 0)
+                    cooldown_remaining = attack_data.cooldown_remaining
                     hotkey_lines.append(
                         f"[dim][{hotkey_num}] {type_icon} {attack_name} — "
                         f"on cooldown ({cooldown_remaining}t left)[/dim]"
@@ -1124,17 +1123,17 @@ Brave sysadmin {player_name}, your session has been terminated.
         "menu": "game-state-menu",
     }
 
-    def _apply_room_theme(self, room_id: str, room_data: dict):
+    def _apply_room_theme(self, room_id: str, room: RoomView):
         """Apply visual theme based on room characteristics."""
         for cls in self._ROOM_CLASSES:
             self.remove_class(cls)
 
-        desc = room_data.get("description", "").lower()
+        desc = room.description.lower()
         if "home" in room_id.lower():
             self.add_class("room-home")
-        elif room_data.get("enemies") or "danger" in desc:
+        elif room.enemies or "danger" in desc:
             self.add_class("room-dangerous")
-        elif room_data.get("safe", False) or "safe" in desc:
+        elif "safe" in desc:
             self.add_class("room-safe")
 
     def _apply_game_state_styling(self, state: str):

@@ -26,6 +26,9 @@ files = [
     "src/rng.py",
     "src/room_paths.py",
     "src/state_manager.py",
+    "src/ui/panels/inventory_panel.py",
+    "src/ui/panels/stats_panel.py",
+    "src/viewmodels/view_models.py",
 ]
 strict = true
 plugins = ["pydantic.mypy"]
@@ -56,6 +59,9 @@ module = [
     "src.rng",
     "src.room_paths",
     "src.state_manager",
+    "src.ui.panels.inventory_panel",
+    "src.ui.panels.stats_panel",
+    "src.viewmodels.view_models",
 ]
 follow_imports = "normal"
 
