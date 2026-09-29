@@ -139,19 +139,10 @@ def load_room_data():
 
 
 def load_npc_data():
-    """Load all NPCs as plain dicts (id -> dict, dots kept in the id).
-
-    NPCs stay dicts rather than typed models: consumers read them with ``.get``
-    (dialogue banks, dialogue_rules, on_talk effects) and the dialogue payloads
-    are free-form. The engine loader still validates them on the way through, so
-    a malformed NPC file fails loudly here rather than mid-conversation.
-    """
+    """Load all NPCs as typed NPC models (id -> NPC, dots kept in the id)."""
     try:
         from engine.content.loader import load_npcs
-        return {
-            str(nid): npc.model_dump(exclude_unset=True)
-            for nid, npc in load_npcs("data").items()
-        }
+        return {str(nid): npc for nid, npc in load_npcs("data").items()}
     except Exception as e:
         debug_log(f"ERROR loading npc data: {e}")
         return {}

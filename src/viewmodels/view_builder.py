@@ -143,7 +143,9 @@ class ViewBuilder:
                 nid for nid in getattr(world, 'get_npcs_in_room', lambda r: [])(room_id)
                 if nid in getattr(world, 'npcs', {})
             ]
-            npc_names = [world.npcs.get(nid, {}).get('name', nid) for nid in npc_ids]
+            npc_names = [
+                world.npcs[nid].name if nid in world.npcs else nid for nid in npc_ids
+            ]
 
             return RoomView(
                 name=room_data.name or room_id,

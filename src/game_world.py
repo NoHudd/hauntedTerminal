@@ -574,7 +574,8 @@ class GameWorld:
         if npcs_in_room:
             full_description += "\n[bold green]People:[/bold green]\n"
             for npc_id in npcs_in_room:
-                npc_name = self.npcs.get(npc_id, {}).get('name', npc_id)
+                npc = self.npcs.get(npc_id)
+                npc_name = npc.name if npc else npc_id
                 full_description += f"- {npc_name}\n"
 
         return full_description.strip()

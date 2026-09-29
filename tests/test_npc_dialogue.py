@@ -109,7 +109,7 @@ def test_talk_uses_rules_and_marks_met():
         h.world.npc_locations["librarian.bin"] = s.player.current_room
         first = _talk(s, "librarian.bin")
         assert "librarian.bin" in s.player.met_npcs
-        greetings = h.world.get_npc("librarian.bin")["dialogue"]["greeting"]
+        greetings = h.world.get_npc("librarian.bin").dialogue["greeting"]
         assert any(g in first for g in greetings), first
     finally:
         s.close()
@@ -125,7 +125,7 @@ def test_talk_reacts_to_story_flags():
         s.player.met_npcs.add("librarian.bin")
         s.player.set_story_flag("typo_discovered")
         out = _talk(s, "librarian.bin")
-        panic_lines = h.world.get_npc("librarian.bin")["dialogue"]["about_panic"]
+        panic_lines = h.world.get_npc("librarian.bin").dialogue["about_panic"]
         assert any(line in out for line in panic_lines), out
     finally:
         s.close()

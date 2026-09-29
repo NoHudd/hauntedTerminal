@@ -356,14 +356,14 @@ class TalkCommand(Command):
             )
             return
 
-        npc_name = npc.get("name", npc_id)
+        npc_name = npc.name
 
         # Story-aware dialogue: ordered rules pick the right bank for the current
         # game state; NPCs without rules keep the legacy flat list.
         from src.npc_dialogue import resolve_dialogue_bank
 
-        rules = npc.get("dialogue_rules") or []
-        banks = npc.get("dialogue") if isinstance(npc.get("dialogue"), dict) else {}
+        rules = npc.dialogue_rules
+        banks = npc.dialogue
         state = {
             "flags": getattr(ctx.player, "story_flags", {}) or {},
             "items": set(getattr(ctx.player, "inventory", {}) or {}),
@@ -371,7 +371,7 @@ class TalkCommand(Command):
             "npc_id": npc_id,
             "game_won": bool((getattr(ctx.player, "story_flags", {}) or {}).get("ending_chosen")),
         }
-        dialogues = resolve_dialogue_bank(rules, banks, state) or npc.get("dialogues", [])
+        dialogues = resolve_dialogue_bank(rules, banks, state) or npc.dialogues
         if not dialogues:
             ctx.output.write(
                 f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"
@@ -390,8 +390,8 @@ class TalkCommand(Command):
             f'[italic yellow]"{dialogue}"[/italic yellow]'
         )
 
-        if "on_talk" in npc:
-            ctx.effects.execute_effect(npc["on_talk"])
+        if npc.on_talk is not None:
+            ctx.effects.execute_effect(npc.on_talk)
 
 
 class EquipCommand(Command):

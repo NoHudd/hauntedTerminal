@@ -371,9 +371,9 @@ class LsCommand(Command):
             if not npc:
                 continue
             description = (
-                npc.get("short_description")
-                or npc.get("description")
-                or npc.get("name")
+                npc.short_description
+                or npc.description
+                or npc.name
                 or "No description available"
             )
             output.append(f"  {npc_id}", style="yellow")

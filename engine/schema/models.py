@@ -186,3 +186,4 @@ class NPC(_Base):
     dialogue: dict[str, object] = Field(default_factory=dict)
     dialogue_rules: list[dict[str, object]] = Field(default_factory=list)
     location: RoomId | None = None
+    on_talk: dict[str, object] | None = None

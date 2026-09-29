@@ -9,15 +9,15 @@ class _FakeRoom:
     zone = "safe"
 
 
-class _FakeEnemy:
+class _Named:
     def __init__(self, name):
         self.name = name
 
 
 class _FakeWorld:
     rooms = {"home_grove": _FakeRoom()}
-    enemies = {"lost_inode.tmp": _FakeEnemy("Lost Inode")}
-    npcs = {"oracle.db": {"name": "The Oracle"}}
+    enemies = {"lost_inode.tmp": _Named("Lost Inode")}
+    npcs = {"oracle.db": _Named("The Oracle")}
 
     def get_enemies_in_room(self, room_id):
         return ["lost_inode.tmp"]

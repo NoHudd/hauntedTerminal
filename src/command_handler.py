@@ -148,7 +148,7 @@ class CommandHandler:
             return
         
         # Select appropriate dialogue based on context
-        dialogues = npc_data.get("dialogues", [])
+        dialogues = npc_data.dialogues
         if not dialogues:
             return
         
@@ -161,7 +161,7 @@ class CommandHandler:
             dialogue_index = 0
         
         selected_dialogue = dialogues[dialogue_index]
-        npc_name = npc_data.get("name", npc_id)
+        npc_name = npc_data.name
         
         # Format and display the automatic dialogue (markup string so styles render)
         output = (
