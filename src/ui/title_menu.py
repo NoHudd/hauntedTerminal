@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional
 from rich.text import Text
 from textual.widgets import Input
 
-from src.events import EventType
+from engine.events import EventType
 from utils.typewriter import TypewriterPresets, request_skip as request_typewriter_skip
 
 if TYPE_CHECKING:

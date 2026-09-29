@@ -11,7 +11,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from src.events import EventBus
+from engine.events import EventBus
 from src.game_states import GameState
 from src.state_manager import InvalidTransitionError, StateManager
 from src.viewmodels.view_builder import ViewBuilder

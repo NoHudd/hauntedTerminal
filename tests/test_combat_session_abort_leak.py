@@ -16,8 +16,8 @@ the next session; the in-engine leak (restart, load mid-fight) is still pinned
 by the identity check on the closed session's own bus.
 """
 from engine.api import GameSession
+from engine.events import EventType
 from src import rng
-from src.events import EventType
 
 
 def _start_unresolved_fight(s):

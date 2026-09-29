@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.viewmodels.view_models import AttackView, StatsView
+from engine.view_models import AttackView, StatsView
 
 _ACTOR_FORMAT = {
     "player": ("green",  "👤"),

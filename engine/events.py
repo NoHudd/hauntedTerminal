@@ -6,11 +6,12 @@ Provides a decoupled way for game engine and UI to communicate
 without direct dependencies.
 """
 
-from typing import Dict, List, Callable, Any
-from dataclasses import dataclass
-from enum import Enum, auto
 import logging
 import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -153,13 +154,14 @@ class EventType(Enum):
     # Emitted by: combat.py, before it calls CommandHandler.end_combat directly
     # Subscribed by: textual_ui.py, tutorial_coach.py (observers only; the game's
     #             reaction runs from end_combat in a fixed order)
-    # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str, "enemies_defeated": int}
+    # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str,
+    #        "enemies_defeated": int}
 
 @dataclass
 class Event:
     """Represents an event with data."""
     type: EventType
-    data: Dict[str, Any]
+    data: dict[str, Any]
     source: str = "unknown"
 
 class EventBus:
@@ -171,8 +173,8 @@ class EventBus:
 
     def __init__(self, strict: bool | None = None) -> None:
         self.strict = self.strict_by_default if strict is None else strict
-        self._listeners: Dict[EventType, List[Callable[[Event], None]]] = {}
-        self._event_history: List[Event] = []
+        self._listeners: dict[EventType, list[Callable[[Event], None]]] = {}
+        self._event_history: list[Event] = []
         self._max_history = 100
     
     def subscribe(self, event_type: EventType, callback: Callable[[Event], None]) -> None:
@@ -194,7 +196,10 @@ class EventBus:
     def emit(self, event: Event) -> None:
         """Emit an event to all subscribers."""
         start_time = time.time()
-        logger.debug(f"Emitting event: {event.type} from {event.source} to {len(self._listeners.get(event.type, []))} listeners")
+        listener_count = len(self._listeners.get(event.type, []))
+        logger.debug(
+            f"Emitting event: {event.type} from {event.source} to {listener_count} listeners"
+        )
         
         # Add to history
         self._event_history.append(event)
@@ -235,13 +240,15 @@ class EventBus:
         if callback_errors:
             logger.warning(f"{event.type}: {callback_errors} callback error(s)")
     
-    def emit_event(self, event_type: EventType, data: Dict[str, Any] | None = None, source: str = "unknown") -> None:
+    def emit_event(
+        self, event_type: EventType, data: dict[str, Any] | None = None, source: str = "unknown",
+    ) -> None:
         """Convenience method to emit an event."""
         event = Event(type=event_type, data=data or {}, source=source)
         logger.debug(f"Emitting event: {event_type} from {source} with data: {data}")
         self.emit(event)
     
-    def get_event_history(self) -> List[Event]:
+    def get_event_history(self) -> list[Event]:
         """Get the event history."""
         return self._event_history.copy()
     

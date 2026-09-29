@@ -10,7 +10,7 @@ import pytest
 
 import src.save as save_mod
 from engine.api import GameSession
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_states import GameState
 from src.save import SaveManager
 from src.state_manager import InvalidTransitionError, StateManager

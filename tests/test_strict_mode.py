@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from engine.api import GameSession
-from src.events import Event, EventBus, EventType
+from engine.events import Event, EventBus, EventType
 from src.viewmodels.view_builder import ViewBuilder
 
 

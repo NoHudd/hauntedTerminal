@@ -2,7 +2,7 @@
 import yaml
 from src import rng
 from utils.debug_tools import debug_log
-from src.events import EventType
+from engine.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
 
 class CombatSystem:

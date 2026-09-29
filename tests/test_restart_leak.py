@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
 
 # Events a CommandHandler subscribes to. Exactly one handler may be listening on
 # each of these at a time, however many times the game has been restarted.

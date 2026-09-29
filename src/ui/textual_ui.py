@@ -19,10 +19,10 @@ from textual.reactive import var
 from rich.text import Text
 
 from src.ui.ui_interface import UIInitializationError, UIStateError
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_states import GameState, UIState
 from src.state_manager import StateManager
-from src.viewmodels.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
+from engine.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
 from config.dev_config import SKIP_INTRO
 
 from src.ui.panels.echo_panel import EchoPanel

@@ -41,7 +41,7 @@ class HeadlessUI:
         self.bus: Any = None
 
     def attach_bus(self, bus: Any, state_manager: Any) -> None:
-        from src.events import EventType
+        from engine.events import EventType
         self.shutdown()
         self.bus = bus
         self.state_manager = state_manager
@@ -96,7 +96,7 @@ class HeadlessUI:
     def shutdown(self) -> None:
         if self.bus is None:
             return
-        from src.events import EventType
+        from engine.events import EventType
         self.bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
         self.bus.unsubscribe(EventType.GAME_QUIT, self._on_game_quit)
         self.bus.unsubscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)

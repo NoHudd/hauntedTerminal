@@ -7,7 +7,7 @@ from __future__ import annotations
 from textual.widgets import Static
 
 from src.ui.panels import class_icon, create_health_bar
-from src.viewmodels.view_models import CombatView, StatsView
+from engine.view_models import CombatView, StatsView
 
 
 class StatsPanel(Static):

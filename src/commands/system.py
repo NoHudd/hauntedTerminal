@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.commands.base import Command
-from src.events import EventType
+from engine.events import EventType
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover

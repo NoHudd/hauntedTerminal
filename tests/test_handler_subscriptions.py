@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from collections import Counter
 
+from engine.events import EventType
 from engine.headless import HeadlessUI
 from src.command_handler import CommandHandler
-from src.events import EventType
 from src.game_engine import ImprovedGameEngine
 from src.tutorial_coach import TutorialCoach
 

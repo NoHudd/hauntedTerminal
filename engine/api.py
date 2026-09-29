@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_engine import ImprovedGameEngine
 from src.game_states import GameState
 

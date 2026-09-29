@@ -4,7 +4,7 @@ import logging
 from rich.text import Text
 from src.combat import CombatSession
 from src.commands import build_registry
-from src.events import EventType
+from engine.events import EventType
 from src.game_flow import GameFlow
 from src.game_world import TUTORIAL_ENEMY
 from src.item_effects import ItemEffects

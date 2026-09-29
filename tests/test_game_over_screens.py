@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 import src.save as save_mod
-from src.events import EventType
+from engine.events import EventType
 from src.game_engine import ImprovedGameEngine
 from src.game_world import TUTORIAL_ENEMY
 from src.save import SaveManager

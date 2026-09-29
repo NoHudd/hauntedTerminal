@@ -8,8 +8,8 @@ All view models are immutable and serializable.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
-from typing import Any, List, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -44,8 +44,8 @@ class InventoryItemView:
     item_type: str
     rarity: str = "common"
     is_equipped: bool = False
-    damage: Optional[int] = None
-    healing: Optional[int] = None
+    damage: int | None = None
+    healing: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
@@ -61,7 +61,7 @@ class InventoryItemView:
 @dataclass(frozen=True)
 class InventoryView:
     """Full inventory representation."""
-    items: List[InventoryItemView] = field(default_factory=list)
+    items: list[InventoryItemView] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
@@ -83,11 +83,11 @@ class RoomView:
     description: str
     id: str = ""
     zone: str = ""
-    exits: List[str] = field(default_factory=list)
-    enemies: List[str] = field(default_factory=list)      # display names
-    npcs: List[str] = field(default_factory=list)         # display names
-    enemy_ids: List[str] = field(default_factory=list)    # same order as enemies
-    npc_ids: List[str] = field(default_factory=list)      # same order as npcs
+    exits: list[str] = field(default_factory=list)
+    enemies: list[str] = field(default_factory=list)      # display names
+    npcs: list[str] = field(default_factory=list)         # display names
+    enemy_ids: list[str] = field(default_factory=list)    # same order as enemies
+    npc_ids: list[str] = field(default_factory=list)      # same order as npcs
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
@@ -131,8 +131,8 @@ class CombatView:
     player_health: int
     player_max_health: int
     enemy_id: str = ""    # for scene sprite lookup
-    available_attacks: List[AttackView] = field(default_factory=list)
-    usable_items: List[InventoryItemView] = field(default_factory=list)
+    available_attacks: list[AttackView] = field(default_factory=list)
+    usable_items: list[InventoryItemView] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""

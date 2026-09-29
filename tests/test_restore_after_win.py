@@ -13,7 +13,7 @@ import pytest
 
 import src.save as save_mod
 from engine.api import GameSession
-from src.events import Event, EventType
+from engine.events import Event, EventType
 from src.game_states import GameState
 from src.game_world import TUTORIAL_ENEMY
 from src.save import SaveManager

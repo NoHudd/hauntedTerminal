@@ -23,7 +23,7 @@ from src.scene.effects import (
     lunge_offset,
 )
 from src.scene.sprite_store import SpriteStore, to_renderable
-from src.viewmodels.view_models import CombatView, RoomView, StatsView
+from engine.view_models import CombatView, RoomView, StatsView
 
 MIN_SCENE_ROWS = 10        # below this, fall back to strip text
 SPRITE_MAX_PX = 24         # character sprites fit a 24×24 px box

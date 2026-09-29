@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from src.events import EventType
+from engine.events import EventType
 from src.ui.endings import FinaleReveal, build_recap
 from src.ui.textual_ui import TextualGameUI
 

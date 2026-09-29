@@ -8,7 +8,7 @@ from textual.widgets import Static
 
 import logging
 from src.rarity import RaritySystem
-from src.viewmodels.view_models import InventoryItemView, InventoryView
+from engine.view_models import InventoryItemView, InventoryView
 
 logger = logging.getLogger(__name__)
 

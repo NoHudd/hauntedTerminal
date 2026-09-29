@@ -22,7 +22,6 @@ python_version = "3.11"
 files = [
     "engine",
     "src/difficulty.py",
-    "src/events.py",
     "src/game_output.py",
     "src/game_states.py",
     "src/rarity.py",
@@ -34,7 +33,6 @@ files = [
     "src/ui/panels/echo_panel.py",
     "src/ui/panels/inventory_panel.py",
     "src/ui/panels/stats_panel.py",
-    "src/viewmodels/view_models.py",
 ]
 strict = true
 plugins = ["pydantic.mypy"]
@@ -64,7 +62,6 @@ follow_imports = "skip"
 [[tool.mypy.overrides]]
 module = [
     "src.difficulty",
-    "src.events",
     "src.game_output",
     "src.game_states",
     "src.rarity",
@@ -76,7 +73,6 @@ module = [
     "src.ui.panels.echo_panel",
     "src.ui.panels.inventory_panel",
     "src.ui.panels.stats_panel",
-    "src.viewmodels.view_models",
 ]
 follow_imports = "normal"
 

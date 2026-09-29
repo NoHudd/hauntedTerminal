@@ -1,7 +1,7 @@
 """End-of-run flow: game over, victory, and the quit confirmation."""
 import threading
 
-from src.events import EventType
+from engine.events import EventType
 from utils.debug_tools import debug_log
 from utils.particle_animation import GameOverAnimation
 

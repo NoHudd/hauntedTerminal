@@ -12,7 +12,7 @@ overwrites that output panel. Looks like the room vanished.
 from __future__ import annotations
 
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
 
 
 def _capture_room_entered(bus, fn):

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from src.game_states import GameState
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from utils.debug_tools import debug_log
 
 logger = logging.getLogger(__name__)

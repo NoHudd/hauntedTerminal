@@ -10,7 +10,7 @@ from typing import List
 import logging
 
 from src.room_paths import ROOM_ID_TO_PATH
-from src.viewmodels.view_models import (
+from engine.view_models import (
     StatsView,
     InventoryItemView,
     InventoryView,

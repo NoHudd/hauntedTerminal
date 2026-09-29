@@ -6,7 +6,7 @@ from collections.abc import Iterator
 import pytest
 
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
 from src.game_states import GameState
 
 

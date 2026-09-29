@@ -3,7 +3,7 @@ commands used to send them too, so the UI got every view twice."""
 from __future__ import annotations
 
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
 
 
 def test_take_sends_each_view_once() -> None:

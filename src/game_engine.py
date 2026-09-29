@@ -25,7 +25,7 @@ from src.command_handler import CommandHandler
 from src.game_output import GameOutput
 from src.save import save_manager
 from src.ui.ui_interface import UIProtocol, UIInitializationError
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
 from src.state_manager import StateManager
 from src.viewmodels.view_builder import ViewBuilder
