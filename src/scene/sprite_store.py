@@ -26,6 +26,20 @@ def _placeholder_color(entity_id: str) -> tuple[int, int, int]:
     return tuple(60 + (b % 141) for b in digest[:3])
 
 
+def _fill_box(img: Image.Image, max_w: int, max_h: int) -> Image.Image:
+    """Crop to the drawn pixels, then scale (nearest-neighbour, aspect kept) so
+    the figure's longest side fills the box. Art arrives at different sizes:
+    some NPCs draw a 12-17 px figure on a padded 24x16 canvas, and would
+    otherwise stand at half the height of the enemies and classes."""
+    bbox = img.getbbox()
+    if bbox is None:
+        return img
+    img = img.crop(bbox)
+    scale = min(max_w / img.width, max_h / img.height)
+    size = (max(1, round(img.width * scale)), max(1, round(img.height * scale)))
+    return img.resize(size, Image.NEAREST)  # pixel art: no smoothing
+
+
 def _make_placeholder(entity_id: str, w: int, h: int) -> Image.Image:
     color = _placeholder_color(entity_id)
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -58,8 +72,7 @@ class SpriteStore:
 
         path = self._png_path(kind, entity_id)
         if path.is_file():
-            img = Image.open(path).convert("RGBA")
-            img.thumbnail((max_w, max_h), Image.NEAREST)  # pixel art: no smoothing
+            img = _fill_box(Image.open(path).convert("RGBA"), max_w, max_h)
         else:
             img = _make_placeholder(entity_id, max_w, max_h)
 
