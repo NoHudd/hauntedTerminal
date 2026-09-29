@@ -484,7 +484,11 @@ class EquipCommand(Command):
             ctx.output.write(f"You have equipped [green]{weapon_name}[/green].")
             ctx.effects.show_damage_change(old_damage, ctx.player.calculate_damage())
 
-            if not ctx.player.tutorial_state.get("equipped_weapon", False):
+            # The scripted first fight is a tutorial beat only: a player who
+            # skipped (completed=True, equipped_weapon never set) must not be
+            # ambushed by it on their first equip.
+            if (not ctx.player.tutorial_state.get("completed", False)
+                    and not ctx.player.tutorial_state.get("equipped_weapon", False)):
                 ctx.player.tutorial_state["equipped_weapon"] = True
                 ctx.world.spawn_tutorial_enemy("home_grove")
                 # After the fight opens, so the hint lands in the combat log
