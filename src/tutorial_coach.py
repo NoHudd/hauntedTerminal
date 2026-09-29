@@ -7,9 +7,10 @@ from utils.debug_tools import debug_log
 STEP_NUMBERS = {
     "step1": 1, "step2": 2, "step3": 3,
     "step4": 4, "step4_fled": 4, "step5": 4,
-    "step5_postcombat": 5, "step_ps": 6, "step_up": 7, "step6": 8, "step6b": 9,
+    "step5_postcombat": 5, "step_hidden": 6, "step_cat": 7,
+    "step_ps": 8, "step_up": 9, "step6": 10, "step6b": 11,
 }
-TOTAL_STEPS = 9
+TOTAL_STEPS = 11
 # Hints that point at a section of the output the frontend should draw the eye to.
 HIGHLIGHTS = {"step6b": "Directories"}
 # Hints that close the tutorial; the frontend drops its pinned guidance.
@@ -94,8 +95,12 @@ class TutorialCoach:
             return "step3"
         if not ts.get("combat_action_taken", False):
             return "step4"
-        if not ts.get("ps_used", False):
+        if not ts.get("ls_a_used", False):
             return "step5_postcombat"
+        if not ts.get("lore_read", False):
+            return "step_hidden"
+        if not ts.get("ps_used", False):
+            return "step_cat"
         if not ts.get("pwd_used", False):
             return "step_ps"
         if not ts.get("went_up", False):
@@ -116,8 +121,9 @@ class TutorialCoach:
 
     # --- progression: commands report what happened, the coach decides ------
 
-    def after_ls(self, weapon_found, weapon_id, has_directories):
-        """ls: the first one points at the weapon; after pwd, it finds the way on."""
+    def after_ls(self, weapon_found, weapon_id, has_directories, show_all=False):
+        """ls: the first one points at the weapon; the first -a after combat
+        reveals the hidden lore file; after pwd, it finds the way on."""
         ts = self.player.tutorial_state
         if not self._active():
             return
@@ -127,6 +133,11 @@ class TutorialCoach:
                 ts["found_weapon"] = True
                 self.show_hint("step2", weapon_id)
             return
+        if show_all and ts.get("combat_action_taken", False) and not ts.get("ls_a_used", False):
+            ts["ls_a_used"] = True
+            if not ts.get("lore_read", False):
+                self.show_hint("step_hidden")
+            return
         if ts.get("pwd_used", False) and not ts.get("navigation_ls", False):
             if has_directories:
                 ts["went_up"] = True
@@ -135,9 +146,19 @@ class TutorialCoach:
             else:
                 self.show_hint("step_up")
 
+    def after_lore_read(self, story_beat):
+        """A cat that fired a story flag: the memory-restore autosave IS the
+        checkpoint the tutorial is teaching, so this is the step's gate."""
+        ts = self.player.tutorial_state
+        if not (self._active() and ts.get("combat_action_taken", False)):
+            return
+        if story_beat and not ts.get("lore_read", False):
+            ts["lore_read"] = True
+            self.show_hint("step_cat")
+
     def after_ps(self):
         ts = self.player.tutorial_state
-        if self._active() and ts.get("combat_action_taken", False) and not ts.get("ps_used", False):
+        if self._active() and ts.get("lore_read", False) and not ts.get("ps_used", False):
             ts["ps_used"] = True
             self.show_hint("step_ps")
 
