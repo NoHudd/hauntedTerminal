@@ -417,31 +417,7 @@ class ImprovedGameEngine:
                 self._start_new_game()
                 return
             
-            # Restore player state
-            player_data = save_data.get("player", {})
-            from src.player import Player
-            self.player = Player.from_dict(player_data)
-            from src import difficulty
-            difficulty.set_mode(save_data.get("difficulty", difficulty.DEFAULT_MODE))
-            
-            # Load fresh game data
-            self._load_game_data_for_load()
-            
-            # Restore world state from save
-            world_data = save_data.get("world", {})
-            self.world.set_state(world_data)
-
-            # Create new command handler — unsubscribe the old one first, or the
-            # dead run's handler keeps reacting to ROOM_ENTERED/ENEMY_DEFEATED with
-            # its stale player (observed: fresh game instantly fighting the boss
-            # from the previous run's room).
-            if self.cmd_handler:
-                self.cmd_handler.cleanup_event_subscriptions()
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
-            self._bind_ui_refs()
-
-            # Update UI
-            self._update_ui_panels()
+            self._enter_loaded_run(save_data)
 
             logger.info("Save game restart completed successfully")
             
@@ -451,6 +427,56 @@ class ImprovedGameEngine:
             self.state_manager.set_state(GameState.MENU, emit_event=False)
             self._start_new_game()
     
+    def _enter_loaded_run(self, save_data, welcome=False):
+        """Rebuild the run from a save and start playing it.
+
+        Both load paths (title-menu Load Game, post-win restore) go through
+        here, so neither can skip a step: the post-win restore used to leave
+        the new command handler unsubscribed, so rooms never started fights.
+        """
+        from src import difficulty
+
+        self.player = Player.from_dict(save_data.get("player", {}))
+        difficulty.set_mode(save_data.get("difficulty", difficulty.DEFAULT_MODE))
+
+        # Fresh content, then the saved world state on top of it.
+        self._load_game_data_for_load()
+        self.world.set_state(save_data.get("world", {}))
+
+        # Unsubscribe the old handler first, or the dead run's handler keeps
+        # reacting to ROOM_ENTERED/ENEMY_DEFEATED with its stale player.
+        if self.cmd_handler:
+            self.cmd_handler.cleanup_event_subscriptions()
+        self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
+        self._bind_ui_refs()
+
+        if welcome:
+            # Before ROOM_ENTERED, which may open a fight and take the output.
+            self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
+
+        self.state_manager.set_state(GameState.PLAYING)
+        self.bus.emit_event(
+            EventType.GAME_STARTED,
+            {
+                "stats": ViewBuilder.build_stats_view(self.player).to_dict(),
+                "inventory": ViewBuilder.build_inventory_view(self.player).to_dict(),
+            },
+            "ImprovedGameEngine",
+        )
+        self._update_ui_panels()
+
+        # Subscribed before ROOM_ENTERED so arriving in the saved room runs the
+        # usual encounter check.
+        self.cmd_handler.setup_event_subscriptions()
+        self.bus.emit_event(
+            EventType.ROOM_ENTERED,
+            {
+                "room": ViewBuilder.build_room_view(self.world, self.player.current_room).to_dict(),
+                "player_name": self.player.name,
+            },
+            "ImprovedGameEngine",
+        )
+
     def _handle_menu_command(self, command: str):
         """Handle commands in menu state."""
         logger.debug(f"Handling menu command: '{command}'")
@@ -514,64 +540,8 @@ class ImprovedGameEngine:
                 self._start_new_game()
                 return
             
-            # Restore player state
-            player_data = save_data.get("player", {})
-            from src.player import Player
-            self.player = Player.from_dict(player_data)
-            from src import difficulty
-            difficulty.set_mode(save_data.get("difficulty", difficulty.DEFAULT_MODE))
-            
-            # Load fresh game data but don't initialize world state
-            self._load_game_data_for_load()
-            
-            # Restore world state from save
-            world_data = save_data.get("world", {})
-            self.world.set_state(world_data)
-            
-            # Create command handler — unsubscribe the old one first (see
-            # _restart_from_save: stale handlers double every event).
-            if self.cmd_handler:
-                self.cmd_handler.cleanup_event_subscriptions()
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
-            self._bind_ui_refs()
+            self._enter_loaded_run(save_data, welcome=True)
 
-            self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
-
-            # Start the game loop
-            self.state_manager.set_state(GameState.PLAYING)
-            logger.debug(f"Game state set to {self.state_manager.current_state}")
-
-            # Emit game started event to update UI
-            stats_view = ViewBuilder.build_stats_view(self.player)
-            inventory_view = ViewBuilder.build_inventory_view(self.player)
-
-            self.bus.emit_event(
-                EventType.GAME_STARTED,
-                {
-                    "stats": stats_view.to_dict(),
-                    "inventory": inventory_view.to_dict()
-                },
-                "ImprovedGameEngine"
-            )
-
-            # Update UI panels with loaded game state
-            self._update_ui_panels()
-
-            # Subscribe to events
-            self.cmd_handler.setup_event_subscriptions()
-
-            # Show current location with room entered event
-            room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
-
-            self.bus.emit_event(
-                EventType.ROOM_ENTERED,
-                {
-                    "room": room_view.to_dict(),
-                    "player_name": self.player.name
-                },
-                "ImprovedGameEngine"
-            )
-            
         except Exception as e:
             logger.error(f"Error loading game: {e}")
             self.ui.update_output(f"Error loading game: {e}. Starting new game instead...")

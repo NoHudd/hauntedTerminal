@@ -873,6 +873,10 @@ class TextualGameUI(App):
 
         self.output_content = content
 
+    def display_message(self, message: str) -> None:
+        """Show a one-off message (UIProtocol); same as replacing the output."""
+        self.update_output(message)
+
     def update_output_renderable(self, renderable) -> None:
         """Push a Rich Renderable (Panel, Group, Table) directly to the output
         widget. Used for content that benefits from auto-width box drawing."""
