@@ -15,7 +15,7 @@ import sys
 import logging
 
 from rich.markup import escape
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 # Import game components
 from src.game_world import GameWorld
@@ -27,7 +27,6 @@ from src.save import save_manager
 from src.ui.ui_interface import UIProtocol, UIInitializationError
 from src.events import EventBus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
-from src.data_loader import load_room_data, load_enemy_data, load_npc_data
 from src.state_manager import StateManager
 from src.viewmodels.view_builder import ViewBuilder
 
@@ -148,13 +147,23 @@ class ImprovedGameEngine:
 
         logger.info("Game restart complete")
 
+    #: Where the world's content lives; tests point this at a scratch copy.
+    DATA_DIR = "data"
+
     def _load_content(self):
-        """Load every content collection from data/ (rooms, items, enemies, npcs)."""
-        return (
-            load_room_data(),
-            self._load_items(),
-            load_enemy_data(),
-            load_npc_data(),
+        """Load and link the world's content (rooms, items, enemies, NPCs).
+
+        link() runs the same integrity checks as `python -m engine.validate`:
+        a dangling reference or a broken room tree stops the game at start
+        (DataLoadError) instead of surfacing mid-run. The old per-collection
+        loaders swallowed errors and returned an empty collection.
+        """
+        from engine.content import link, load_all
+
+        content = link(load_all(self.DATA_DIR))
+        return tuple(
+            {str(key): model for key, model in collection.items()}
+            for collection in (content.rooms, content.items, content.enemies, content.npcs)
         )
 
     def _load_game_data(self):
@@ -173,19 +182,6 @@ class ImprovedGameEngine:
         rooms, items, enemies, npcs = self._load_content()
         self.world = GameWorld(rooms, items, enemies, npcs, initialize_state=False)
         logger.info("Game data loaded successfully for save game")
-
-    def _load_items(self) -> Dict[str, Any]:
-        """Load all items as typed engine Item models (id -> model), validated at load.
-
-        The engine loader enforces flat files, required ``type``, unique ids, and now
-        field shapes (weapon ``damage``, consumable ``combat_effects``, …). GameWorld
-        stores the typed templates; ``get_item`` dumps them back to dicts for consumers.
-        """
-        from engine.content.loader import load_items
-        items: Dict[str, Any] = {str(iid): it for iid, it in load_items("data").items()}
-        logger.info(f"Total items loaded: {len(items)}")
-        return items
-
 
     # Event handlers
     def _on_command_entered(self, event):
