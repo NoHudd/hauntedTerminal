@@ -67,8 +67,14 @@ def test_take_unknown_lists_room_items(session: GameSession) -> None:
 
 
 def test_cat_typo_gets_did_you_mean(session: GameSession) -> None:
-    out = _text(session.submit("cat readme_txt_corupt"))
-    assert "Did you mean" in out and "readme_txt_corrupt" in out
+    out = _text(session.submit("cat segfault_sheld"))
+    assert "Did you mean" in out and "segfault_shield" in out
+
+
+def test_a_typo_never_reveals_a_hidden_file(session: GameSession) -> None:
+    out = _text(session.submit("cat bash_profil"))
+    assert "Cannot find" in out
+    assert "bash_profile" not in out
 
 
 def test_examine_typo_gets_did_you_mean(session: GameSession) -> None:

@@ -331,6 +331,8 @@ class LsCommand(Command):
             item_color = RaritySystem.get_rarity_color(rarity)
             if item_color in ("white", "bright_white", "default"):
                 item_color = "green"
+            if item and item.story_flag:
+                item_color = "red"  # story files all read like .bash_profile
             if long_format:
                 output.append("  -rw-r--r--  ", style="dim")
             else:

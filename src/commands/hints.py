@@ -51,6 +51,15 @@ def show_not_found(
         ctx.output.write(hint)
 
 
+def visible_room_items(ctx: "CommandHandler", room_id: str) -> list[str]:
+    """Room items a suggestion may name: hidden files only show up via `ls -a`,
+    so a typo must not reveal them either."""
+    return [
+        item_id for item_id in ctx.world.get_items_in_room(room_id) or []
+        if not getattr(ctx.world.get_item(item_id), "hidden", False)
+    ]
+
+
 def inventory_names(player) -> list[str]:
     """Canonical inventory ids: instance suffixes like ``_2`` stripped, deduped."""
     names: list[str] = []

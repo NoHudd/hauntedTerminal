@@ -69,6 +69,10 @@ class Player:
         self.story_flags = {
             "identity_retrieved": False,
             "typo_discovered": False,
+            "manual_recovered": False,
+            "bovine_prophecy": False,
+            "moo_heard": False,
+            "corruption_witnessed": False,
             "sudo_trial_complete": False,
             "mirror_confronted": False,
             "ending_chosen": None,

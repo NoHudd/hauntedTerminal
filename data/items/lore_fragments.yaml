@@ -1,4 +1,5 @@
-# Story Beat Items - These trigger narrative progression when read
+# Story files: every one is hidden (ls -a) and restores a memory when read with cat
+# (journal entry + autosave).
 bash_profile:
   name: ".bash_profile"
   short_description: "Your configuration file - may restore memories"
@@ -41,6 +42,7 @@ system_err_log:
   tags: ["lore", "story_beat", "typo"]
   allowed_zones: ["var"]  # Found in /var/log (The Memory Banks)
   persistence: "persistent"
+  hidden: true  # Requires ls -a to see
   usable: false
   readable: true
   takeable: false  # Read in place — story beat triggers on cat
@@ -67,9 +69,11 @@ ancient_manual_man:
   tags: ["lore", "tutorial", "hidden_files"]
   allowed_zones: ["bin", "usr"]  # Found in /bin (The Armory)
   persistence: "persistent"
+  hidden: true  # Requires ls -a to see
   usable: false
   readable: true
-  takeable: false  # Read in place — keeps inventory uncluttered
+  takeable: false  # Read in place — story beat triggers on cat
+  story_flag: "manual_recovered"
   content: |
     ANCIENT MANUAL - Commands of the Creators
 
@@ -98,9 +102,11 @@ cow_wisdom_log:
   tags: ["lore", "easter_egg_hint", "bovine"]
   allowed_zones: ["usr"]  # Found in /usr/games (The Game Gallery)
   persistence: "persistent"
+  hidden: true  # Requires ls -a to see
   usable: false
   readable: true
-  takeable: false  # Read in place — keeps inventory uncluttered
+  takeable: false  # Read in place — story beat triggers on cat
+  story_flag: "bovine_prophecy"
   content: |
     [LOG ENTRY 4815162342]
 
@@ -128,7 +134,8 @@ moo_file:
   hidden: true  # Requires ls -a to see
   usable: false
   readable: true
-  takeable: false  # Read in place — keeps inventory uncluttered
+  takeable: false  # Read in place — story beat triggers on cat
+  story_flag: "moo_heard"
   triggers_npc_spawn: "great_ascii_bovine"
   content: |
     _______________________________________
@@ -156,9 +163,11 @@ readme_txt_corrupt:
   tags: ["lore", "corruption", "horror"]
   allowed_zones: ["home", "var", "deprecated_dir"]
   persistence: "persistent"
+  hidden: true  # Requires ls -a to see
   usable: false
   readable: true
-  takeable: false  # Read in place — keeps inventory uncluttered
+  takeable: false  # Read in place — story beat triggers on cat
+  story_flag: "corruption_witnessed"
   content: |
     The disk is clicking.
     Can you hear it?

@@ -54,13 +54,13 @@ def test_cat_story_beat_fires_the_checkpoint_hint(session: GameSession) -> None:
     assert "step_cat" in _fired(session)
 
 
-def test_plain_lore_read_is_not_a_checkpoint(session: GameSession) -> None:
-    """readme_txt_corrupt has no story_flag: reading it must not count as the
-    checkpoint step."""
+def test_any_story_file_is_a_checkpoint(session: GameSession) -> None:
+    """Every lore file restores a memory now, so reading the README instead
+    of .bash_profile also completes the checkpoint step."""
     session.submit("ls -a")
     session.ui.hints.clear()
     session.submit("cat readme_txt_corrupt")
-    assert session.player.tutorial_state.get("lore_read", False) is False
+    assert session.player.tutorial_state.get("lore_read", False) is True
 
 
 def test_ps_does_not_advance_before_the_checkpoint(session: GameSession) -> None:

@@ -28,8 +28,9 @@ def _out(session: GameSession, cmd: str) -> str:
 def test_plain_ls_omits_hidden_items(session: GameSession) -> None:
     out = _out(session, "ls")
     assert "bash_profile" not in out
-    # Visible files in the same room still list.
-    assert "readme_txt_corrupt" in out
+    assert "readme_txt_corrupt" not in out  # every story file is hidden
+    # Visible items in the same room still list.
+    assert "segfault_shield" in out
 
 
 def test_ls_a_reveals_hidden_items(session: GameSession) -> None:

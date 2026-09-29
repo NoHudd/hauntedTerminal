@@ -12,7 +12,7 @@ from src import rng
 from typing import TYPE_CHECKING
 
 from src.commands.base import Command
-from src.commands.hints import inventory_names, show_not_found
+from src.commands.hints import inventory_names, show_not_found, visible_room_items
 from src.item_effects import class_restriction_text
 from utils.debug_tools import debug_log
 
@@ -49,7 +49,7 @@ class TakeCommand(Command):
                 ctx,
                 f"[bold red]Cannot find {item_id} in this directory.[/bold red]",
                 item_id,
-                ctx.world.get_items_in_room(current_room),
+                visible_room_items(ctx, current_room),
                 label="Items here",
             )
             return
@@ -65,7 +65,7 @@ class TakeCommand(Command):
                 ctx,
                 f"[bold red]Cannot find {item_id} in this directory.[/bold red]",
                 item_id,
-                ctx.world.get_items_in_room(current_room),
+                visible_room_items(ctx, current_room),
                 label="Items here",
             )
             return
@@ -170,7 +170,7 @@ class CatCommand(Command):
                 f"[bold red]Cannot find {filename} in this directory or your "
                 "inventory.[/bold red]",
                 filename,
-                [*ctx.world.get_items_in_room(ctx.player.current_room),
+                [*visible_room_items(ctx, ctx.player.current_room),
                  *inventory_names(ctx.player)],
                 label="Files here",
             )
@@ -256,7 +256,7 @@ class ExamineCommand(Command):
                     f"[bold red]Cannot find {item_id} in this directory or your "
                     "inventory.[/bold red]",
                     item_id,
-                    [*items_in_room, *inventory_names(ctx.player)],
+                    [*visible_room_items(ctx, current_room), *inventory_names(ctx.player)],
                     label="Here",
                 )
                 return

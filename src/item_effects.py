@@ -6,6 +6,10 @@ from utils.debug_tools import debug_log
 STORY_FLAG_TITLES = {
     "identity_retrieved":   "Identity Retrieved",
     "typo_discovered":      "The Creator's Typo",
+    "manual_recovered":     "The Ancient Manual",
+    "bovine_prophecy":      "The Bovine Prophecy",
+    "moo_heard":            "The Sacred Moo",
+    "corruption_witnessed": "The Clicking Disk",
     "sudo_trial_complete":  "Sudo Trial Complete",
     "mirror_confronted":    "Mirror Confronted",
     "sudo_quest_active":    "Sudo Quest Active",
@@ -17,6 +21,10 @@ STORY_FLAG_TITLES = {
 STORY_FLAG_DESCRIPTIONS = {
     "identity_retrieved":  "You read your own .bash_profile and remembered who you were.",
     "typo_discovered":     "The system_err.log revealed: the apocalypse was caused by a typo.",
+    "manual_recovered":    "An old man page taught you the Creators' commands, and that ls -a sees the hidden.",
+    "bovine_prophecy":     "A dusty log foretold a Great One in the games no one plays.",
+    "moo_heard":           "You read .moo and summoned the Great ASCII Bovine.",
+    "corruption_witnessed": "A corrupted README showed you what the corruption does to files.",
     "sudo_trial_complete": "You proved worthy of sudo privileges.",
     "mirror_confronted":   "You faced your reflection in the Mirror Sector.",
     "sudo_quest_active":   "The sudo quest is in progress.",

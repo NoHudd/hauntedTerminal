@@ -29,7 +29,7 @@ def test_ordinary_cat_does_not_relist():
     s = GameSession()
     try:
         s.new_game("T", "guardian")
-        # readme_txt_corrupt lives in home_grove and has no story_flag
+        # readme_txt_corrupt lives in home_grove
         joined = "".join(str(x) for x in s.submit("cat readme_txt_corrupt"))
         assert "Where you can go" not in joined, "cat must not append the room listing"
     finally:
