@@ -30,8 +30,7 @@ def test_headless_ui_satisfies_protocol() -> None:
     assert UIProtocol is not None  # imported contract we check against
     for name in (
         "run", "shutdown", "update_output", "append_output", "display_message",
-        "update_output_renderable", "update_inventory", "update_stats",
-        "update_exits", "update_player_name", "clear_console", "display_game_over",
+        "update_output_renderable", "clear_console",
     ):
         assert callable(getattr(ui, name, None)), f"HeadlessUI missing {name}"
 

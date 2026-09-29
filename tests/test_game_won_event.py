@@ -1,6 +1,6 @@
 """GAME_WON: emitted with sections + stats; headless UI logs the text."""
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
 
 
 def test_win_game_emits_sections_and_stats():

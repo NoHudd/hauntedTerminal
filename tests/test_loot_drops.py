@@ -1,7 +1,7 @@
-"""Enemy loot-drop pipeline: ENEMY_DEFEATED -> award into the room.
+"""Enemy loot-drop pipeline: CommandHandler.on_kill -> award into the room.
 
 Uses GameSession to build a real world/handler, injects a synthetic enemy with
-deterministic (chance 100) drops, emits the defeat event, and asserts the loot
+deterministic (chance 100) drops, reports the kill, and asserts the loot
 landed in the current room. Reaches into src.game_world internals deliberately —
 this exercises the src-side award wiring the engine layer does not cover.
 """
@@ -14,7 +14,6 @@ import pytest
 import src.rng as rng
 from engine.api import GameSession
 from engine.schema import Enemy
-from src.events import EventType
 
 
 @pytest.fixture
@@ -40,7 +39,7 @@ def test_existing_drops_are_awarded_into_the_room(session: GameSession) -> None:
     )
     h.world.enemy_locations["test_dropper"] = room
 
-    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper"}, "test")
+    h.on_kill("test_dropper")
 
     assert drop_item in h.world.get_items_in_room(room)
 
@@ -54,8 +53,8 @@ def test_drops_are_awarded_only_once(session: GameSession) -> None:
     )
     h.world.enemy_locations["test_dropper2"] = room
 
-    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
-    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
+    h.on_kill("test_dropper2")
+    h.on_kill("test_dropper2")
 
     assert "test_dropper2" in h.loot.awarded
 
@@ -70,7 +69,7 @@ def test_loot_table_drops_class_appropriate_gear(session: GameSession) -> None:
     h.world.enemy_locations["test_boss"] = room
     rng.seed(1)
 
-    session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_boss"}, "test")
+    h.on_kill("test_boss")
 
     room_items = set(h.world.get_items_in_room(room))
     epics = {iid for iid, d in h.world.items.items() if str(d.rarity).lower() == "epic"}

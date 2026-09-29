@@ -77,8 +77,9 @@ def test_command_output_keeps_every_word(session: GameSession) -> None:
 def test_command_words_are_not_names() -> None:
     s = GameSession()
     try:
-        s.engine.state_manager.set_state(GameState.TUTORIAL_NAME_INPUT, emit_event=False)
-        s.engine.selected_class = "guardian"
+        for choice in ("1", "2", "1"):  # New Game, medium, guardian
+            s.submit(choice)
+        assert s.state == GameState.TUTORIAL_NAME_INPUT
         for name in ["quit", "ls", "Help", " yes "]:
             s.engine._handle_tutorial_name_input(name)
             assert s.engine.player is None, f"{name!r} was accepted as a name"

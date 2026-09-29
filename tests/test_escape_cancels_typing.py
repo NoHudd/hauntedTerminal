@@ -6,7 +6,7 @@ import asyncio
 
 from textual.widgets import Input
 
-from src.events import EventType
+from engine.events import EventType
 from src.ui.textual_ui import TextualGameUI
 
 

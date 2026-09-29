@@ -1,7 +1,5 @@
 """What using, reading or equipping an item does to the player and world."""
 from src import rng
-from src.events import EventType
-from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
 # Human-readable descriptions for story flags shown in journal/autosave feedback.
@@ -197,9 +195,6 @@ class ItemEffects:
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
                 self.output.write(f"[magenta]You gained the '{effect_name}' effect for {effect_duration} turns![/magenta]")
 
-        # Emit stats update so UI reflects the new HP/mana
-        stats_view = ViewBuilder.build_stats_view(self.player)
-        self.bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
 
     def use_upgrade(self, item_id, item):
         """Handle using an upgrade item"""

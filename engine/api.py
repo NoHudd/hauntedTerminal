@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_engine import ImprovedGameEngine
 from src.game_states import GameState
 
@@ -45,7 +45,7 @@ class GameSession:
         self.ui.clear_console()
         self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": command, "game_state": self.state},
+            {"command": command},
             "GameSession",
         )
         return self.ui.drain()

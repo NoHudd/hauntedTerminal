@@ -1,6 +1,9 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "rejects_transition: the test provokes a rejected state transition on purpose",
+]
 
 [tool.ruff]
 line-length = 100
@@ -19,7 +22,6 @@ python_version = "3.11"
 files = [
     "engine",
     "src/difficulty.py",
-    "src/events.py",
     "src/game_output.py",
     "src/game_states.py",
     "src/rarity.py",
@@ -31,7 +33,6 @@ files = [
     "src/ui/panels/echo_panel.py",
     "src/ui/panels/inventory_panel.py",
     "src/ui/panels/stats_panel.py",
-    "src/viewmodels/view_models.py",
 ]
 strict = true
 plugins = ["pydantic.mypy"]
@@ -41,6 +42,12 @@ explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = "yaml"
+ignore_missing_imports = true
+
+# Optional local dev flags, gitignored (copied from settings.example.py);
+# config/dev_config.py falls back to defaults when it is absent.
+[[tool.mypy.overrides]]
+module = "config.settings"
 ignore_missing_imports = true
 
 # Legacy game code is untyped and out of scope for strict checking. Treat it as
@@ -55,7 +62,6 @@ follow_imports = "skip"
 [[tool.mypy.overrides]]
 module = [
     "src.difficulty",
-    "src.events",
     "src.game_output",
     "src.game_states",
     "src.rarity",
@@ -67,7 +73,6 @@ module = [
     "src.ui.panels.echo_panel",
     "src.ui.panels.inventory_panel",
     "src.ui.panels.stats_panel",
-    "src.viewmodels.view_models",
 ]
 follow_imports = "normal"
 

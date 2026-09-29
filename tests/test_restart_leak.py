@@ -2,23 +2,21 @@
 
 The event bus is a process-wide singleton, so a CommandHandler that is dropped
 without unsubscribing keeps reacting to events with its dead player and world.
-The symptom is doubled work: ROOM_ENTERED fires check_for_enemies twice (every
-enemy fought twice) and ENEMY_DEFEATED fires twice (loot rolled twice).
+The symptom is doubled work: a dead run's tutorial reacting to the next run's
+fights alongside the live one.
 """
 from __future__ import annotations
 
 import pytest
 
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
 
 # Events a CommandHandler subscribes to. Exactly one handler may be listening on
 # each of these at a time, however many times the game has been restarted.
 HANDLER_EVENTS = [
-    EventType.ROOM_ENTERED,
-    EventType.ENEMY_DEFEATED,
-    EventType.ALL_ENEMIES_DEFEATED,
-    EventType.ROOM_CHANGED,
+    EventType.COMBAT_ENDED,
+    EventType.COMBAT_ACTION_RESULT,
 ]
 
 

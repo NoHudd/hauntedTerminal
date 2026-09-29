@@ -1,7 +1,7 @@
 """End-of-run flow: game over, victory, and the quit confirmation."""
 import threading
 
-from src.events import EventType
+from engine.events import EventType
 from utils.debug_tools import debug_log
 from utils.particle_animation import GameOverAnimation
 
@@ -84,12 +84,17 @@ Not because you fixed them. Because you forgave them.
 class GameFlow:
     """Owns the modal end-of-run states and the input they capture."""
 
-    def __init__(self, player, world, output, bus, save):
+    def __init__(self, player, world, output, bus, save,
+                 start_new_game=None, restore_save=None):
+        """start_new_game() / restore_save() are the engine's, called directly
+        for the "n" / "r" choices on the game-over and post-win screen."""
         self.player = player
         self.world = world
         self.output = output
         self.bus = bus
         self._save = save
+        self._start_new_game = start_new_game
+        self._restore_save = restore_save
         self.in_game_over_mode = False  # Track if we're in game over screen mode
         self.game_won = False  # Set once the Daemon Overlord is beaten in /core
         self.in_quit_confirmation = False  # Track if we're confirming quit
@@ -128,13 +133,10 @@ class GameFlow:
         result = self._handle_game_over_choice(command.strip())
         if result == "quit":
             self.bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")
-        elif result == "restart_from_save" or result == "start_new_game":
-            # Signal the game engine to restart
-            self.bus.emit_event(
-                EventType.GAME_OVER,
-                {"action": result},
-                "CommandHandler"
-            )
+        elif result == "start_new_game" and self._start_new_game is not None:
+            self._start_new_game()
+        elif result == "restart_from_save" and self._restore_save is not None:
+            self._restore_save()
 
     def _handle_game_over_choice(self, choice):
         """Handle player choice from game over screen."""

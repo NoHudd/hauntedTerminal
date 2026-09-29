@@ -10,7 +10,7 @@ from typing import List
 import logging
 
 from src.room_paths import ROOM_ID_TO_PATH
-from src.viewmodels.view_models import (
+from engine.view_models import (
     StatsView,
     InventoryItemView,
     InventoryView,
@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 class ViewBuilder:
     """Static methods to build view models from backend objects."""
+
+    #: When False (the game), a failed build is logged and a placeholder view
+    #: is returned so a panel degrades instead of crashing. The test suite
+    #: sets it True (tests/conftest.py) so the failure is seen.
+    raise_errors: bool = False
 
     @staticmethod
     def build_stats_view(player) -> StatsView:
@@ -55,6 +60,8 @@ class ViewBuilder:
                 defense_pct=round(getattr(player, 'armor_mitigation', 0.0) * 100),
             )
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building stats view: {e}", exc_info=True)
             # Return safe default
             return StatsView(
@@ -95,6 +102,8 @@ class ViewBuilder:
 
             return InventoryView(items=items)
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building inventory view: {e}", exc_info=True)
             return InventoryView(items=[])
 
@@ -156,6 +165,8 @@ class ViewBuilder:
                 npc_ids=npc_ids,
             )
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building room view for {room_id}: {e}", exc_info=True)
             return RoomView(
                 name=room_id,
@@ -209,6 +220,8 @@ class ViewBuilder:
                 usable_items=usable_items
             )
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building combat view: {e}", exc_info=True)
             # Return minimal combat view
             return CombatView(
@@ -268,5 +281,7 @@ class ViewBuilder:
                 attack_views.append(attack_view)
             return attack_views
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building attack list: {e}", exc_info=True)
             return []

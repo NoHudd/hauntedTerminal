@@ -6,11 +6,12 @@ Provides a decoupled way for game engine and UI to communicate
 without direct dependencies.
 """
 
-from typing import Dict, List, Callable, Any
-from dataclasses import dataclass
-from enum import Enum, auto
 import logging
 import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,11 @@ class EventType(Enum):
     # Data: basic game start info
 
     GAME_OVER = auto()
-    # Emitted by: game_engine.py, game_flow.py
-    # Subscribed by: game_engine.py, textual_ui.py
-    # Data: {"message": str, "action": str (optional)}
+    # Emitted by: game_engine.py (death in combat, F5 restart)
+    # Subscribed by: textual_ui.py
+    # Data: {"reason": "defeat" | "restart", "message": str (optional)}
+    # The UI shows the GAME OVER card only for reason == "defeat". Nothing in the
+    # game listens to it: the game-over screen's choices call the engine directly.
 
     TUTORIAL_HINT = auto()
     # Emitted by: tutorial_coach.py (show_hint)
@@ -45,11 +48,6 @@ class EventType(Enum):
     # Emitted by: game_flow.py (win_game)
     # Subscribed by: textual_ui.py (finale), engine/headless/ui.py (text passthrough)
     # Data: {"ending_id": str, "sections": list[str], "stats": dict}
-
-    GAME_SAVED = auto()
-    # Emitted by: save.py, textual_ui.py
-    # Subscribed by: game_engine.py
-    # Data: {"trigger": str, "filename": str (optional)}
 
     GAME_RESTART_REQUESTED = auto()
     # Emitted by: textual_ui.py
@@ -83,12 +81,12 @@ class EventType(Enum):
     # Data: StatsView dict
 
     PLAYER_STATS_CHANGED = auto()
-    # Emitted by: game_engine.py, item_effects.py, commands/items.py
+    # Emitted by: game_engine.py (once after every command), combat.py (each turn)
     # Subscribed by: textual_ui.py
     # Data: StatsView dict
 
     PLAYER_INVENTORY_CHANGED = auto()
-    # Emitted by: game_engine.py, command_handler.py
+    # Emitted by: game_engine.py (once after every command)
     # Subscribed by: textual_ui.py
     # Data: InventoryView dict
 
@@ -99,12 +97,7 @@ class EventType(Enum):
     COMMAND_ENTERED = auto()
     # Emitted by: textual_ui.py
     # Subscribed by: game_engine.py
-    # Data: {"command": str, "game_state": GameState}
-
-    UI_ERROR = auto()
-    # Emitted by: textual_ui.py
-    # Subscribed by: game_engine.py
-    # Data: {"error": str}
+    # Data: {"command": str}. The engine routes on its own state, not the sender's.
 
     UI_READY = auto()
     # Emitted by: textual_ui.py
@@ -121,30 +114,16 @@ class EventType(Enum):
     # ========================================
 
     ROOM_ENTERED = auto()
-    # Emitted by: game_engine.py, command_handler.py
-    # Subscribed by: command_handler.py, textual_ui.py
+    # Emitted by: CommandHandler.announce_room (cd, flee, new game, load, ls -a
+    #             reveal, post-victory redraw)
+    # Subscribed by: textual_ui.py. A notification only: arrival rules run from
+    #             CommandHandler.arrive(), called directly.
     # Data: {"room": RoomView dict, "player_name": str}
 
-    ROOM_CHANGED = auto()
-    # Emitted by: command_handler.py
-    # Subscribed by: command_handler.py
-    # Data: {"player_name": str, "from_room": str, "to_room": str}
-
-    DELAYED_ROOM_REFRESH = auto()
-    # Emitted by: commands/items.py (cat, after a story-beat read) so the "✦ Memory
-    # restored / ✓ saved" message stays on screen before the room re-lists.
-    # Subscribed by: textual_ui.py (schedules an `ls` via set_timer). Headless ignores it.
-    # Data: {"room_id": str}
-
     ENEMY_DEFEATED = auto()
-    # Emitted by: combat.py
-    # Subscribed by: command_handler.py
-    # Data: {"enemy_id": str, "room": str, "player_name": str}
-
-    ALL_ENEMIES_DEFEATED = auto()
-    # Emitted by: game_world.py
-    # Subscribed by: command_handler.py
-    # Data: {"room": str}
+    # Emitted by: combat.py, before it calls CommandHandler.on_kill directly
+    # Subscribed by: textual_ui.py (observer; loot and removal run from on_kill)
+    # Data: {"enemy_id": str, "player_name": str}
 
     # ========================================
     # Combat Events
@@ -152,7 +131,8 @@ class EventType(Enum):
 
     COMBAT_STARTED = auto()
     # Emitted by: combat.py
-    # Subscribed by: game_engine.py, textual_ui.py
+    # Subscribed by: textual_ui.py. The engine enters combat via the session's
+    #             on_start callback, not this event.
     # Data: CombatView dict (includes enemy info, player health, available attacks)
 
     COMBAT_ACTION_SELECTED = auto()
@@ -171,23 +151,30 @@ class EventType(Enum):
     # Data: CombatView dict — updated health values and cooldowns for current frame
 
     COMBAT_ENDED = auto()
-    # Emitted by: combat.py
-    # Subscribed by: command_handler.py, tutorial_coach.py, game_engine.py, textual_ui.py
-    # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str, "enemies_defeated": int}
+    # Emitted by: combat.py, before it calls CommandHandler.end_combat directly
+    # Subscribed by: textual_ui.py, tutorial_coach.py (observers only; the game's
+    #             reaction runs from end_combat in a fixed order)
+    # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str,
+    #        "enemies_defeated": int}
 
 @dataclass
 class Event:
     """Represents an event with data."""
     type: EventType
-    data: Dict[str, Any]
+    data: dict[str, Any]
     source: str = "unknown"
 
 class EventBus:
     """Central event bus for decoupled communication."""
-    
-    def __init__(self) -> None:
-        self._listeners: Dict[EventType, List[Callable[[Event], None]]] = {}
-        self._event_history: List[Event] = []
+
+    #: Default for new buses. The test suite turns this on (tests/conftest.py)
+    #: so a listener that raises fails the test instead of only being logged.
+    strict_by_default: bool = False
+
+    def __init__(self, strict: bool | None = None) -> None:
+        self.strict = self.strict_by_default if strict is None else strict
+        self._listeners: dict[EventType, list[Callable[[Event], None]]] = {}
+        self._event_history: list[Event] = []
         self._max_history = 100
     
     def subscribe(self, event_type: EventType, callback: Callable[[Event], None]) -> None:
@@ -209,7 +196,10 @@ class EventBus:
     def emit(self, event: Event) -> None:
         """Emit an event to all subscribers."""
         start_time = time.time()
-        logger.debug(f"Emitting event: {event.type} from {event.source} to {len(self._listeners.get(event.type, []))} listeners")
+        listener_count = len(self._listeners.get(event.type, []))
+        logger.debug(
+            f"Emitting event: {event.type} from {event.source} to {listener_count} listeners"
+        )
         
         # Add to history
         self._event_history.append(event)
@@ -237,6 +227,8 @@ class EventBus:
                     logger.warning(f"Slow callback for {event.type}: {callback_time:.3f}s")
                     
             except Exception as e:
+                if self.strict:
+                    raise
                 callback_errors += 1
                 logger.error(f"Error in event callback for {event.type}: {e}")
         
@@ -248,13 +240,15 @@ class EventBus:
         if callback_errors:
             logger.warning(f"{event.type}: {callback_errors} callback error(s)")
     
-    def emit_event(self, event_type: EventType, data: Dict[str, Any] | None = None, source: str = "unknown") -> None:
+    def emit_event(
+        self, event_type: EventType, data: dict[str, Any] | None = None, source: str = "unknown",
+    ) -> None:
         """Convenience method to emit an event."""
         event = Event(type=event_type, data=data or {}, source=source)
         logger.debug(f"Emitting event: {event_type} from {source} with data: {data}")
         self.emit(event)
     
-    def get_event_history(self) -> List[Event]:
+    def get_event_history(self) -> list[Event]:
         """Get the event history."""
         return self._event_history.copy()
     

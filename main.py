@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 import os
 import shutil
-from src.game_engine import main
-from src.ui.textual_ui import TextualGameUI  # composition root: the frontend is chosen HERE
+
+# Content, saves, logs and user settings are all addressed relative to the
+# repo, and some are opened at import time, so this runs before any game import.
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+from src.game_engine import main  # noqa: E402
+from src.ui.textual_ui import TextualGameUI  # noqa: E402  composition root: the frontend is chosen HERE
 
 if __name__ == "__main__":
     # Create necessary directories if they don't exist

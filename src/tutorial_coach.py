@@ -1,6 +1,6 @@
 """The guided tutorial: which step the player is on and the hint for it."""
 from src import room_paths
-from src.events import EventType
+from engine.events import EventType
 from utils.debug_tools import debug_log
 
 # Hint id -> the numbered step it belongs to, for the "step N of TOTAL" label.

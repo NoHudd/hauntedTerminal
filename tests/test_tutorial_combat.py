@@ -1,7 +1,7 @@
 """Tutorial combat gating: combat_action_taken fires for BOTH typed and
 hotkey-simulated attacks, since both paths emit the same COMBAT_ACTION_RESULT
 event that CommandHandler now listens for."""
-from src.events import EventType
+from engine.events import EventType
 
 
 def _start_tutorial_fight(s):

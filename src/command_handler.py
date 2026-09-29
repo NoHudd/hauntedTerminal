@@ -4,7 +4,7 @@ import logging
 from rich.text import Text
 from src.combat import CombatSession
 from src.commands import build_registry
-from src.events import EventType
+from engine.events import EventType
 from src.game_flow import GameFlow
 from src.game_world import TUTORIAL_ENEMY
 from src.item_effects import ItemEffects
@@ -19,12 +19,18 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     """Handles processing of player commands"""
     
-    def __init__(self, player, world, output, bus):
+    def __init__(self, player, world, output, bus, on_combat_start=None, on_combat_end=None,
+                 on_new_game=None, on_restore_save=None):
         """Initialize with player, world, a GameOutput sink and the engine's EventBus.
 
         Phase 2b: the handler no longer holds a UI reference — it writes to
         ``self.output`` (a src.game_output.GameOutput). The engine drains it and
         forwards to the real UI.
+
+        on_combat_start() / on_combat_end(outcome) let the engine update the
+        game state as a fight begins and ends, in a fixed place in the sequence.
+        on_new_game() / on_restore_save() are the engine's, for the game-over
+        screen's "n" and "r" choices.
         """
         debug_log("Initializing CommandHandler")
         self.player = player
@@ -32,7 +38,8 @@ class CommandHandler:
         self.output = output
         self.bus = bus
         self.current_combat_session = None
-        self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
+        self._on_combat_start = on_combat_start
+        self._on_combat_end = on_combat_end
 
         # Navigation aliases (path/name -> room id) are built from each room's
         # own `path`/`aliases` YAML fields, so there is one source of truth per
@@ -49,6 +56,8 @@ class CommandHandler:
         self.flow = GameFlow(
             player, world, output, bus,
             save=lambda: self.command_registry["save"].execute(self, []),
+            start_new_game=on_new_game,
+            restore_save=on_restore_save,
         )
         self.effects = ItemEffects(
             player, world, output, bus, self.room_aliases,
@@ -56,16 +65,10 @@ class CommandHandler:
         )
         self.loot = LootService(world, player, output, relist_room=self.relist_room)
 
-        # Subscribe to enemy defeated event to remove enemies from room
-        self.bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
-
         debug_log(f"Registered {len(self.command_registry)} commands")
 
     def _subscriptions(self):
         return [
-            (EventType.ROOM_ENTERED, self._on_room_entered),
-            (EventType.ALL_ENEMIES_DEFEATED, self._on_all_enemies_defeated),
-            (EventType.ROOM_CHANGED, self._on_room_changed_for_npc),
             (EventType.COMBAT_ENDED, self.tutorial.on_combat_ended),
             (EventType.COMBAT_ACTION_RESULT, self.tutorial.on_combat_action_result),
         ]
@@ -79,10 +82,8 @@ class CommandHandler:
     def cleanup_event_subscriptions(self):
         """Clean up ALL event subscriptions for the command handler.
 
-        Must mirror every subscribe — including ENEMY_DEFEATED (subscribed in
-        __init__, not via _subscriptions). A missed unsubscribe leaves a stale
-        handler alive: ROOM_ENTERED then fires check_for_enemies twice (fight each
-        enemy twice) and ENEMY_DEFEATED fires twice (double loot).
+        Must mirror every subscribe in _subscriptions(); a missed unsubscribe
+        leaves a dead run's tutorial reacting to the next run's fights.
 
         Also aborts any still-active combat session. A CombatSession only
         unsubscribes its own COMBAT_ACTION_SELECTED listener when it reaches a
@@ -92,103 +93,58 @@ class CommandHandler:
         """
         for event_type, callback in self._subscriptions():
             self.bus.unsubscribe(event_type, callback)
-        self.bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         if self.current_combat_session is not None:
             self.current_combat_session.abort()
             self.current_combat_session = None
         debug_log("CommandHandler event subscriptions cleaned up")
     
-    def _on_room_entered(self, event):
-        """Handle room entered event to respawn fled enemies."""
-        # Get room_id from player's current room (event contains RoomView dict, not room_id)
+    def announce_room(self):
+        """Tell the UI which room the player is in (scene, exits, theme).
+
+        A notification only: nothing in the game reacts to ROOM_ENTERED, so a
+        UI refresh (e.g. `ls -a` revealing a directory) can't start a fight.
+        """
+        room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
+        self.bus.emit_event(
+            EventType.ROOM_ENTERED,
+            {"room": room_view.to_dict(), "player_name": self.player.name},
+            "CommandHandler",
+        )
+
+    def arrive(self):
+        """The player has just entered their current room.
+
+        Shows it to the UI, then applies the arrival rules: enemies they fled
+        from here come back, and any hostile here starts a fight. Callers invoke
+        this directly after moving the player (cd, flee, new game, load); it
+        used to hang off the ROOM_ENTERED event, and a load path that forgot to
+        subscribe silently turned encounters off.
+        """
+        self.announce_room()
         room_id = self.player.current_room
         if room_id:
-            debug_log(f"Player entered room {room_id}, checking for fled enemies to respawn")
             self.world.respawn_fled_enemies(room_id)
-            # Check for enemies after respawning fled ones
             self.check_for_enemies()
     
-    def _on_all_enemies_defeated(self, event):
-        """Handle all enemies defeated event to trigger NPC guidance."""
-        debug_log(f"_on_all_enemies_defeated event received: {event.data}")
-        room_id = event.data.get("room")
-        if room_id:
-            debug_log(f"All enemies defeated in {room_id}, checking for NPCs to provide guidance")
-            self._trigger_automatic_npc_dialogue(room_id, "post_combat")
-    
-    def _on_room_changed_for_npc(self, event):
-        """Handle room change event to trigger initial NPC guidance."""
-        debug_log(f"_on_room_changed_for_npc event received: {event.data}")
-        to_room = event.data.get("to_room")
-        if to_room:
-            debug_log(f"Player moved to {to_room}, checking for NPCs to provide guidance")
-            # Check cooldown to avoid spam (allow one greeting per room per session)
-            cooldown_key = f"first_visit_{to_room}"
-            if cooldown_key not in self.npc_dialogue_cooldown:
-                self.npc_dialogue_cooldown[cooldown_key] = True
-                self._trigger_automatic_npc_dialogue(to_room, "first_visit")
-            else:
-                debug_log(f"NPC greeting cooldown active for {to_room}, skipping")
-    
-    def _trigger_automatic_npc_dialogue(self, room_id, context):
-        """Automatically trigger NPC dialogue for guidance."""
-        debug_log(f"_trigger_automatic_npc_dialogue called: room={room_id}, context={context}")
+    def _npc_speaks_after_combat(self, room_id):
+        """The room was just cleared: the first NPC here, if any, offers its
+        closing line."""
         npcs_in_room = self.world.get_npcs_in_room(room_id)
-        debug_log(f"NPCs found in {room_id}: {npcs_in_room}")
         if not npcs_in_room:
-            debug_log(f"No NPCs in {room_id}, skipping automatic dialogue")
             return
-        
-        debug_log(f"Found {len(npcs_in_room)} NPCs in {room_id} for {context} dialogue")
-        
-        # Get the first NPC (could be enhanced to pick most relevant)
         npc_id = npcs_in_room[0]
         npc_data = self.world.get_npc(npc_id)
-        
-        if not npc_data:
+        if not npc_data or not npc_data.dialogues:
             return
-        
-        # Select appropriate dialogue based on context
-        dialogues = npc_data.dialogues
-        if not dialogues:
-            return
-        
-        # Choose dialogue based on context
-        if context == "post_combat":
-            # Use encouraging/guiding dialogue after combat
-            dialogue_index = len(dialogues) - 1 if len(dialogues) > 1 else 0
-        else:  # first_visit
-            # Use welcoming/introductory dialogue
-            dialogue_index = 0
-        
-        selected_dialogue = dialogues[dialogue_index]
+
         npc_name = npc_data.name
-        
-        # Format and display the automatic dialogue (markup string so styles render)
-        output = (
+        self.output.write(
             f"\n[bold cyan]🗨  {npc_name} speaks:[/bold cyan]\n"
-            f"[italic cyan]\"{selected_dialogue}\"[/italic cyan]\n"
+            f"[italic cyan]\"{npc_data.dialogues[-1]}\"[/italic cyan]\n"
+            f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
         )
-        if context == "post_combat":
-            output += f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
-        else:
-            output += f"\n[dim]Use 'talk {npc_id}' to converse further with the {npc_name}.[/dim]"
+        debug_log(f"Post-combat dialogue from {npc_id} in {room_id}")
 
-        self.output.write(output)
-        debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
-
-    def create_health_bar(self, current_health, max_health, color="white"):
-        """Create an ASCII health bar with the specified color."""
-        if max_health <= 0:
-            return f"[{color}]░░░░░░░░░░░░░░░░░░░░[/{color}] (0%)"
-        
-        percentage = (current_health / max_health) * 100
-        filled_blocks = int((current_health / max_health) * 20)  # 20 character bar
-        empty_blocks = 20 - filled_blocks
-        
-        health_bar = "█" * filled_blocks + "░" * empty_blocks
-        return f"[{color}]{health_bar}[/{color}] ({percentage:.0f}%)"
-        
     def handle_command(self, command):
         """Process a command from the player"""
         cmd_parts = command.split()
@@ -372,28 +328,33 @@ class CommandHandler:
         """
         debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
 
-        # Create combat session with enemy queue
-        self.current_combat_session = CombatSession(self.player, enemies_queue, self.output, self.bus)
+        self.current_combat_session = CombatSession(
+            self.player, enemies_queue, self.output, self.bus,
+            on_start=self._on_combat_start, on_end=self.end_combat,
+            on_kill=self.on_kill,
+        )
         self.current_combat_session.start()
 
-        # Subscribe to combat ended event (no more COMBAT_VICTORY_CHECK)
-        self.bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+    def end_combat(self, outcome):
+        """A fight is over; CombatSession calls this directly with the outcome.
 
-    def _on_combat_ended(self, event):
-        """Handle combat ended event - cleanup and state management."""
+        The steps run in this order, every time: the engine updates the game
+        state (combat over, or game over on a death), then the player is sent
+        to game over, relocated after fleeing, or checked for victory. This
+        used to be four COMBAT_ENDED listeners whose order came from the order
+        they happened to be subscribed in.
+        """
         if self.current_combat_session is None:
             return  # No active session to clean up
 
-        victory = event.data.get("victory", False)
-        defeat = event.data.get("defeat", False)
-        fled = event.data.get("fled", False)
-        enemy_id = event.data.get("enemy_id")
+        victory = outcome.get("victory", False)
+        defeat = outcome.get("defeat", False)
+        fled = outcome.get("fled", False)
+        enemy_id = outcome.get("enemy_id")
 
-        # Unsubscribe from combat events
-        self.bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-
-        # Clear combat session
         self.current_combat_session = None
+        if self._on_combat_end is not None:
+            self._on_combat_end(outcome)
 
         if defeat:
             # Handle player death with game over screen
@@ -420,19 +381,9 @@ class CommandHandler:
                 debug_log(f"Player fled from {fled_from_room} back to {prev_room}")
                 self.output.write(f"[bold magenta]You were forced back to {prev_room}![/bold magenta]")
 
-                # Move player to previous room
                 self.player.move_to(prev_room)
-
-                # Emit ROOM_ENTERED so UI re-themes panels and clears combat styling.
-                room_view = ViewBuilder.build_room_view(self.world, prev_room)
-                self.bus.emit_event(
-                    EventType.ROOM_ENTERED,
-                    {"room": room_view.to_dict(), "player_name": self.player.name},
-                    "CommandHandler"
-                )
-
-                # Show new room info
                 self.display_location()
+                self.arrive()
                 return
             else:
                 debug_log("Player fled but no previous room available")
@@ -443,19 +394,20 @@ class CommandHandler:
         if victory:
             self.flow.check_game_completion()
 
-    def _on_enemy_defeated(self, event):
-        """Award the enemy's loot into the current room, then remove it."""
-        enemy_id = event.data.get("enemy_id")
-        if not enemy_id:
-            debug_log("ERROR: No enemy_id in ENEMY_DEFEATED event")
-            return
+    def on_kill(self, enemy_id):
+        """An enemy died; the combat session calls this directly.
 
+        Awards its loot into the room, removes it, and once the room is clear
+        lets an NPC there speak up. This used to run from ENEMY_DEFEATED, and
+        the removal re-emitted that same event from inside its own handling.
+        """
         current_room = self.player.current_room
-        # Award once, before removal (remove_enemy_from_room re-emits this event).
         self.loot.award_once(enemy_id, current_room)
 
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)
+        if not self.world.get_enemies_in_room(current_room):
+            self._npc_speaks_after_combat(current_room)
 
     def _handle_combat_command(self, command):
         """Handle commands during combat."""

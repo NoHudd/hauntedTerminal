@@ -19,10 +19,10 @@ from textual.reactive import var
 from rich.text import Text
 
 from src.ui.ui_interface import UIInitializationError, UIStateError
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_states import GameState, UIState
 from src.state_manager import StateManager
-from src.viewmodels.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
+from engine.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
 from config.dev_config import SKIP_INTRO
 
 from src.ui.panels.echo_panel import EchoPanel
@@ -112,7 +112,6 @@ class TextualGameUI(App):
         (EventType.PLAYER_STATS_CHANGED, "_on_player_stats_changed"),
         (EventType.PLAYER_INVENTORY_CHANGED, "_on_player_inventory_changed"),
         (EventType.ROOM_ENTERED, "_on_room_entered"),
-        (EventType.DELAYED_ROOM_REFRESH, "_on_delayed_room_refresh"),
         (EventType.UI_STATE_CHANGED, "_on_ui_state_changed"),
         (EventType.COMBAT_STARTED, "_on_combat_started"),
         (EventType.COMBAT_FRAME_UPDATED, "_on_combat_frame_updated"),
@@ -172,7 +171,6 @@ class TextualGameUI(App):
             self._settings_manager.set_text_speed(self._settings_manager.settings["text_speed"])
             self._settings_manager.set_reduce_motion(self._settings_manager.settings["reduce_motion"])
             self._settings_manager.set_hints(self._settings_manager.settings["hints"])
-            self._settings_manager.set_difficulty(self._settings_manager.settings["difficulty"])
             self._update_all_panels_to_defaults()
 
             # Attach context-aware autocomplete to the input field (always)
@@ -239,8 +237,12 @@ class TextualGameUI(App):
             self._inventory_view = InventoryView.from_dict(event.data['inventory'])
         self._stats_panel.update_stats(self._player_view)
 
-    def _reset_ui_state(self):
-        """Reset all UI state - called when game starts or restarts."""
+    def _reset_ui_state(self, leave_battle: bool = True):
+        """Reset all UI state - called when game starts or restarts.
+
+        leave_battle=False keeps the fight on the scene: after a death the
+        scene drains from the battle straight to black, never via the room.
+        """
         logger.debug("Resetting UI state")
 
         # Clear all view data
@@ -255,9 +257,9 @@ class TextualGameUI(App):
 
         self._echo_panel.clear()
 
-        # Remove combat UI styling and leave battle mode
         self.remove_class("combat-active")
-        self._scene_view.end_battle()
+        if leave_battle:
+            self._scene_view.end_battle()
 
         # Unbind any combat hotkeys
         self._unbind_combat_hotkeys()
@@ -268,9 +270,23 @@ class TextualGameUI(App):
         logger.debug("UI state reset complete")
 
     def _on_game_over(self, event):
-        """Handle game over event."""
-        # Reset UI state on game over/restart
-        self._reset_ui_state()
+        """A death drains the scene and shows the GAME OVER card; a restart
+        goes back to the title."""
+        reason = event.data.get("reason")
+        player_view = self._player_view
+        self._reset_ui_state(leave_battle=reason != "defeat")
+
+        if reason == "restart":
+            self._display_title_screen()
+            return
+        if reason != "defeat":
+            return
+
+        # The card names the player; the reset above cleared the view it reads.
+        self._player_view = player_view
+        self._scene_view.play_death(
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
+        )
 
         # CommandHandler triggers the particle animation (2.5s).
         # Defer the static game-over screen so it doesn't get overwritten by animation frames.
@@ -312,27 +328,12 @@ class TextualGameUI(App):
             # Apply exploring game state
             self._apply_game_state_styling("exploring")
 
-    _DELAYED_RELIST_SECONDS = 2.0
-
-    def _on_delayed_room_refresh(self, event):
-        """After a story-beat `cat`, re-list the room a beat later so the
-        '✦ Memory restored / ✓ saved' message is readable first."""
-        self.set_timer(self._DELAYED_RELIST_SECONDS, self._deferred_relist)
-
-    def _deferred_relist(self):
-        self.bus.emit_event(
-            EventType.COMMAND_ENTERED,
-            {"command": "ls", "game_state": self.state_manager.current_state},
-            "TextualGameUI",
-        )
-
     # States where the player is picking difficulty/class/name — the game panels
     # (scene, inventory, stats, combat) carry no information yet, so the output
     # panel takes the whole screen (input stays for typing the choice).
     _SELECTION_STATES = {
         "waiting_for_difficulty",
         "waiting_for_class",
-        "waiting_for_name",
         "tutorial_name_input",
     }
 
@@ -359,7 +360,7 @@ class TextualGameUI(App):
         def on_pick(card: SelectionCard) -> None:
             self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": card.command, "game_state": self.state_manager.current_state},
+                {"command": card.command},
                 "SelectionScreen",
             )
 
@@ -468,6 +469,7 @@ class TextualGameUI(App):
         self._ui_call(
             self._echo_panel.show_hint,
             data.get("text", ""), data.get("step"), data.get("total", 0),
+            bool(self._settings_manager.settings.get("reduce_motion", False)),
         )
         if data.get("highlight"):
             self._ui_call(self._flash_section, data["highlight"])
@@ -525,7 +527,7 @@ class TextualGameUI(App):
 
         # Reset to exploring game state styling and hide combat UI
         self._apply_game_state_styling("exploring")
-        self._hide_combat_ui()
+        self._hide_combat_ui(leave_battle=not event.data.get("defeat", False))
 
         # Clear combat data immediately (state is managed by StateManager)
         logger.debug("Clearing combat data")
@@ -562,7 +564,7 @@ class TextualGameUI(App):
         # Emit command event with current state from StateManager
         self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": command, "game_state": self.state_manager.current_state},
+            {"command": command},
             "TextualGameUI"
         )
 
@@ -586,7 +588,7 @@ class TextualGameUI(App):
             # Emit quit command to use existing confirmation flow
             self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": "quit", "game_state": self.state_manager.current_state},
+                {"command": "quit"},
                 "TextualGameUI"
             )
             return
@@ -626,7 +628,7 @@ class TextualGameUI(App):
         """Ask the domain to quit, so the usual save prompt runs first."""
         self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": "quit", "game_state": self.state_manager.current_state},
+            {"command": "quit"},
             "TextualGameUI",
         )
 
@@ -635,7 +637,7 @@ class TextualGameUI(App):
         def answer(choice: str) -> None:
             self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": choice, "game_state": self.state_manager.current_state},
+                {"command": choice},
                 "QuitConfirmScreen",
             )
 
@@ -855,6 +857,10 @@ class TextualGameUI(App):
 
         self.output_content = content
 
+    def display_message(self, message: str) -> None:
+        """Show a one-off message (UIProtocol); same as replacing the output."""
+        self.update_output(message)
+
     def update_output_renderable(self, renderable) -> None:
         """Push a Rich Renderable (Panel, Group, Table) directly to the output
         widget. Used for content that benefits from auto-width box drawing."""
@@ -893,28 +899,6 @@ class TextualGameUI(App):
         else:
             self.output_content = f"{old}\n{content}"
 
-    def update_inventory(self, content: str) -> None:
-        """Update the inventory panel."""
-        self._check_ready()
-        self._ui_call(self._inv_panel.update, content)
-
-    def update_stats(self, content: str) -> None:
-        """Update the stats panel."""
-        self._check_ready()
-        self._ui_call(self._stats_panel.update, content)
-
-    def update_exits(self, exits: list) -> None:
-        """Update the scene's exits display (border subtitle)."""
-        self._check_ready()
-        if self._room_view is not None:
-            room = replace(self._room_view, exits=list(exits))
-            self._ui_call(self._scene_view.show_explore, room)
-
-    def update_player_name(self, name: str) -> None:
-        """Update the player name display."""
-        self._check_ready()
-        self._ui_call(setattr, self, "header_content", f"Haunted Terminal - {name}")
-
     def clear_console(self) -> None:
         """Clear the output display."""
         self._check_ready()
@@ -927,24 +911,9 @@ class TextualGameUI(App):
             return
 
         self.clear_console()
-        # Death beat: the scene drains to black instead of showing the cheery room.
-        self._scene_view.play_death(
-            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
-        )
-
         player_name = self._player_view.player_name if self._player_view else 'Unknown Sysadmin'
         self.update_output(game_over_text(player_name))
         self.query_one("#input-field").focus()
-
-    def save_current_game(self) -> None:
-        """Handle game saving UI feedback."""
-        self.bus.emit_event(EventType.GAME_SAVED, {"trigger": "ui_request"}, "TextualGameUI")
-        save_text = Text("Game saved successfully!", style="green")
-        self.update_output(save_text)
-
-    # =====================================
-    # COMBAT UI SYSTEM
-    # =====================================
 
     def _show_combat_ui(self):
         """Activate combat UI mode: battle scene + combat styling."""
@@ -959,8 +928,13 @@ class TextualGameUI(App):
         input_field = self.query_one("#input-field")
         input_field.placeholder = "combat@system:~$ Enter command..."
 
-    def _hide_combat_ui(self):
+    def _hide_combat_ui(self, leave_battle: bool = True):
         """Deactivate combat UI mode.
+
+        leave_battle=False on a death: the game-over flow owns the scene
+        (play_death), and dropping out of battle mode would show the room
+        behind it. This comes from the COMBAT_ENDED payload, not the game
+        state: the UI hears COMBAT_ENDED before the engine sets GAME_OVER.
 
         Synchronous. This used to defer everything behind a 0.1s timer because
         the engine emitted ROOM_ENTERED *after* its panel refresh, so the fresh
@@ -973,9 +947,7 @@ class TextualGameUI(App):
         self._inv_panel.update_inventory(self._inventory_view)
         self._stats_panel.update_stats(self._player_view)
 
-        # On death the game-over flow owns the scene (play_death); dropping out
-        # of battle mode here would flash the room behind it.
-        if not self.state_manager.is_in_game_over():
+        if leave_battle:
             self._scene_view.end_battle()
 
     def _update_combat_panels(self):

@@ -10,8 +10,8 @@ class LootService:
         self.player = player
         self.output = output
         self._relist_room = relist_room
-        # Enemy ids whose loot has already been awarded this run. remove_enemy_from_room
-        # re-emits ENEMY_DEFEATED, so this guards against double-rolling loot.
+        # Enemy ids whose loot has already been awarded this run, so no path can
+        # roll the same enemy's loot twice.
         self.awarded: set[str] = set()
 
     def award_once(self, enemy_id, room_id):

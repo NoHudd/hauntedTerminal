@@ -7,12 +7,12 @@ from collections.abc import Iterator
 import pytest
 
 from engine.api import GameSession
-from src.events import EventType
+from engine.events import EventType
+from engine.view_models import AttackView, StatsView
 from src.game_world import TUTORIAL_ENEMY
 from src.ui.combat_log import render_combat_output
 from src.ui.screens.quit_confirm import QuitConfirmScreen
 from src.ui.textual_ui import TextualGameUI
-from src.viewmodels.view_models import AttackView, StatsView
 
 
 @pytest.fixture

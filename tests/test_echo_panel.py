@@ -5,7 +5,7 @@ import asyncio
 
 import pytest
 
-from src.events import EventType
+from engine.events import EventType
 from src.ui.textual_ui import TextualGameUI
 
 
@@ -71,5 +71,69 @@ def test_a_new_game_clears_a_stale_hint() -> None:
             app.bus.emit_event(EventType.GAME_STARTED, {}, "test")
             await pilot.pause()
             assert app._echo_panel.display is False
+
+    asyncio.run(scenario())
+
+
+def test_the_panel_flashes_when_the_tutorial_starts() -> None:
+    """The first hint draws the eye to the panel: it pulses, then settles."""
+    app = TextualGameUI()
+
+    async def scenario() -> None:
+        async with app.run_test(size=(120, 40)) as pilot:
+            panel = app._echo_panel
+            _hint(app, "step1", "Type: ls", 1)
+            await pilot.pause()
+            assert panel.has_class("echo-flash")
+
+            await pilot.pause(panel.FLASH_SECONDS * (2 * panel.FLASH_PULSES + 2))
+            assert not panel.has_class("echo-flash"), "the flash must settle"
+
+            _hint(app, "step2", "Type: take it", 2)
+            await pilot.pause()
+            assert not panel.has_class("echo-flash"), "later steps don't flash"
+
+    asyncio.run(scenario())
+
+
+def test_reduce_motion_highlights_once_instead_of_flashing() -> None:
+    app = TextualGameUI()
+
+    async def scenario() -> None:
+        async with app.run_test(size=(120, 40)) as pilot:
+            app._settings_manager.settings["reduce_motion"] = True
+            panel = app._echo_panel
+            toggles: list[bool] = []
+            original = panel.set_class
+
+            def record(add: bool, *names: str) -> object:
+                toggles.append(add)
+                return original(add, *names)
+
+            panel.set_class = record  # type: ignore[method-assign]
+            _hint(app, "step1", "Type: ls", 1)
+            await pilot.pause(panel.FLASH_SECONDS * (2 * panel.FLASH_PULSES + 2))
+            assert toggles == [True, False], toggles
+
+    asyncio.run(scenario())
+
+
+def test_saying_yes_to_the_tutorial_flashes_the_panel() -> None:
+    from src.game_engine import ImprovedGameEngine
+
+    app = TextualGameUI()
+
+    async def scenario() -> None:
+        async with app.run_test(size=(120, 40)) as pilot:
+            engine = ImprovedGameEngine(ui=app)
+            assert engine.create_player("Tess", "guardian")
+            engine._handle_skip_response("yes")  # the tutorial offer's answer
+            await pilot.pause()
+
+            panel = app._echo_panel
+            assert panel.display is True
+            assert "step 1" in str(panel.border_title)
+            assert panel.has_class("echo-flash")
+            engine._cleanup()
 
     asyncio.run(scenario())

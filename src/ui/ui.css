@@ -235,6 +235,13 @@ Footer {
     padding: 0 1;
 }
 
+/* The tutorial just started: pulse the panel so the player finds it. */
+#echo-panel.echo-flash {
+    border: heavy $warning;
+    border-title-color: $warning;
+    background: $warning 30%;
+}
+
 #input-field {
     border: round $accent;
     height: 3;

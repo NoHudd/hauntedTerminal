@@ -12,6 +12,7 @@ from src.game_states import GameState
 @pytest.mark.parametrize("choice,expected", [("1", "easy"), ("2", "medium"), ("3", "hard")])
 def test_difficulty_pick_sets_mode_and_advances(choice, expected):
     eng = ImprovedGameEngine(ui=HeadlessUI())
+    eng._handle_menu_command("1")  # New Game opens the picker
     eng._handle_difficulty_input(choice)
     assert difficulty.current_mode() == expected
     assert eng.state_manager.current_state == GameState.WAITING_FOR_CLASS
@@ -19,6 +20,7 @@ def test_difficulty_pick_sets_mode_and_advances(choice, expected):
 
 def test_invalid_difficulty_choice_reprompts():
     eng = ImprovedGameEngine(ui=HeadlessUI())
+    eng._handle_menu_command("1")
     before = difficulty.current_mode()
     eng._handle_difficulty_input("9")   # invalid
     assert difficulty.current_mode() == before  # unchanged

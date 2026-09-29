@@ -15,7 +15,7 @@ import sys
 import logging
 
 from rich.markup import escape
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 # Import game components
 from src.game_world import GameWorld
@@ -25,9 +25,8 @@ from src.command_handler import CommandHandler
 from src.game_output import GameOutput
 from src.save import save_manager
 from src.ui.ui_interface import UIProtocol, UIInitializationError
-from src.events import EventBus, EventType
+from engine.events import EventBus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
-from src.data_loader import load_room_data, load_enemy_data, load_npc_data
 from src.state_manager import StateManager
 from src.viewmodels.view_builder import ViewBuilder
 
@@ -98,8 +97,7 @@ class ImprovedGameEngine:
 
         # Drop the outgoing handler's subscriptions before letting go of it.
         # Without this, F5 (restart) left the dead run's CommandHandler on the
-        # bus: ROOM_ENTERED then fired check_for_enemies twice (every enemy
-        # fought twice) and ENEMY_DEFEATED fired twice (loot rolled twice).
+        # bus: ENEMY_DEFEATED fired twice (loot rolled twice).
         if getattr(self, "cmd_handler", None):
             self.cmd_handler.cleanup_event_subscriptions()
 
@@ -109,9 +107,7 @@ class ImprovedGameEngine:
         self.cmd_handler: Optional[CommandHandler] = None
         self.current_room = DEFAULT_ROOM
         self.state_manager.set_state(DEFAULT_GAME_STATE, emit_event=False)
-        self.pending_player_name = ""
         self._awaiting_skip_response: bool = False
-        self._pending_player_name: str = ""
 
         # Load game data
         try:
@@ -133,11 +129,6 @@ class ImprovedGameEngine:
         """Subscribe to relevant events."""
         self.bus.subscribe(EventType.COMMAND_ENTERED, self._on_command_entered)
         self.bus.subscribe(EventType.UI_READY, self._on_ui_ready)
-        self.bus.subscribe(EventType.UI_ERROR, self._on_ui_error)
-        self.bus.subscribe(EventType.GAME_SAVED, self._on_save_requested)
-        self.bus.subscribe(EventType.COMBAT_STARTED, self._on_combat_started)
-        self.bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-        self.bus.subscribe(EventType.GAME_OVER, self._on_game_over)
         self.bus.subscribe(EventType.GAME_RESTART_REQUESTED, self._on_restart_requested)
 
     def restart_game(self):
@@ -148,24 +139,38 @@ class ImprovedGameEngine:
         self._initialize_game_components()
 
         # Emit event to UI to reset display
-        self.bus.emit_event(EventType.GAME_OVER, {"message": "Game restarted. Welcome back!"}, "GameEngine")
+        self.bus.emit_event(
+            EventType.GAME_OVER,
+            {"reason": "restart", "message": "Game restarted. Welcome back!"},
+            "GameEngine",
+        )
 
         logger.info("Game restart complete")
 
+    #: Where the world's content lives; tests point this at a scratch copy.
+    DATA_DIR = "data"
+
     def _load_content(self):
-        """Load every content collection from data/ (rooms, items, enemies, npcs)."""
-        return (
-            load_room_data(),
-            self._load_items(),
-            load_enemy_data(),
-            load_npc_data(),
+        """Load and link the world's content (rooms, items, enemies, NPCs).
+
+        link() runs the same integrity checks as `python -m engine.validate`:
+        a dangling reference or a broken room tree stops the game at start
+        (DataLoadError) instead of surfacing mid-run. The old per-collection
+        loaders swallowed errors and returned an empty collection.
+        """
+        from engine.content import link, load_all
+
+        content = link(load_all(self.DATA_DIR))
+        return tuple(
+            {str(key): model for key, model in collection.items()}
+            for collection in (content.rooms, content.items, content.enemies, content.npcs)
         )
 
     def _load_game_data(self):
         """Load all game data and build a freshly-initialized world."""
         logger.info("Loading game data")
         rooms, items, enemies, npcs = self._load_content()
-        self.world = GameWorld(rooms, items, enemies, npcs, bus=self.bus)
+        self.world = GameWorld(rooms, items, enemies, npcs)
         logger.info(
             f"Loaded {len(rooms)} rooms, {len(items)} items, "
             f"{len(enemies)} enemies, {len(npcs)} NPCs"
@@ -175,32 +180,20 @@ class ImprovedGameEngine:
         """Load game data for a save game — world state comes from the save."""
         logger.info("Loading game data for save game")
         rooms, items, enemies, npcs = self._load_content()
-        self.world = GameWorld(rooms, items, enemies, npcs, initialize_state=False, bus=self.bus)
+        self.world = GameWorld(rooms, items, enemies, npcs, initialize_state=False)
         logger.info("Game data loaded successfully for save game")
-
-    def _load_items(self) -> Dict[str, Any]:
-        """Load all items as typed engine Item models (id -> model), validated at load.
-
-        The engine loader enforces flat files, required ``type``, unique ids, and now
-        field shapes (weapon ``damage``, consumable ``combat_effects``, …). GameWorld
-        stores the typed templates; ``get_item`` dumps them back to dicts for consumers.
-        """
-        from engine.content.loader import load_items
-        items: Dict[str, Any] = {str(iid): it for iid, it in load_items("data").items()}
-        logger.info(f"Total items loaded: {len(items)}")
-        return items
-
 
     # Event handlers
     def _on_command_entered(self, event):
         """Handle command entered from UI."""
         command = event.data.get('command', '')
-        game_state = event.data.get('game_state', self.state_manager.current_state)
+        # The engine decides what mode the game is in; the UI only sends text.
+        game_state = self.state_manager.current_state
 
         # New command: its first output write replaces the panel (see _forward_output).
         self._fresh_command_output = True
 
-        logger.debug(f"Command entered: '{command}' (UI state: {game_state}, Engine state: {self.state_manager.current_state})")
+        logger.debug(f"Command entered: '{command}' (state: {game_state})")
         
         try:
             if game_state == GameState.PLAYING and self.cmd_handler:
@@ -210,8 +203,6 @@ class ImprovedGameEngine:
                 self.cmd_handler.handle_command(command)
             elif game_state == GameState.MENU:
                 self._handle_menu_command(command)
-            elif game_state == GameState.WAITING_FOR_NAME:
-                self._handle_name_input(command)
             elif game_state == GameState.WAITING_FOR_DIFFICULTY:
                 self._handle_difficulty_input(command)
             elif game_state == GameState.WAITING_FOR_CLASS:
@@ -263,42 +254,37 @@ class ImprovedGameEngine:
         logger.info("UI is ready, starting main menu")
         self.state_manager.set_state(GameState.MENU)
     
-    def _on_ui_error(self, event):
-        """Handle UI error event."""
-        error = event.data.get('error', 'Unknown UI error')
-        logger.error(f"UI Error: {error}")
-        # Could implement fallback UI here
-    
-    def _on_save_requested(self, event):
-        """Handle save game request from UI."""
-        try:
-            if self.player and self.world:
-                success = save_manager.save_game(self.player, self.world.get_state())
-                if success:
-                    logger.info("Game saved successfully")
-                else:
-                    logger.warning("Game save failed")
-            else:
-                logger.warning("Cannot save: no player or world data")
-        except Exception as e:
-            logger.error(f"Error saving game: {e}")
-    
-    def _on_combat_started(self, event):
-        """Handle combat started event."""
+    def _new_command_handler(self):
+        """A CommandHandler for the current player and world, with the engine's
+        combat hooks attached. Every run (new, loaded, restarted) gets one."""
+        return CommandHandler(
+            self.player, self.world, self.output, self.bus,
+            on_combat_start=self._combat_started,
+            on_combat_end=self._combat_ended,
+            on_new_game=self._new_game_after_game_over,
+            on_restore_save=self._restart_from_save,
+        )
+
+    def _combat_started(self):
+        """Called by the combat session as a fight opens."""
         logger.info("Combat started, entering combat state")
         self.state_manager.enter_combat()
     
-    def _on_combat_ended(self, event):
-        """Handle combat ended event."""
+    def _combat_ended(self, outcome):
+        """Called by CommandHandler.end_combat before it relocates the player,
+        starts the game-over flow or checks for victory."""
         logger.info("Combat ended, exiting combat state")
 
         # Check if player was defeated - trigger game over immediately
-        if event.data.get('defeat', False):
+        if outcome.get('defeat', False):
             logger.info("Player defeated in combat - triggering game over")
             self.state_manager.set_state(GameState.GAME_OVER)
             self.bus.emit_event(
                 EventType.GAME_OVER,
-                {"message": "[bold red]GAME OVER[/bold red]\n\nYou have been defeated in combat.\n\nPress any key to continue..."},
+                {
+                    "reason": "defeat",
+                    "message": "[bold red]GAME OVER[/bold red]\n\nYou have been defeated in combat.\n\nPress any key to continue...",
+                },
                 "GameEngine"
             )
             return  # Don't continue with normal combat end processing
@@ -306,96 +292,35 @@ class ImprovedGameEngine:
         # Use StateManager to exit combat
         self.state_manager.exit_combat()
 
-        # On flee, CommandHandler relocates player + emits ROOM_ENTERED itself.
-        # Emitting here would fire check_for_enemies on the room they just fled,
-        # restarting combat before the flee handler can mark the enemy fled.
-        if event.data.get("fled", False):
+        # On flee, CommandHandler relocates the player and announces the room
+        # they land in; this room is no longer theirs to show.
+        if outcome.get("fled", False):
             self._update_ui_panels()
             return
 
-        # ROOM_ENTERED goes out BEFORE the panel refresh. The UI leaves combat
+        # The room goes out BEFORE the panel refresh. The UI leaves combat
         # mode on this same event, and it needs the fresh room view to be in
         # hand by then — when the order was reversed it was not, which is why
         # the UI used to defer its panel restore behind a 0.1s timer.
-        if self.world and self.player:
-            room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
-
-            self.bus.emit_event(
-                EventType.ROOM_ENTERED,
-                {
-                    "room": room_view.to_dict(),
-                    "player_name": self.player.name
-                },
-                "ImprovedGameEngine"
-            )
+        if self.cmd_handler:
+            self.cmd_handler.announce_room()
 
         self._update_ui_panels()
     
-    def _on_game_over(self, event):
-        """Handle game over event and restart game based on player choice."""
-        action = event.data.get("action")
-        logger.info(f"Game over event received with action: {action}")
-        
-        if action == "quit":
-            logger.info("Player chose to quit")
-            self._cleanup()
-            self.bus.emit_event(EventType.GAME_QUIT, {}, "ImprovedGameEngine")
-            
-        elif action == "start_new_game":
-            # Full setup flow: a new run re-offers difficulty + class (the old
-            # shortcut restarted as a default guardian on the same difficulty).
-            logger.info("Player chose to start new game - full setup flow")
-            self.state_manager.set_state(GameState.MENU, emit_event=False)
-            self.bus.clear_history()
-            self._start_new_game()
-            
-        elif action == "restart_from_save":
-            logger.info("Player chose to restart from save - loading most recent save")
-            self._restart_from_save()
+    def _new_game_after_game_over(self):
+        """The game-over / post-win screen's "n": a new run re-offers difficulty
+        and class (the old shortcut restarted as a default guardian on the same
+        difficulty)."""
+        logger.info("Player chose to start new game - full setup flow")
+        self.state_manager.set_state(GameState.MENU, emit_event=False)
+        self.bus.clear_history()
+        self._start_new_game()
 
     def _on_restart_requested(self, event):
         """Handle game restart request from UI (F5 key)."""
         logger.info("Game restart requested from UI")
         self.restart_game()
 
-    def _restart_new_game(self):
-        """Restart the game with a fresh state."""
-        try:
-            logger.info("Restarting with new game")
-
-            # Reset game state
-            self.state_manager.set_state(GameState.MENU, emit_event=False)
-
-            # Clear event history
-            self.bus.clear_history()
-
-            # Unsubscribe stale handlers before replacing them
-            if self.cmd_handler:
-                self.cmd_handler.cleanup_event_subscriptions()
-
-            # Create new player (this will trigger character creation)
-            from src.player import Player
-            self.player = Player()
-
-            # Reset world state by reloading all game data
-            self._load_game_data()
-
-            # Create new command handler with fresh references
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
-            self._bind_ui_refs()
-
-            # Restart the game loop
-            self.state_manager.set_state(GameState.PLAYING)
-
-            # Update UI
-            self._update_ui_panels()
-            
-            logger.info("New game restart completed successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to restart new game: {e}")
-            self.ui.display_message(f"[bold red]Failed to start new game: {e}[/bold red]")
-    
     def _restart_from_save(self):
         """Restart the game from the most recent save."""
         try:
@@ -410,29 +335,7 @@ class ImprovedGameEngine:
                 self._start_new_game()
                 return
             
-            # Restore player state
-            player_data = save_data.get("player", {})
-            from src.player import Player
-            self.player = Player.from_dict(player_data)
-            
-            # Load fresh game data
-            self._load_game_data_for_load()
-            
-            # Restore world state from save
-            world_data = save_data.get("world", {})
-            self.world.set_state(world_data)
-
-            # Create new command handler — unsubscribe the old one first, or the
-            # dead run's handler keeps reacting to ROOM_ENTERED/ENEMY_DEFEATED with
-            # its stale player (observed: fresh game instantly fighting the boss
-            # from the previous run's room).
-            if self.cmd_handler:
-                self.cmd_handler.cleanup_event_subscriptions()
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
-            self._bind_ui_refs()
-
-            # Update UI
-            self._update_ui_panels()
+            self._enter_loaded_run(save_data)
 
             logger.info("Save game restart completed successfully")
             
@@ -442,6 +345,47 @@ class ImprovedGameEngine:
             self.state_manager.set_state(GameState.MENU, emit_event=False)
             self._start_new_game()
     
+    def _enter_loaded_run(self, save_data, welcome=False):
+        """Rebuild the run from a save and start playing it.
+
+        Both load paths (title-menu Load Game, post-win restore) go through
+        here, so neither can skip a step: the post-win restore used to leave
+        the new command handler unsubscribed, so rooms never started fights.
+        """
+        from src import difficulty
+
+        self.player = Player.from_dict(save_data.get("player", {}))
+        difficulty.set_mode(save_data.get("difficulty", difficulty.DEFAULT_MODE))
+
+        # Fresh content, then the saved world state on top of it.
+        self._load_game_data_for_load()
+        self.world.set_state(save_data.get("world", {}))
+
+        # Unsubscribe the old handler first, or the dead run's handler keeps
+        # reacting to ENEMY_DEFEATED with its stale player.
+        if self.cmd_handler:
+            self.cmd_handler.cleanup_event_subscriptions()
+        self.cmd_handler = self._new_command_handler()
+        self._bind_ui_refs()
+
+        if welcome:
+            # Before ROOM_ENTERED, which may open a fight and take the output.
+            self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
+
+        self.state_manager.set_state(GameState.PLAYING)
+        self.bus.emit_event(
+            EventType.GAME_STARTED,
+            {
+                "stats": ViewBuilder.build_stats_view(self.player).to_dict(),
+                "inventory": ViewBuilder.build_inventory_view(self.player).to_dict(),
+            },
+            "ImprovedGameEngine",
+        )
+        self._update_ui_panels()
+
+        self.cmd_handler.setup_event_subscriptions()
+        self.cmd_handler.arrive()
+
     def _handle_menu_command(self, command: str):
         """Handle commands in menu state."""
         logger.debug(f"Handling menu command: '{command}'")
@@ -505,62 +449,8 @@ class ImprovedGameEngine:
                 self._start_new_game()
                 return
             
-            # Restore player state
-            player_data = save_data.get("player", {})
-            from src.player import Player
-            self.player = Player.from_dict(player_data)
-            
-            # Load fresh game data but don't initialize world state
-            self._load_game_data_for_load()
-            
-            # Restore world state from save
-            world_data = save_data.get("world", {})
-            self.world.set_state(world_data)
-            
-            # Create command handler — unsubscribe the old one first (see
-            # _restart_from_save: stale handlers double every event).
-            if self.cmd_handler:
-                self.cmd_handler.cleanup_event_subscriptions()
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
-            self._bind_ui_refs()
+            self._enter_loaded_run(save_data, welcome=True)
 
-            self.ui.update_output(f"Game loaded successfully! Welcome back, {self.player.name}!")
-
-            # Start the game loop
-            self.state_manager.set_state(GameState.PLAYING)
-            logger.debug(f"Game state set to {self.state_manager.current_state}")
-
-            # Emit game started event to update UI
-            stats_view = ViewBuilder.build_stats_view(self.player)
-            inventory_view = ViewBuilder.build_inventory_view(self.player)
-
-            self.bus.emit_event(
-                EventType.GAME_STARTED,
-                {
-                    "stats": stats_view.to_dict(),
-                    "inventory": inventory_view.to_dict()
-                },
-                "ImprovedGameEngine"
-            )
-
-            # Update UI panels with loaded game state
-            self._update_ui_panels()
-
-            # Subscribe to events
-            self.cmd_handler.setup_event_subscriptions()
-
-            # Show current location with room entered event
-            room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
-
-            self.bus.emit_event(
-                EventType.ROOM_ENTERED,
-                {
-                    "room": room_view.to_dict(),
-                    "player_name": self.player.name
-                },
-                "ImprovedGameEngine"
-            )
-            
         except Exception as e:
             logger.error(f"Error loading game: {e}")
             self.ui.update_output(f"Error loading game: {e}. Starting new game instead...")
@@ -574,23 +464,6 @@ class ImprovedGameEngine:
         word = name.strip().lower()
         return word in build_registry() or word in {"yes", "no", "skip", "exit", "menu"}
 
-    def _handle_name_input(self, name: str):
-        """Handle player name input."""
-        if not name.strip():
-            self.ui.update_output("Name cannot be empty. Please enter your character name:")
-            return
-        if self._reserved_name(name):
-            self.ui.update_output(
-                f"[bold yellow]'{escape(name.strip())}' is a command, not a name.[/bold yellow] "
-                "Please enter your character name:"
-            )
-            return
-            
-        self.pending_player_name = name.strip()
-        
-        # Show class selection
-        self._show_class_selection()
-    
     def _handle_class_input(self, choice: str):
         """Handle player class selection."""
         from src.data_loader import load_class_data
@@ -825,7 +698,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             return
 
         player_name = name.strip()
-        self._pending_player_name = player_name
 
         # Create player (tutorial_state is initialized on the player object)
         if not self.create_player(player_name, self.selected_class):
@@ -880,7 +752,11 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             logger.info(f"Special items initialized for class: {player_class}")
     
     def _update_ui_panels(self):
-        """Update all UI panels by emitting view-model events."""
+        """Send the player's stats and inventory to the UI.
+
+        Runs once after every command in play, so commands never send these
+        views themselves (they used to, and the UI got each one twice).
+        """
         if self.ui and self.player and self.world:
             try:
                 stats_view = ViewBuilder.build_stats_view(self.player)
@@ -893,12 +769,12 @@ But first, I must know what to call you. The old sysadmin records are fragmented
     def create_player(self, name: str, player_class: str) -> bool:
         """Create a new player."""
         try:
-            # Idempotent: never leave a prior handler subscribed, or ROOM_ENTERED /
-            # ENEMY_DEFEATED fire on both and everything doubles (fight enemies twice).
+            # Idempotent: never leave a prior handler subscribed, or ENEMY_DEFEATED
+            # fires on both and loot doubles.
             if self.cmd_handler:
                 self.cmd_handler.cleanup_event_subscriptions()
             self.player = Player(name=name, player_class=player_class)
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
+            self.cmd_handler = self._new_command_handler()
             self._bind_ui_refs()
 
             # Set up event subscriptions for command handler
@@ -954,39 +830,11 @@ But first, I must know what to call you. The old sysadmin records are fragmented
 
             if self.cmd_handler:
                 self.cmd_handler.display_location()
-
-            # Emit room entered event for starting room
-            if self.player and hasattr(self.player, 'current_room'):
-                room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
-
-                self.bus.emit_event(
-                    EventType.ROOM_ENTERED,
-                    {
-                        "room": room_view.to_dict(),
-                        "player_name": self.player.name
-                    },
-                    "ImprovedGameEngine"
-                )
+                self.cmd_handler.arrive()
             
         except Exception as e:
             logger.error(f"Error starting game: {e}")
             raise GameEngineError(f"Failed to start game: {e}")
-    
-    def end_game(self):
-        """End the current game."""
-        try:
-            self.state_manager.set_state(GameState.GAME_OVER)
-
-            self.bus.emit_event(
-                EventType.GAME_OVER,
-                {"player": self.player},
-                "ImprovedGameEngine"
-            )
-
-            logger.info("Game ended")
-            
-        except Exception as e:
-            logger.error(f"Error ending game: {e}")
     
     def run(self):
         """Main game loop that manages game states."""
@@ -1016,11 +864,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             # Unsubscribe from events
             self.bus.unsubscribe(EventType.COMMAND_ENTERED, self._on_command_entered)
             self.bus.unsubscribe(EventType.UI_READY, self._on_ui_ready)
-            self.bus.unsubscribe(EventType.UI_ERROR, self._on_ui_error)
-            self.bus.unsubscribe(EventType.GAME_SAVED, self._on_save_requested)
-            self.bus.unsubscribe(EventType.COMBAT_STARTED, self._on_combat_started)
-            self.bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-            self.bus.unsubscribe(EventType.GAME_OVER, self._on_game_over)
             
             logger.info("Game engine cleanup completed")
             

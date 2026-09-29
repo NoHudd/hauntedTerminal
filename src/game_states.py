@@ -12,17 +12,12 @@ class GameState(Enum):
     """Enumeration of all possible game states."""
     
     MENU = "menu"
-    WAITING_FOR_NAME = "waiting_for_name"
     WAITING_FOR_CLASS = "waiting_for_class"
     WAITING_FOR_DIFFICULTY = "waiting_for_difficulty"
     TUTORIAL_NAME_INPUT = "tutorial_name_input"
     PLAYING = "playing"  
     IN_COMBAT = "in_combat"
     GAME_OVER = "game_over"
-    EXIT = "exit"
-    LOADING = "loading"
-    SAVING = "saving"
-    PAUSED = "paused"
     
     def __str__(self) -> str:
         return self.value
@@ -34,15 +29,6 @@ class UIState(Enum):
     READY = auto()
     ERROR = auto()
     SHUTTING_DOWN = auto()
-
-class PlayerState(Enum):
-    """Enumeration of player states."""
-    
-    ALIVE = auto()
-    DEAD = auto()
-    IN_COMBAT = auto()
-    EXPLORING = auto()
-    IN_DIALOGUE = auto()
 
 # Default states
 DEFAULT_GAME_STATE = GameState.MENU

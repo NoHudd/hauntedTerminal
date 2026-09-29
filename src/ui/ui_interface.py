@@ -6,7 +6,7 @@ Defines the contract that all UI implementations must follow,
 enabling better abstraction and testability.
 """
 
-from typing import Protocol, Any, Optional
+from typing import Protocol, Any
 
 class UIProtocol(Protocol):
     """Protocol defining the UI interface contract."""
@@ -41,60 +41,10 @@ class UIProtocol(Protocol):
         """Push a Rich renderable (Panel/Table/Group) straight to the output."""
         ...
     
-    def update_inventory(self, content: str) -> None:
-        """Update the inventory panel."""
-        ...
-    
-    def update_stats(self, content: str) -> None:
-        """Update the stats panel."""
-        ...
-    
-    def update_exits(self, exits: list) -> None:
-        """Update the exits panel."""
-        ...
-    
-    def update_player_name(self, name: str) -> None:
-        """Update the player name display."""
-        ...
-    
     def clear_console(self) -> None:
         """Clear the output display."""
         ...
     
-    def display_game_over(self) -> None:
-        """Show the game over screen."""
-        ...
-    
-    def save_current_game(self) -> None:
-        """Handle game saving UI feedback."""
-        ...
-
-class GameEngineProtocol(Protocol):
-    """Protocol defining what the UI can access from GameEngine."""
-    
-    @property
-    def player(self) -> Optional[Any]:
-        """Get the current player."""
-        ...
-    
-    @property
-    def world(self) -> Optional[Any]:
-        """Get the game world."""
-        ...
-    
-    @property
-    def game_state(self) -> str:
-        """Get the current game state."""
-        ...
-    
-    def load_game_data(self) -> None:
-        """Load game data."""
-        ...
-    
-    def initialize_special_items(self, player_class: str) -> None:
-        """Initialize class-specific items."""
-        ...
-
 class UIError(Exception):
     """Base exception for UI-related errors."""
     pass
