@@ -118,3 +118,22 @@ def test_post_combat_hint_fires_once_not_doubled():
         assert fired[-1] == "step5_postcombat"  # nothing fires right after it
     finally:
         s.close()
+
+
+def test_skip_then_equip_does_not_force_the_tutorial_fight():
+    """Skipping the tutorial sets completed=True but not equipped_weapon, and
+    the equip hook only checked the latter: the first equip still spawned the
+    scripted enemy and shoved the skipping player into an unexplained fight."""
+    from engine.api import GameSession
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        s.player.tutorial_state["completed"] = True  # what the skip path sets
+        h = s.engine.cmd_handler
+        h.world.item_locations["segfault_shield"] = s.player.current_room
+        s.submit("take segfault_shield")
+        s.submit("equip segfault_shield")
+        assert h.current_combat_session is None
+        assert h.world.get_enemies_in_room("home_grove") == []
+    finally:
+        s.close()

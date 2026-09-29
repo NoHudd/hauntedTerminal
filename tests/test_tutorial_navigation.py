@@ -17,7 +17,10 @@ def session() -> Iterator[GameSession]:
     s.new_game("Tess", "guardian")
     ts = s.player.tutorial_state
     ts.update({"first_ls": True, "took_weapon": True, "equipped_weapon": True,
-               "combat_action_taken": True})
+               "combat_action_taken": True,
+               # The ls -a / cat checkpoint leg is covered by
+               # test_tutorial_checkpoint.py; here it is already done.
+               "ls_a_used": True, "lore_read": True})
     try:
         yield s
     finally:
@@ -30,7 +33,7 @@ def _last_hint(s: GameSession) -> dict:
 
 def test_the_walk_from_ps_to_completion(session: GameSession) -> None:
     ts = session.player.tutorial_state
-    assert session.engine.cmd_handler.tutorial.current_step() == "step5_postcombat"
+    assert session.engine.cmd_handler.tutorial.current_step() == "step_cat"
 
     session.submit("ps")
     assert ts["ps_used"] and _last_hint(session)["hint_id"] == "step_ps"
@@ -46,7 +49,7 @@ def test_the_walk_from_ps_to_completion(session: GameSession) -> None:
     hint = _last_hint(session)
     assert ts["navigation_ls"] and hint["hint_id"] == "step6b"
     assert hint["highlight"] == "Directories"
-    assert (hint["step"], hint["total"]) == (9, 9)
+    assert (hint["step"], hint["total"]) == (11, 11)
     assert "bin" in hint["text"]  # the example is a directory actually listed at /
 
     session.submit("cd bin")
@@ -58,7 +61,7 @@ def test_ls_before_ps_keeps_asking_for_ps(session: GameSession) -> None:
     session.submit("ls")
     assert session.ui.hints == []  # ls just lists; no new step
     session.submit("xyzzy")
-    assert _last_hint(session)["hint_id"] == "step5_postcombat"
+    assert _last_hint(session)["hint_id"] == "step_cat"
 
 
 def test_ls_in_a_dead_end_repeats_the_way_up(session: GameSession) -> None:

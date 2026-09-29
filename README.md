@@ -20,10 +20,10 @@ No prior command-line experience needed; the game teaches you as you go.
 ---
 
 ![Exploring the Graveyard](./assets/screenshot-explore.svg)
-*Exploring the Graveyard — pixel scene view, live panels, ECHO guiding your first `ls`*
+_Exploring the Graveyard — pixel scene view, live panels, ECHO guiding your first `ls`_
 
-| Pokemon-style battles | Pick your difficulty |
-|---|---|
+| Pokemon-style battles                     | Pick your difficulty                              |
+| ----------------------------------------- | ------------------------------------------------- |
 | ![Battle](./assets/screenshot-battle.svg) | ![Difficulty](./assets/screenshot-difficulty.svg) |
 
 ---
@@ -46,11 +46,13 @@ cd hauntedTerminal
 From inside the repo folder, run the start script for your system:
 
 **On Mac/Linux:**
+
 ```bash
 ./start.sh
 ```
 
 **On Windows:**
+
 ```cmd
 start.bat
 ```
@@ -112,5 +114,3 @@ This project is licensed under the MIT License — see the LICENSE file for deta
                 ||----w |
                 ||     ||
 ```
-
-*Type `./start.sh` (Mac/Linux) or `start.bat` (Windows) to begin your journey.*

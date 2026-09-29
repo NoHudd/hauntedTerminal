@@ -151,6 +151,9 @@ class Item(_Base):
     consumed_on_use: bool = False
     takeable: bool = True
     droppable: bool = True
+    # A hidden item is omitted from plain `ls`; `ls -a` lists it. It stays
+    # readable/takeable by name either way, like a real dotfile.
+    hidden: bool = False
     consumable: bool = False
     defense: int = 0
     healing: int | None = None
