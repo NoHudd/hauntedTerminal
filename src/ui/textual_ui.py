@@ -272,8 +272,7 @@ class TextualGameUI(App):
 
     def _on_game_over(self, event):
         """A death drains the scene and shows the GAME OVER card; a restart
-        goes back to the title. Any other GAME_OVER is a post-win choice the
-        engine is already acting on, so the UI only resets."""
+        goes back to the title."""
         reason = event.data.get("reason")
         player_view = self._player_view
         self._reset_ui_state(leave_battle=reason != "defeat")

@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
+import src.save as save_mod
 from src.events import EventType
 from src.game_engine import ImprovedGameEngine
 from src.game_world import TUTORIAL_ENEMY
+from src.save import SaveManager
 from src.ui.textual_ui import TextualGameUI
 
 
@@ -102,24 +105,24 @@ def test_f5_restart_returns_to_the_title_without_a_game_over_card(
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("action", ["start_new_game", "restart_from_save"])
+@pytest.mark.parametrize("choice", ["n", "r"])
 def test_post_win_choices_do_not_show_a_game_over_card(
-    monkeypatch: pytest.MonkeyPatch, action: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, choice: str,
 ) -> None:
+    mgr = SaveManager(save_dir=str(tmp_path))
+    monkeypatch.setattr(save_mod, "save_manager", mgr)
+    monkeypatch.setattr("src.game_engine.save_manager", mgr)
     app = TextualGameUI()
 
     async def scenario() -> None:
         async with app.run_test(size=(120, 40)) as pilot:
             engine = _new_game(app, monkeypatch)
+            mgr.save_game(engine.player, engine.world.get_state())
             await pilot.pause()
             calls: list[str] = []
             _record(monkeypatch, app, ["display_game_over"], calls)
-            # Only the UI's reaction is under test, not the engine's new-game
-            # setup or restore.
-            engine.bus.unsubscribe(EventType.GAME_OVER, engine._on_game_over)
 
-            # What GameFlow.handle_game_over_input emits for "n" / "r".
-            engine.bus.emit_event(EventType.GAME_OVER, {"action": action}, "test")
+            engine.cmd_handler.flow.handle_game_over_input(choice)
             await pilot.pause()
 
             assert calls == []

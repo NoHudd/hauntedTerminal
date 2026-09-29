@@ -32,11 +32,11 @@ class EventType(Enum):
     # Data: basic game start info
 
     GAME_OVER = auto()
-    # Emitted by: game_engine.py, game_flow.py
-    # Subscribed by: game_engine.py, textual_ui.py
-    # Data: {"reason": "defeat" | "restart" (engine), or "action": str (GameFlow,
-    #        a post-win choice the engine acts on), "message": str (optional)}
-    # The UI shows the GAME OVER card only for reason == "defeat".
+    # Emitted by: game_engine.py (death in combat, F5 restart)
+    # Subscribed by: textual_ui.py
+    # Data: {"reason": "defeat" | "restart", "message": str (optional)}
+    # The UI shows the GAME OVER card only for reason == "defeat". Nothing in the
+    # game listens to it: the game-over screen's choices call the engine directly.
 
     TUTORIAL_HINT = auto()
     # Emitted by: tutorial_coach.py (show_hint)

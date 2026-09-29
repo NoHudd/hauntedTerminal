@@ -64,7 +64,10 @@ def test_dying_ends_the_run(session: GameSession) -> None:
     assert [d.get("reason") for d in seen] == ["defeat"]
 
 
-def test_a_kill_is_announced_once_and_removes_the_enemy(session: GameSession) -> None:
+def test_a_kill_is_announced_once_and_removes_the_enemy(
+    session: GameSession, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("src.combat.rng.randint", lambda a, b: a)  # the attack lands
     kills: list[dict] = []
     session.bus.subscribe(EventType.ENEMY_DEFEATED, lambda e: kills.append(e.data))
     _fight_in_root(session)

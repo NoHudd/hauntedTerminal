@@ -134,7 +134,6 @@ class ImprovedGameEngine:
         self.bus.subscribe(EventType.UI_READY, self._on_ui_ready)
         self.bus.subscribe(EventType.UI_ERROR, self._on_ui_error)
         self.bus.subscribe(EventType.GAME_SAVED, self._on_save_requested)
-        self.bus.subscribe(EventType.GAME_OVER, self._on_game_over)
         self.bus.subscribe(EventType.GAME_RESTART_REQUESTED, self._on_restart_requested)
 
     def restart_game(self):
@@ -291,6 +290,8 @@ class ImprovedGameEngine:
             self.player, self.world, self.output, self.bus,
             on_combat_start=self._combat_started,
             on_combat_end=self._combat_ended,
+            on_new_game=self._new_game_after_game_over,
+            on_restore_save=self._restart_from_save,
         )
 
     def _combat_started(self):
@@ -335,27 +336,14 @@ class ImprovedGameEngine:
 
         self._update_ui_panels()
     
-    def _on_game_over(self, event):
-        """Handle game over event and restart game based on player choice."""
-        action = event.data.get("action")
-        logger.info(f"Game over event received with action: {action}")
-        
-        if action == "quit":
-            logger.info("Player chose to quit")
-            self._cleanup()
-            self.bus.emit_event(EventType.GAME_QUIT, {}, "ImprovedGameEngine")
-            
-        elif action == "start_new_game":
-            # Full setup flow: a new run re-offers difficulty + class (the old
-            # shortcut restarted as a default guardian on the same difficulty).
-            logger.info("Player chose to start new game - full setup flow")
-            self.state_manager.set_state(GameState.MENU, emit_event=False)
-            self.bus.clear_history()
-            self._start_new_game()
-            
-        elif action == "restart_from_save":
-            logger.info("Player chose to restart from save - loading most recent save")
-            self._restart_from_save()
+    def _new_game_after_game_over(self):
+        """The game-over / post-win screen's "n": a new run re-offers difficulty
+        and class (the old shortcut restarted as a default guardian on the same
+        difficulty)."""
+        logger.info("Player chose to start new game - full setup flow")
+        self.state_manager.set_state(GameState.MENU, emit_event=False)
+        self.bus.clear_history()
+        self._start_new_game()
 
     def _on_restart_requested(self, event):
         """Handle game restart request from UI (F5 key)."""
@@ -975,7 +963,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             self.bus.unsubscribe(EventType.UI_READY, self._on_ui_ready)
             self.bus.unsubscribe(EventType.UI_ERROR, self._on_ui_error)
             self.bus.unsubscribe(EventType.GAME_SAVED, self._on_save_requested)
-            self.bus.unsubscribe(EventType.GAME_OVER, self._on_game_over)
             
             logger.info("Game engine cleanup completed")
             

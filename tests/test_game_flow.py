@@ -41,7 +41,7 @@ def test_new_game_choice_returns_to_the_difficulty_picker(session: GameSession) 
     session.bus.subscribe(EventType.GAME_OVER, lambda e: seen.append(e.data))
     _die(session)
     session.submit("n")
-    assert seen[-1] == {"action": "start_new_game"}
+    assert seen == []  # a direct engine call now, not a GAME_OVER event
     assert session.state == GameState.WAITING_FOR_DIFFICULTY
 
 
