@@ -140,12 +140,7 @@ class CdCommand(Command):
             "CommandHandler",
         )
         ctx.display_location()
-
-        ts = ctx.player.tutorial_state
-        if not ts.get("completed", False) and ts.get("navigation_ls", False):
-            if not ts.get("navigation_moved", False):
-                ts["navigation_moved"] = True
-                ctx.tutorial.show_hint("completed")
+        ctx.tutorial.after_move()
 
     @staticmethod
     def _deny(ctx: "CommandHandler", typed: str, denial: dict | None) -> None:
@@ -207,7 +202,7 @@ class LsCommand(Command):
             ctx.output.write(enemy_output)
             return
 
-        revealed = self._render_directories(
+        revealed, directories = self._render_directories(
             ctx, output, room_id, show_all, long_format
         )
         has_content = has_content or bool(output)
@@ -242,7 +237,7 @@ class LsCommand(Command):
                 "CommandHandler",
             )
 
-        self._advance_tutorial(ctx, weapon_found, weapon_id)
+        ctx.tutorial.after_ls(weapon_found, weapon_id, has_directories=bool(directories))
 
     # -- sections -------------------------------------------------------------
 
@@ -265,8 +260,9 @@ class LsCommand(Command):
     def _render_directories(
         self, ctx: "CommandHandler", output: Text, room_id: str,
         show_all: bool, long_format: bool,
-    ) -> list[str]:
-        """List child directories. With -a, also reveal and show hidden ones."""
+    ) -> tuple[list[str], list[str]]:
+        """List child directories. With -a, also reveal and show hidden ones.
+        Returns (newly revealed, all listed)."""
         here = room_paths.room_path(room_id)
         children = room_paths.children_of(here)
 
@@ -281,7 +277,7 @@ class LsCommand(Command):
                 visible.append(child)
 
         if not visible and not show_all:
-            return revealed
+            return revealed, visible
 
         output.append("Directories:\n", style="bold blue")
 
@@ -312,7 +308,7 @@ class LsCommand(Command):
             output.append(
                 f"\n✨ Revealed hidden directory: {path}\n", style="bold green"
             )
-        return revealed
+        return revealed, visible
 
     def _render_items(
         self, ctx: "CommandHandler", output: Text, items: list[str],
@@ -400,19 +396,3 @@ class LsCommand(Command):
                 output.append(f" - {name} (HP: {health}, DMG: {damage})\n")
             else:
                 output.append(f"  {enemy_id} - Unknown Enemy\n", style="red")
-
-    @staticmethod
-    def _advance_tutorial(
-        ctx: "CommandHandler", weapon_found: bool, weapon_id: str | None,
-    ) -> None:
-        ts = ctx.player.tutorial_state
-        if ts.get("completed", False):
-            return
-        if not ts.get("first_ls", False):
-            ts["first_ls"] = True
-            if weapon_found:
-                ts["found_weapon"] = True
-                ctx.tutorial.show_hint("step2", weapon_id)
-        elif ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
-            ts["navigation_ls"] = True
-            ctx.tutorial.show_hint("step6b")

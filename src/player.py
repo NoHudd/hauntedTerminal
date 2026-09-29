@@ -52,9 +52,12 @@ class Player:
             "took_weapon": False,       # Step 2 gate
             "equipped_weapon": False,   # Step 3 gate (also triggers enemy spawn)
             "combat_action_taken": False,  # Step 4 gate (player landed an attack)
-            "navigation_ls": False,     # Step 6 gate (typed ls post-combat)
-            "navigation_moved": False,  # Step 6 gate (moved to new room)
-            "completed": False          # Step 7 — tutorial fully done
+            "ps_used": False,           # Step 5 gate (ran ps after the fight)
+            "pwd_used": False,          # Step 6 gate (ran pwd)
+            "went_up": False,           # Step 7 gate (moved somewhere with directories)
+            "navigation_ls": False,     # Step 8 gate (ls showed directories)
+            "navigation_moved": False,  # Step 9 gate (cd into one of them)
+            "completed": False          # tutorial fully done
         }
 
         # Harvesting Cycles (XP System)

@@ -469,6 +469,40 @@ class TextualGameUI(App):
             self._echo_panel.show_hint,
             data.get("text", ""), data.get("step"), data.get("total", 0),
         )
+        if data.get("highlight"):
+            self._ui_call(self._flash_section, data["highlight"])
+
+    _FLASH_PULSES = 3
+    _FLASH_SECONDS = 0.35
+
+    def _flash_section(self, label: str) -> None:
+        """Pulse the "<label>:" section of the current output so the player can
+        find what Echo is pointing at, then leave it lit."""
+        base = self.output_content
+        if not isinstance(base, Text):
+            return
+        start = base.plain.find(f"{label}:")
+        if start < 0:
+            return
+        end = base.plain.find("\n\n", start)
+        lit = base.copy()
+        lit.stylize("bold black on yellow", start, len(base.plain) if end < 0 else end)
+
+        if self._settings_manager.settings.get("reduce_motion", False):
+            self.output_content = lit
+            return
+
+        frames = [lit, base] * self._FLASH_PULSES + [lit]
+
+        def next_frame() -> None:
+            # The player typed something else: the section is gone, stop.
+            if not frames or (self.output_content is not base and self.output_content is not lit):
+                timer.stop()
+                return
+            self.output_content = frames.pop(0)
+
+        timer = self.set_interval(self._FLASH_SECONDS, next_frame)
+        next_frame()
 
     def _on_enemy_defeated(self, event):
         """Enemy died: scene drains its HP bar to zero and removes the sprite.

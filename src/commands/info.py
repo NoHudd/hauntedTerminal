@@ -93,3 +93,4 @@ class PwdCommand(Command):
         from src.room_paths import room_path
 
         ctx.output.write(f"[bold]{room_path(ctx.player.current_room)}[/bold]")
+        ctx.tutorial.after_pwd()

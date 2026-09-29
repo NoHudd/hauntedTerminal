@@ -51,17 +51,17 @@ def test_hotkey_simulated_attack_sets_combat_action_taken():
         s.close()
 
 
-def test_get_current_tutorial_step_reaches_step6_after_combat():
+def test_get_current_tutorial_step_moves_past_combat():
     """Regression for the selection_mode_used/combat_selection key mismatch:
-    after combat_action_taken flips, the fallback step lookup must reach
-    step6, not loop on step5 forever."""
+    after combat_action_taken flips, the fallback step lookup must move on to
+    the post-combat step (ps), not loop on step5 forever."""
     from engine.api import GameSession
     s = GameSession()
     try:
         s.new_game("t", "guardian")
         h = _start_tutorial_fight(s)
         s.player.tutorial_state["combat_action_taken"] = True
-        assert h.tutorial.current_step() == "step6"
+        assert h.tutorial.current_step() == "step5_postcombat"
     finally:
         s.close()
 
@@ -98,9 +98,9 @@ def test_completed_hint_documents_flee_hotkey():
 
 
 def test_post_combat_hint_fires_once_not_doubled():
-    """step5_postcombat now folds the 'ls to see where you can go' nudge in
-    directly — step6 must not auto-fire right after it (that was two ECHO
-    messages back to back saying almost the same thing)."""
+    """Winning the tutorial fight gives one post-combat hint (which points at
+    ps) — the next step must not auto-fire right after it (that was two ECHO
+    messages back to back)."""
     from engine.api import GameSession
     s = GameSession()
     try:
@@ -117,7 +117,7 @@ def test_post_combat_hint_fires_once_not_doubled():
             )
         out = "\n".join(s.ui.drain())
         assert out.count("You won") == 1
-        assert "where you can go" in out.lower()
-        assert "let's move" not in out.lower()  # old step6 wording must not appear here
+        assert "type: [bold]ps[/bold]" in out.lower()
+        assert "pwd" not in out.lower()  # the step after ps must not fire yet
     finally:
         s.close()

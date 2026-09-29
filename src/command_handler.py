@@ -45,7 +45,7 @@ class CommandHandler:
 
         # Collaborators the commands use through this handler (ctx.<name>).
         self.resolver = ItemResolver(world, player)
-        self.tutorial = TutorialCoach(player, bus)
+        self.tutorial = TutorialCoach(player, world, bus)
         self.flow = GameFlow(
             player, world, output, bus,
             save=lambda: self.command_registry["save"].execute(self, []),

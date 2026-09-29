@@ -79,3 +79,4 @@ class PsCommand(Command):
                 " 42     1  [ksoftirqd/0]",
             ]
         ctx.output.write("\n".join(lines))
+        ctx.tutorial.after_ps()
