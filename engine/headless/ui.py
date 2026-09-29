@@ -27,6 +27,9 @@ class HeadlessUI:
         # Set when the domain asks to quit; tests assert on it instead of the
         # process exiting.
         self.quit_requested = False
+        # Every tutorial hint shown, in order, so tests can assert which step
+        # fired without depending on its wording.
+        self.hints: list[dict[str, Any]] = []
         # Back-refs the engine assigns via _bind_ui_refs; unused here but must
         # be assignable.
         self._player_ref: object | None = None
@@ -47,7 +50,9 @@ class HeadlessUI:
         bus.subscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
 
     def _on_tutorial_hint(self, event: Any) -> None:
-        self.output_log.append(str((getattr(event, "data", None) or {}).get("text", "")))
+        data = getattr(event, "data", None) or {}
+        self.hints.append(data)
+        self.output_log.append(str(data.get("text", "")))
 
     def _on_game_quit(self, event: Any) -> None:
         self.quit_requested = True

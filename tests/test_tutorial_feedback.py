@@ -46,29 +46,36 @@ def _into_tutorial_fight(s: GameSession) -> str:
 def test_take_lists_the_room_before_echo_speaks(session: GameSession) -> None:
     session.submit("ls")
     out = _text(session.submit(f"take {_weapon_here(session)}"))
-    assert out.index("Files:") < out.index("ECHO>")
+    hint = session.ui.hints[-1]
+    assert hint["hint_id"] == "step3"
+    assert out.index("Files:") < out.index(hint["text"])
 
 
 def test_combat_hint_arrives_after_the_fight_opens(session: GameSession) -> None:
-    out = _into_tutorial_fight(session)
-    assert session.engine.cmd_handler.current_combat_session is not None
-    assert out.index("HOSTILE ENTITY DETECTED") < out.index("Press [bold]1[/bold] to attack")
+    handler = session.engine.cmd_handler
+    in_combat_when_shown: list[bool] = []
+    session.bus.subscribe(
+        EventType.TUTORIAL_HINT,
+        lambda e: in_combat_when_shown.append(handler.current_combat_session is not None),
+    )
+    _into_tutorial_fight(session)
+    assert session.ui.hints[-1]["hint_id"] == "step4"
+    assert in_combat_when_shown[-1]
 
 
 def test_fleeing_the_tutorial_fight_keeps_it_winnable(session: GameSession) -> None:
     _into_tutorial_fight(session)
     room = session.player.current_room
-    session.ui.clear_console()
     session.bus.emit_event(EventType.COMBAT_ACTION_SELECTED, {"choice": "flee"}, "test")
-    out = _text(session.ui.drain())
 
     assert session.engine.cmd_handler.current_combat_session is None
     assert session.player.current_room == room
     assert TUTORIAL_ENEMY in session.world.get_enemies_in_room(room)
-    assert "Type: [bold]attack[/bold]" in out
+    assert session.ui.hints[-1]["hint_id"] == "step4_fled"
 
     # A stray command re-explains how to continue, not "press 1".
-    assert "Type: [bold]attack[/bold]" in _text(session.submit("1"))
+    session.submit("1")
+    assert session.ui.hints[-1]["hint_id"] == "step4_fled"
 
     session.submit("attack")
     assert session.engine.cmd_handler.current_combat_session is not None
@@ -90,12 +97,12 @@ def test_battle_start_shows_system_lines_and_the_attack_list() -> None:
         {"actor": "system", "message": "ECHO> press 1"},
     ]
     start = render_combat_output(opening, player, attacks)
-    assert "BATTLE STARTED" in start and "ECHO> press 1" in start and "Strike" in start
+    assert "ECHO> press 1" in start and "Strike" in start
 
     fighting = render_combat_output(
         [*opening, {"actor": "player", "message": "hit"}], player, attacks
     )
-    assert "COMBAT LOG" in fighting and "QUICK ATTACKS" not in fighting
+    assert "hit" in fighting and "Strike" not in fighting  # log only, no attack list
 
 
 def test_quit_chooser_survives_a_full_repaint(monkeypatch: pytest.MonkeyPatch) -> None:

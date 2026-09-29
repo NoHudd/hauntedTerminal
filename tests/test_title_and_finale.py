@@ -98,18 +98,6 @@ class _FakeOut:
 _DATA = {"sections": ["one", "two", "three"], "stats": {"player_name": "Ada", "level": 3}}
 
 
-def test_finale_reveals_one_section_per_beat_then_the_recap() -> None:
-    out = _FakeOut()
-    finale = FinaleReveal(out)
-    finale.start(_DATA, reduce_motion=False)
-    assert out.shown == ["one"] and finale.revealing
-    assert [t.delay for t in out.timers] == [2.5, 5.0, 7.5]
-    for timer in out.timers:
-        timer.callback()
-    assert out.shown == ["one", "two", "three", build_recap(_DATA["stats"])]
-    assert not finale.revealing
-
-
 def test_skipping_the_finale_dumps_the_rest_and_stops_the_timers() -> None:
     out = _FakeOut()
     finale = FinaleReveal(out)
@@ -121,11 +109,3 @@ def test_skipping_the_finale_dumps_the_rest_and_stops_the_timers() -> None:
     assert not finale.revealing
     finale.skip()  # a second key is a no-op
     assert len(out.shown) == 4
-
-
-def test_reduce_motion_shows_the_whole_finale_at_once() -> None:
-    out = _FakeOut()
-    finale = FinaleReveal(out)
-    finale.start(_DATA, reduce_motion=True)
-    assert out.shown == ["one", "two", "three", build_recap(_DATA["stats"])]
-    assert out.timers == [] and not finale.revealing

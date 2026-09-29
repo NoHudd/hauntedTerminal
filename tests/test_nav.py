@@ -73,33 +73,37 @@ def test_paths_and_aliases_are_unique(aliases: dict[str, str]) -> None:
     assert len(paths) == len(set(paths)), "two rooms claim the same path"
 
 
-@pytest.mark.parametrize("typed,expected", sorted(LEGACY_NAV.items()))
-def test_legacy_navigation_still_works(
-    typed: str, expected: str, aliases: dict[str, str]
-) -> None:
+def test_legacy_navigation_still_works(aliases: dict[str, str]) -> None:
     """Anything that navigated before the tree must still navigate."""
-    assert room_paths.resolve(typed, "/", aliases) == expected
+    wrong = {
+        typed: got for typed, expected in LEGACY_NAV.items()
+        if (got := room_paths.resolve(typed, "/", aliases)) != expected
+    }
+    assert not wrong, f"these no longer reach their room: {wrong}"
 
 
-@pytest.mark.parametrize(
-    "typed,current,expected",
-    [
-        ("/usr/games", "/", "usr_share_games"),
-        ("games", "/usr", "usr_share_games"),
-        ("self", "/proc", "mirror_sector"),
-        ("..", "/usr/games", "usr_lib_arcane"),
-        ("..", "/var/tmp", "var_dungeon"),
-        ("..", "/", "root"),                       # root is its own parent
-        ("../..", "/usr/games/cowsay", "usr_lib_arcane"),
-        (".", "/var", "var_dungeon"),
-        ("/var/./tmp", "/", "deprecated_dir"),
-        ("/var/backups/..", "/", "var_dungeon"),
-    ],
-)
-def test_path_arithmetic(
-    typed: str, current: str, expected: str, aliases: dict[str, str]
-) -> None:
-    assert room_paths.resolve(typed, current, aliases) == expected
+PATH_ARITHMETIC = [
+    # (typed, current directory, expected room)
+    ("/usr/games", "/", "usr_share_games"),
+    ("games", "/usr", "usr_share_games"),
+    ("self", "/proc", "mirror_sector"),
+    ("..", "/usr/games", "usr_lib_arcane"),
+    ("..", "/var/tmp", "var_dungeon"),
+    ("..", "/", "root"),                       # root is its own parent
+    ("../..", "/usr/games/cowsay", "usr_lib_arcane"),
+    (".", "/var", "var_dungeon"),
+    ("/var/./tmp", "/", "deprecated_dir"),
+    ("/var/backups/..", "/", "var_dungeon"),
+]
+
+
+def test_path_arithmetic(aliases: dict[str, str]) -> None:
+    wrong = [
+        (typed, current, expected, got)
+        for typed, current, expected in PATH_ARITHMETIC
+        if (got := room_paths.resolve(typed, current, aliases)) != expected
+    ]
+    assert not wrong, f"(typed, cwd, expected, got): {wrong}"
 
 
 def test_unknown_paths_do_not_resolve(aliases: dict[str, str]) -> None:

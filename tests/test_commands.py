@@ -195,9 +195,12 @@ def test_tutorial_prescribed_commands_work(session: GameSession) -> None:
     from src.game_states import GameState
     if session.state == GameState.IN_COMBAT:
         session.submit("flee")
-    before = session.player.current_room
-    session.submit("cd /var")
-    assert session.player.current_room != before, "cd /var (tutorial nav) must move"
+    for cmd in ("ps", "pwd", "cd ..", "ls"):
+        out = _text(session.submit(cmd))
+        assert "Unknown command" not in out and "digital void" not in out, cmd
+    assert session.player.current_room == "root", "cd .. from /home must reach /"
+    session.submit("cd bin")
+    assert session.player.current_room == "bin_armory", "the tutorial's cd example must move"
 
 
 def test_ls_hints_toggle(session: GameSession) -> None:

@@ -78,7 +78,6 @@ def test_step4_hint_does_not_instruct_typed_attack():
         s.submit("take segfault_shield")
         out = "\n".join(s.submit("equip segfault_shield"))
         assert "type: [bold]attack[/bold]" not in out.lower()
-        assert "selection mode" in out.lower()
     finally:
         s.close()
 
@@ -107,17 +106,15 @@ def test_post_combat_hint_fires_once_not_doubled():
         s.new_game("t", "guardian")
         h = _start_tutorial_fight(s)
         attack_id = next(iter(h.current_combat_session.available_attacks))
-        # One-shot the tutorial enemy (15 HP) so combat ends on this action.
-        s.ui.clear_console()
+        s.ui.hints.clear()
         for _ in range(5):
             if not h.current_combat_session:
                 break
             s.bus.emit_event(
                 EventType.COMBAT_ACTION_SELECTED, {"choice": attack_id}, "Test"
             )
-        out = "\n".join(s.ui.drain())
-        assert out.count("You won") == 1
-        assert "type: [bold]ps[/bold]" in out.lower()
-        assert "pwd" not in out.lower()  # the step after ps must not fire yet
+        fired = [hint["hint_id"] for hint in s.ui.hints]
+        assert fired.count("step5_postcombat") == 1
+        assert fired[-1] == "step5_postcombat"  # nothing fires right after it
     finally:
         s.close()

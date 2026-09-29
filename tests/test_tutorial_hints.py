@@ -51,11 +51,11 @@ def test_source_actually_requests_hints() -> None:
     assert REQUESTED_IDS, "found no show_hint call sites — check the regex"
 
 
-@pytest.mark.parametrize("hint_id", REQUESTED_IDS)
-def test_every_requested_hint_has_text(hint_id: str) -> None:
-    assert hint_id in load_tutorial_hints(), (
-        f"code asks for tutorial step '{hint_id}' but the YAML defines no text, "
-        "so the player would get silence at that step"
+def test_every_requested_hint_has_text() -> None:
+    missing = sorted(set(REQUESTED_IDS) - set(load_tutorial_hints()))
+    assert not missing, (
+        f"code asks for tutorial steps {missing} but the YAML defines no text, "
+        "so the player would get silence at those steps"
     )
 
 
@@ -65,19 +65,17 @@ def test_no_unreachable_hint_text() -> None:
     assert not orphans, f"tutorial text never shown to anyone: {sorted(orphans)}"
 
 
-@pytest.mark.parametrize("hint_id", REQUESTED_IDS)
-def test_hint_renders_without_leftover_placeholders(
-    hint_id: str, session: GameSession
-) -> None:
+def test_hints_render_without_leftover_placeholders(session: GameSession) -> None:
     handler = session.engine.cmd_handler
-    handler.player.tutorial_state["completed"] = False
-    session.ui.clear_console()
-
-    handler.tutorial.show_hint(hint_id)
-    out = _text(session.ui.drain())
-
-    assert out.strip(), f"{hint_id} rendered nothing"
-    assert "{" not in out, f"{hint_id} left an unformatted placeholder: {out[:80]}"
+    broken = {}
+    for hint_id in REQUESTED_IDS:
+        handler.player.tutorial_state["completed"] = False
+        session.ui.clear_console()
+        handler.tutorial.show_hint(hint_id)
+        out = _text(session.ui.drain())
+        if not out.strip() or "{" in out:
+            broken[hint_id] = out[:80]
+    assert not broken, f"hints that rendered empty or with a placeholder left: {broken}"
 
 
 def test_weapon_name_comes_from_class_data(session: GameSession) -> None:

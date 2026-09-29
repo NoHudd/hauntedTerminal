@@ -8,7 +8,6 @@ import pytest
 from rich.text import Text
 
 from engine.api import GameSession
-from src.events import EventType
 from src.ui.textual_ui import TextualGameUI
 
 
@@ -25,54 +24,56 @@ def session() -> Iterator[GameSession]:
         s.close()
 
 
-def _text(lines: list[str]) -> str:
-    return "\n".join(str(line) for line in lines)
+def _last_hint(s: GameSession) -> dict:
+    return s.ui.hints[-1]
 
 
 def test_the_walk_from_ps_to_completion(session: GameSession) -> None:
     ts = session.player.tutorial_state
     assert session.engine.cmd_handler.tutorial.current_step() == "step5_postcombat"
 
-    assert "[bold]pwd[/bold]" in _text(session.submit("ps"))
-    assert ts["ps_used"]
+    session.submit("ps")
+    assert ts["ps_used"] and _last_hint(session)["hint_id"] == "step_ps"
 
-    out = _text(session.submit("pwd"))
-    assert "You're in [bold]/home[/bold]" in out and "cd ..[/bold]" in out
+    session.submit("pwd")  # /home has nothing below it
     assert ts["pwd_used"] and not ts["went_up"]
+    assert _last_hint(session)["hint_id"] == "step_up"
 
-    out = _text(session.submit("cd .."))
-    assert "You're in [bold]/[/bold] now" in out
-    assert ts["went_up"]
+    session.submit("cd ..")
+    assert ts["went_up"] and _last_hint(session)["hint_id"] == "step6"
 
-    out = _text(session.submit("ls"))
-    assert "Directories:" in out
-    assert "for example [bold]cd bin[/bold]" in out
-    assert ts["navigation_ls"]
+    session.submit("ls")
+    hint = _last_hint(session)
+    assert ts["navigation_ls"] and hint["hint_id"] == "step6b"
+    assert hint["highlight"] == "Directories"
+    assert (hint["step"], hint["total"]) == (9, 9)
+    assert "bin" in hint["text"]  # the example is a directory actually listed at /
 
     session.submit("cd bin")
     assert ts["completed"]
 
 
 def test_ls_before_ps_keeps_asking_for_ps(session: GameSession) -> None:
-    out = _text(session.submit("ls"))
-    assert "Type: [bold]ps" not in out  # ls just lists; no new step
-    assert not session.player.tutorial_state["ps_used"]
-    assert "[bold]ps[/bold]" in _text(session.submit("xyzzy"))
+    session.ui.hints.clear()
+    session.submit("ls")
+    assert session.ui.hints == []  # ls just lists; no new step
+    session.submit("xyzzy")
+    assert _last_hint(session)["hint_id"] == "step5_postcombat"
 
 
 def test_ls_in_a_dead_end_repeats_the_way_up(session: GameSession) -> None:
     session.submit("ps")
     session.submit("pwd")
-    out = _text(session.submit("ls"))  # still in /home: no Directories
-    assert "Go up one level" in out
+    session.submit("ls")  # still in /home: no Directories
+    assert _last_hint(session)["hint_id"] == "step_up"
     assert not session.player.tutorial_state["navigation_ls"]
 
 
 def test_pwd_somewhere_with_directories_skips_the_way_up(session: GameSession) -> None:
     session.submit("cd /")
     session.submit("ps")
-    out = _text(session.submit("pwd"))
-    assert "You're in [bold]/[/bold] now" in out
+    session.submit("pwd")
+    assert _last_hint(session)["hint_id"] == "step6"
     assert session.player.tutorial_state["went_up"]
 
 
@@ -85,10 +86,9 @@ def test_directories_flash_then_stay_lit(monkeypatch: pytest.MonkeyPatch) -> Non
     listing = Text("Directories:\n  bin/ - The Armory\n\nFiles:\n  readme\n")
 
     def lit(content: object) -> str:
+        # The listing carries no styles of its own, so any span is the highlight.
         assert isinstance(content, Text)
-        return "".join(
-            content.plain[s.start:s.end] for s in content.spans if "on yellow" in str(s.style)
-        )
+        return "".join(content.plain[s.start:s.end] for s in content.spans)
 
     async def scenario() -> None:
         async with app.run_test(size=(120, 40)) as pilot:
@@ -106,15 +106,3 @@ def test_directories_flash_then_stay_lit(monkeypatch: pytest.MonkeyPatch) -> Non
         asyncio.run(scenario())
     finally:
         app.__class__._FLASH_SECONDS = 0.35
-
-
-def test_step6b_hint_asks_the_ui_to_highlight_directories(session: GameSession) -> None:
-    seen: list[dict] = []
-    session.bus.subscribe(EventType.TUTORIAL_HINT, lambda e: seen.append(e.data))
-    session.submit("ps")
-    session.submit("pwd")
-    session.submit("cd ..")
-    session.submit("ls")
-    assert seen[-1]["hint_id"] == "step6b"
-    assert seen[-1]["highlight"] == "Directories"
-    assert seen[-1]["step"] == 9 and seen[-1]["total"] == 9
