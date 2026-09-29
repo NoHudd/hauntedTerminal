@@ -49,7 +49,7 @@ def test_the_walk_from_ps_to_completion(session: GameSession) -> None:
     hint = _last_hint(session)
     assert ts["navigation_ls"] and hint["hint_id"] == "step6b"
     assert hint["highlight"] == "Directories"
-    assert (hint["step"], hint["total"]) == (11, 11)
+    assert (hint["step"], hint["total"]) == (12, 12)
     assert "bin" in hint["text"]  # the example is a directory actually listed at /
 
     session.submit("cd bin")

@@ -5,12 +5,12 @@ from utils.debug_tools import debug_log
 
 # Hint id -> the numbered step it belongs to, for the "step N of TOTAL" label.
 STEP_NUMBERS = {
-    "step1": 1, "step2": 2, "step3": 3,
-    "step4": 4, "step4_fled": 4, "step5": 4,
-    "step5_postcombat": 5, "step_hidden": 6, "step_cat": 7,
-    "step_ps": 8, "step_up": 9, "step6": 10, "step6b": 11,
+    "step1": 1, "step2": 2, "step3": 3, "step_armor": 4,
+    "step4": 5, "step4_fled": 5, "step5": 5,
+    "step5_postcombat": 6, "step_hidden": 7, "step_cat": 8,
+    "step_ps": 9, "step_up": 10, "step6": 11, "step6b": 12,
 }
-TOTAL_STEPS = 11
+TOTAL_STEPS = 12
 # Hints that point at a section of the output the frontend should draw the eye to.
 HIGHLIGHTS = {"step6b": "Directories"}
 # Hints that close the tutorial; the frontend drops its pinned guidance.
@@ -51,6 +51,8 @@ class TutorialCoach:
             klass = load_class_data().get(self.player.player_class)
             weapon_name = getattr(klass, "starter_weapon", None) or self._FALLBACK_WEAPON
 
+        klass = load_class_data().get(self.player.player_class)
+        armor_name = getattr(klass, "starter_armor", None) or "armor"
         player_name = getattr(self.player, "name", "") or "spirit"
         directories = self._visible_directories()
         example_dir = room_paths.basename(room_paths.room_path(directories[0])) if directories else "var"
@@ -61,6 +63,7 @@ class TutorialCoach:
                 weapon_name=weapon_name,
                 location=room_paths.room_path(self.player.current_room),
                 example_dir=example_dir,
+                armor_name=armor_name,
             )
         except (KeyError, IndexError) as e:
             # An unknown placeholder is a content bug; show the raw line rather
@@ -93,6 +96,10 @@ class TutorialCoach:
             return "step2"
         if not ts.get("equipped_weapon", False):
             return "step3"
+        # Only before the first fight: a save from before this step existed has
+        # equipped_weapon and a won fight but no equipped_armor flag.
+        if not ts.get("equipped_armor", False) and not ts.get("combat_action_taken", False):
+            return "step_armor"
         if not ts.get("combat_action_taken", False):
             return "step4"
         if not ts.get("ls_a_used", False):
@@ -120,6 +127,21 @@ class TutorialCoach:
         return not self.player.tutorial_state.get("completed", False)
 
     # --- progression: commands report what happened, the coach decides ------
+
+    def gear_equipped(self, kind):
+        """The player equipped their first weapon or armor. Returns True when
+        both are now on, which is the moment the tutorial fight opens; otherwise
+        shows whatever gear step comes next."""
+        ts = self.player.tutorial_state
+        if not self._active() or ts.get(f"equipped_{kind}", False):
+            return False
+        ts[f"equipped_{kind}"] = True
+        if ts.get("equipped_weapon", False) and ts.get("equipped_armor", False):
+            return True
+        step = self.current_step()
+        if step:
+            self.show_hint(step)
+        return False
 
     def after_ls(self, weapon_found, weapon_id, has_directories, show_all=False):
         """ls: the first one points at the weapon; the first -a after combat

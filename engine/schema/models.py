@@ -92,6 +92,7 @@ class CharacterClass(_Base):
     base_health: int = Field(gt=0)
     base_damage: int = Field(gt=0)
     starter_weapon: ItemId | None = None
+    starter_armor: ItemId | None = None
     starter_abilities: list[AbilityId] = Field(default_factory=list)
     attacks: list[AttackId] = Field(default_factory=list)
     preferred_zones: list[str] = Field(default_factory=list)

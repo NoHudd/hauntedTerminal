@@ -55,7 +55,8 @@ class Player:
             "first_ls": False,          # Step 1 gate
             "found_weapon": False,      # Step 2 (ls revealed weapon)
             "took_weapon": False,       # Step 2 gate
-            "equipped_weapon": False,   # Step 3 gate (also triggers enemy spawn)
+            "equipped_weapon": False,   # Step 3 gate
+            "equipped_armor": False,    # armor step gate (weapon + armor starts the fight)
             "combat_action_taken": False,  # Step 4 gate (player landed an attack)
             "ps_used": False,           # Step 5 gate (ran ps after the fight)
             "pwd_used": False,          # Step 6 gate (ran pwd)

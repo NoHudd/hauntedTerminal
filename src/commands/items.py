@@ -26,6 +26,17 @@ def _first(args: list[str]) -> str:
     return args[0] if args else ""
 
 
+def _tutorial_gear_equipped(ctx: "CommandHandler", kind: str) -> None:
+    """Tutorial only: once the first weapon AND first armor are on, the scripted
+    fight opens. A player who skipped (completed=True) is never ambushed."""
+    if ctx.tutorial.gear_equipped(kind):
+        ctx.world.spawn_tutorial_enemy("home_grove")
+        # After the fight opens, so the hint lands in the combat log instead of
+        # being replaced by it.
+        ctx.check_for_enemies()
+        ctx.tutorial.show_hint("step4")
+
+
 class TakeCommand(Command):
     name = "take"
 
@@ -446,6 +457,7 @@ class EquipCommand(Command):
                     f"You have equipped [green]{armor_name}[/green]. "
                     f"[cyan]🛡 Damage taken reduced by {pct}%.[/cyan]"
                 )
+                _tutorial_gear_equipped(ctx, "armor")
             return
 
         is_weapon = (
@@ -478,17 +490,7 @@ class EquipCommand(Command):
             ctx.output.write(f"You have equipped [green]{weapon_name}[/green].")
             ctx.effects.show_damage_change(old_damage, ctx.player.calculate_damage())
 
-            # The scripted first fight is a tutorial beat only: a player who
-            # skipped (completed=True, equipped_weapon never set) must not be
-            # ambushed by it on their first equip.
-            if (not ctx.player.tutorial_state.get("completed", False)
-                    and not ctx.player.tutorial_state.get("equipped_weapon", False)):
-                ctx.player.tutorial_state["equipped_weapon"] = True
-                ctx.world.spawn_tutorial_enemy("home_grove")
-                # After the fight opens, so the hint lands in the combat log
-                # instead of being replaced by it.
-                ctx.check_for_enemies()
-                ctx.tutorial.show_hint("step4")
+            _tutorial_gear_equipped(ctx, "weapon")
         else:
             debug_log(f"Failed to equip weapon {weapon_id}")
             ctx.output.write(f"[bold red]Failed to equip {weapon_id}.[/bold red]")

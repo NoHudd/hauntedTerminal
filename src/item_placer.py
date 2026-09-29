@@ -758,24 +758,17 @@ class ItemPlacer:
             return ['common', 'uncommon']
 
     def place_starter_items(self, player_class: str) -> None:
-        """Place class-appropriate starter items in home_grove after character creation."""
-        # Get starter weapon from class data
+        """Place the class's starter weapon and armor in home_grove after
+        character creation, whatever the room already holds (no item cap)."""
         class_info = self.world.class_data.get(player_class.lower())
-        starter_weapon = class_info.starter_weapon if class_info else None
-
-        if starter_weapon and starter_weapon in self.world.items:
-            # Force-place directly into item_locations — skip the item cap check so
-            # the weapon always lands in home_grove regardless of how many YAML items
-            # were pre-loaded into the room during world state initialization.
-            if starter_weapon not in self.world.item_locations:
-                self.world.item_locations[starter_weapon] = "home_grove"
-                self.world.item_spawn_counts[starter_weapon] = 1
-                debug_log(f"Placed {starter_weapon} in home_grove for {player_class}")
+        for field in ("starter_weapon", "starter_armor"):
+            item_id = getattr(class_info, field, None) if class_info else None
+            if item_id and item_id in self.world.items:
+                self.world.item_locations[item_id] = "home_grove"
+                self.world.item_spawn_counts[item_id] = 1
+                debug_log(f"Placed {field} {item_id} in home_grove for {player_class}")
             else:
-                debug_log(f"Starter weapon {starter_weapon} already placed in {self.world.item_locations[starter_weapon]}, moving to home_grove")
-                self.world.item_locations[starter_weapon] = "home_grove"
-        else:
-            logger.warning(f"Starter weapon '{starter_weapon}' for class '{player_class}' not found in items data")
+                logger.warning(f"{field} '{item_id}' for class '{player_class}' not found in items data")
 
         # health_packet is already guaranteed in home_grove via the room YAML
 

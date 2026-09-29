@@ -53,6 +53,7 @@ def find_broken_references(content: GameContent) -> list[str]:
 
     for cid, klass in content.classes.items():
         check(klass.starter_weapon, items, f"class '{cid}' starter_weapon", "item")
+        check(klass.starter_armor, items, f"class '{cid}' starter_armor", "item")
         for ability_ref in klass.starter_abilities:
             check(ability_ref, abilities, f"class '{cid}' starter_abilities", "ability")
         for attack_ref in klass.attacks:

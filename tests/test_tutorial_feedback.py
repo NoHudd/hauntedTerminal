@@ -36,11 +36,21 @@ def _weapon_here(s: GameSession) -> str:
     )
 
 
+def _armor_here(s: GameSession) -> str:
+    return next(
+        i for i in s.world.get_items_in_room(s.player.current_room)
+        if s.world.items[i].type == "armor"
+    )
+
+
 def _into_tutorial_fight(s: GameSession) -> str:
     s.submit("ls")
     weapon = _weapon_here(s)
     s.submit(f"take {weapon}")
-    return _text(s.submit(f"equip {weapon}"))
+    s.submit(f"equip {weapon}")
+    armor = _armor_here(s)
+    s.submit(f"take {armor}")
+    return _text(s.submit(f"equip {armor}"))
 
 
 def test_take_lists_the_room_before_echo_speaks(session: GameSession) -> None:

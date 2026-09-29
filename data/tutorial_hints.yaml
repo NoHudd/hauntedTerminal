@@ -1,5 +1,5 @@
 # Tutorial hint text, keyed by step id. Rendered by TutorialCoach.show_hint,
-# which formats {player_name}, {weapon_name}, {location} (the player's current
+# which formats {player_name}, {weapon_name}, {armor_name}, {location} (the player's current
 # path) and {example_dir} (the first directory below it) before emitting it.
 # Rich markup is allowed.
 #
@@ -7,6 +7,7 @@
 #   step1        first ls
 #   step2        take the weapon      (weapon_name = the one actually on the floor)
 #   step3        equip it
+#   step_armor   take + equip the starter armor (weapon + armor on opens the fight)
 #   step4        combat opens
 #   step4_fled   fled the tutorial fight (it waits in the room for `attack`)
 #   step5        after the first landed hit
@@ -27,6 +28,8 @@
   [bold green]ECHO>[/bold green] Good — that's everything in this directory. See that weapon? Type: [bold]take {weapon_name}[/bold] to pick it up. Items you carry appear in the Inventory panel on the right.
 "step3": |-
   [bold green]ECHO>[/bold green] You're carrying it, but it's not active yet. Type: [bold]equip {weapon_name}[/bold] to ready it. Equipping means it'll be used in combat.
+"step_armor": |-
+  [bold green]ECHO>[/bold green] A weapon hits; armor keeps you standing. Your [bold]{armor_name}[/bold] is lying here too. Type: [bold]take {armor_name}[/bold], then [bold]equip {armor_name}[/bold] — and watch [bold]Defense[/bold] in the Stats panel.
 "step4": |-
   [bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat, and you're already in Selection Mode. Press [bold]1[/bold] to attack.
 "step4_fled": |-

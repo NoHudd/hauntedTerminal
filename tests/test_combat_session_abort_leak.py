@@ -25,6 +25,8 @@ def _start_unresolved_fight(s):
     h.world.item_locations["segfault_shield"] = s.player.current_room
     s.submit("take segfault_shield")
     s.submit("equip segfault_shield")
+    s.submit("take cracked_firewall")  # starter armor: weapon + armor opens the fight
+    s.submit("equip cracked_firewall")
     assert h.current_combat_session is not None
     assert h.current_combat_session.is_active
     return h
