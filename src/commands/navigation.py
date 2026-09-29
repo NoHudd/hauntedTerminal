@@ -45,17 +45,17 @@ def _unlock_with_held_key(ctx: "CommandHandler", room_id: str) -> bool:
     if not key_required or not ctx.player.has_item(key_required):
         return False
 
-    key_item = ctx.player.get_item_from_inventory(key_required) or {}
+    key_item = ctx.player.get_item_from_inventory(key_required)
     unlocks = [
-        ctx.room_aliases.get(str(r).lower(), r) for r in key_item.get("unlocks", [])
+        ctx.room_aliases.get(str(r).lower(), r) for r in key_item.unlocks
     ]
-    if room_id not in unlocks and not key_item.get("usable", False):
+    if room_id not in unlocks and not key_item.usable:
         return False
 
     ctx.world.discover_room(room_id)
     ctx.world.unlock_room(room_id)
     path = room_paths.room_path(room_id)
-    key_name = key_item.get("name", key_required)
+    key_name = key_item.name
     ctx.output.write(
         f"[yellow]The {key_name} fits. {path} unlocks.[/yellow]"
     )
@@ -333,7 +333,7 @@ class LsCommand(Command):
             description = ctx.get_formatted_item_description(item)
             # Colour the file by rarity so value reads at a glance. Common maps to
             # white, invisible against the description, so commons get green.
-            rarity = item.get("rarity", "common") if item else "common"
+            rarity = item.rarity if item else "common"
             item_color = RaritySystem.get_rarity_color(rarity)
             if item_color in ("white", "bright_white", "default"):
                 item_color = "green"
@@ -345,13 +345,13 @@ class LsCommand(Command):
             output.append(f" - {description}\n")
             if hints:
                 readable = (
-                    item and item.get("type") == "lore"
-                    and not item.get("takeable", True)
+                    item and item.type == "lore"
+                    and not item.takeable
                 )
                 verb = "cat" if readable else "take"
                 output.append(f"     → {verb} {item_id}\n", style="dim cyan")
 
-            if item and item.get("type") == "weapon" and not weapon_found:
+            if item and item.type == "weapon" and not weapon_found:
                 weapon_found = True
                 weapon_id = item_id
         return weapon_found, weapon_id

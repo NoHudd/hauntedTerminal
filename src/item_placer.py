@@ -112,7 +112,7 @@ class ItemPlacer:
         item = self.world.items.get(item_id)
         if item is None:
             return False
-        item_type = item.get("type") if isinstance(item, dict) else item.type
+        item_type = item.type
         return str(item_type).lower() == "key"
 
     def rooms_reachable_with(self, held_keys):
@@ -178,7 +178,7 @@ class ItemPlacer:
                 return
 
             key_id = unplaced.pop(0)
-            allowed = self.world.get_item(key_id).get("allowed_rooms") or []
+            allowed = self.world.items[key_id].allowed_rooms
             preferred = [r for r in spots if r in allowed] or spots
 
             room_id = rng.choice(preferred)
@@ -237,9 +237,6 @@ class ItemPlacer:
         
         # Gather all items with placement information and organize by rarity
         for item_id, item_data in self.world.items.items():
-            # Typed template -> plain dict for this placement pass (read-only).
-            if not isinstance(item_data, dict):
-                item_data = item_data.model_dump(exclude_unset=True)
             # Skip if item is already placed in a fixed location
             if item_id in self.world.item_locations:
                 debug_log(f"Skipping item {item_id} - already placed")
@@ -251,7 +248,7 @@ class ItemPlacer:
                 continue
             
             # Check if the item has already reached its max spawn count
-            max_spawn = item_data.get("max_spawn", 1)
+            max_spawn = item_data.max_spawn
             current_spawn = self.world.item_spawn_counts.get(item_id, 0)
             
             if current_spawn >= max_spawn:
@@ -259,7 +256,7 @@ class ItemPlacer:
                 continue  # Skip if we've already spawned the maximum number
             
             # Get the item's rarity (default to "common" if not specified)
-            rarity = item_data.get("rarity", "common")
+            rarity = item_data.rarity
 
             # Normalize rarity to standardized string format
             rarity = self._normalize_rarity(rarity)
@@ -370,8 +367,8 @@ class ItemPlacer:
             bool: True if the item was successfully placed, False otherwise
         """
         # Check if the item has allowed_rooms specified
-        allowed_rooms = item_data.get("allowed_rooms", [])
-        
+        allowed_rooms = item_data.allowed_rooms
+
         # Find eligible rooms for this item
         eligible_rooms = []
         
@@ -618,7 +615,7 @@ class ItemPlacer:
 
             if self._place_item_in_room(item_id, item_data, room_id):
                 items_placed += 1
-                item_type = item_data.get("type", "")
+                item_type = item_data.type
                 if item_type not in ["consumable", "enhancement"]:
                     suitable_items = [(id, data) for id, data in suitable_items if id != item_id]
 
@@ -629,16 +626,13 @@ class ItemPlacer:
         suitable_items = []
 
         for item_id, item_data in self.world.items.items():
-            # Typed template -> plain dict for this placement pass (read-only).
-            if not isinstance(item_data, dict):
-                item_data = item_data.model_dump(exclude_unset=True)
             # Skip already placed items
             if item_id in self.world.item_locations:
                 continue
 
             # Keys are placed via _place_keys, not through zone loot — otherwise
             # they monopolize core/root and starve other zones.
-            if item_data.get("type", "").lower() == "key":
+            if item_data.type.lower() == "key":
                 continue
 
             # Check class restrictions
@@ -662,17 +656,14 @@ class ItemPlacer:
     
     def _item_suitable_for_class(self, item_data, player_class):
         """Check if item is suitable for the player class."""
-        if "allowed_classes" in item_data:
-            allowed = item_data["allowed_classes"]
-            if isinstance(allowed, str):
-                allowed = [allowed]
-            return player_class.lower() in [c.lower() for c in allowed]
+        if item_data.allowed_classes:
+            return player_class.lower() in [c.lower() for c in item_data.allowed_classes]
         return True  # No restrictions
     
     def _item_matches_preferences(self, item_data, loot_preferences):
         """Check if item matches class loot preferences."""
-        item_type = item_data.get("type", "").lower()
-        item_tags = item_data.get("tags", [])
+        item_type = item_data.type.lower()
+        item_tags = item_data.tags
         
         for preference in loot_preferences:
             if preference.lower() in item_type or preference.lower() in [tag.lower() for tag in item_tags]:
@@ -697,7 +688,7 @@ class ItemPlacer:
         # Organize by rarity
         items_by_rarity = {}
         for item_id, item_data in suitable_items:
-            rarity = item_data.get("rarity", "common")
+            rarity = item_data.rarity
             # Normalize rarity
             rarity = self._normalize_rarity(rarity)
             if rarity not in items_by_rarity:
@@ -791,10 +782,10 @@ class ItemPlacer:
     def _item_fits_room(self, item_data, room_id) -> bool:
         """Check item's allowed_rooms / allowed_zones constraints against a room.
         Zones are matched against the room_id's directory prefix (var_dungeon → 'var')."""
-        allowed_rooms = item_data.get("allowed_rooms", [])
+        allowed_rooms = item_data.allowed_rooms
         if allowed_rooms and room_id not in allowed_rooms:
             return False
-        allowed_zones = item_data.get("allowed_zones", [])
+        allowed_zones = item_data.allowed_zones
         if allowed_zones:
             room_prefix = room_id.split("_", 1)[0]
             r = self.world.rooms.get(room_id)

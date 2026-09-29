@@ -5,7 +5,7 @@ from utils.debug_tools import debug_log
 
 # Cache for loaded data to avoid repeated disk reads
 _class_data_cache = None
-_weapon_data_cache = {}
+_items_cache = None
 _abilities_data_cache = None
 
 def load_class_data():
@@ -24,37 +24,17 @@ def load_class_data():
         debug_log(f"ERROR loading class data: {e}")
         return {}
 
-def load_weapon_data(weapon_id):
-    """Load data for a specific weapon from weapons.yaml"""
-    global _weapon_data_cache
-    
-    # Return cached data if available
-    if weapon_id in _weapon_data_cache:
-        return _weapon_data_cache[weapon_id]
-    
-    try:
-        # Load from the flat weapons.yaml (id -> def, no wrapper key).
-        filepath = 'data/items/weapons.yaml'
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as file:
-                weapons = yaml.safe_load(file) or {}
-            weapon_data = weapons.get(weapon_id)
-            if weapon_data:
-                from engine.schema import Item
-                Item(id=weapon_id, **weapon_data)  # validation gate; raises loud on a bad field
-                weapon_data["id"] = weapon_id
-                _weapon_data_cache[weapon_id] = weapon_data
-                debug_log(f"Loaded weapon data for {weapon_id}")
-                return weapon_data
-            debug_log(f"ERROR: Weapon {weapon_id} not found in weapons.yaml")
-            return None
-        else:
-            debug_log(f"ERROR: Weapons file not found at path: {filepath}")
-            return None
-
-    except Exception as e:
-        debug_log(f"ERROR loading weapon data: {e}")
+def load_item(item_id):
+    """A private copy of one item template (any category), or None."""
+    global _items_cache
+    if _items_cache is None:
+        from engine.content.loader import load_items
+        _items_cache = {str(k): v for k, v in load_items("data").items()}
+    item = _items_cache.get(item_id)
+    if item is None:
+        debug_log(f"Item {item_id} not found")
         return None
+    return item.model_copy(deep=True)
 
 def load_abilities_data():
     """Load abilities from abilities.yaml"""
@@ -146,42 +126,6 @@ def load_npc_data():
     except Exception as e:
         debug_log(f"ERROR loading npc data: {e}")
         return {}
-
-
-# Consumables cache
-_consumables_data_cache = None
-
-
-def load_consumable_data(consumable_id):
-    """Load data for a specific consumable from consumables.yaml"""
-    global _consumables_data_cache
-
-    # Load and cache all consumables if not already cached
-    if _consumables_data_cache is None:
-        try:
-            filepath = 'data/items/consumables.yaml'
-            if os.path.exists(filepath):
-                with open(filepath, 'r') as file:
-                    data = yaml.safe_load(file) or {}
-                    _consumables_data_cache = data if isinstance(data, dict) else {}
-                    debug_log(f"Loaded consumables data with {len(_consumables_data_cache)} items")
-            else:
-                debug_log(f"ERROR: Consumables file not found at path: {filepath}")
-                _consumables_data_cache = {}
-        except Exception as e:
-            debug_log(f"ERROR loading consumables data: {e}")
-            _consumables_data_cache = {}
-
-    # Return the specific consumable
-    if consumable_id in _consumables_data_cache:
-        consumable_data = _consumables_data_cache[consumable_id].copy()
-        from engine.schema import Item
-        Item(id=consumable_id, **consumable_data)  # validation gate
-        consumable_data["id"] = consumable_id
-        return consumable_data
-
-    debug_log(f"Consumable {consumable_id} not found")
-    return None
 
 
 # Tutorial hints cache

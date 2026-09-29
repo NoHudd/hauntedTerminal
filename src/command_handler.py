@@ -51,7 +51,7 @@ class CommandHandler:
         )
         self.effects = ItemEffects(
             player, world, output, bus, self.room_aliases,
-            self.tutorial, self.flow, start_encounter=self.check_for_enemies,
+            self.flow, start_encounter=self.check_for_enemies,
         )
         self.loot = LootService(world, player, output, relist_room=self.relist_room)
 
@@ -288,9 +288,9 @@ class CommandHandler:
 
         # Get base description (try different fields with fallbacks)
         base_desc = (
-            item.get("short_description") or
-            item.get("description", "").split(".")[0] or  # Take first sentence if multiple
-            item.get("name") or
+            item.short_description or
+            item.description.split(".")[0] or  # Take first sentence if multiple
+            item.name or
             "Unknown item"
         )
 
@@ -298,42 +298,41 @@ class CommandHandler:
         effect = ""
 
         # Healing items - check combat_effects.player_heal first (new format)
-        if "combat_effects" in item and "player_heal" in item["combat_effects"]:
-            effect = f"+{item['combat_effects']['player_heal']} HP"
+        if "player_heal" in item.combat_effects:
+            effect = f"+{item.combat_effects['player_heal']} HP"
 
         # Also check on_use.heal (old format)
-        elif "on_use" in item and "heal" in item["on_use"]:
-            effect = f"+{item['on_use']['heal']} HP"
+        elif "heal" in item.on_use:
+            effect = f"+{item.on_use['heal']} HP"
 
         # Damage-dealing consumables
-        elif "combat_effects" in item and "player_damage" in item["combat_effects"]:
-            effect = f"+{item['combat_effects']['player_damage']} DMG"
-        elif "on_use" in item and "damage" in item["on_use"]:
-            effect = f"+{item['on_use']['damage']} DMG"
+        elif "player_damage" in item.combat_effects:
+            effect = f"+{item.combat_effects['player_damage']} DMG"
+        elif "damage" in item.on_use:
+            effect = f"+{item.on_use['damage']} DMG"
 
         # Status effect items
-        elif "on_use" in item and "status_effect" in item["on_use"]:
-            effect_name = item["on_use"]["status_effect"].get("name", "Effect")
+        elif "status_effect" in item.on_use:
+            effect_name = item.on_use["status_effect"].get("name", "Effect")
             effect = f"Status: {effect_name}"
 
         # Weapons - check damage field
-        elif item.get("type") == "weapon" or "weapon" in str(item.get("type", "")):
-            damage = item.get("damage", 0)
-            if damage > 0:
-                effect = f"+{damage} DMG"
+        elif item.type == "weapon" or "weapon" in item.type:
+            if item.damage > 0:
+                effect = f"+{item.damage} DMG"
 
         # Upgrade items
-        elif "effects" in item:
+        elif item.effects:
             effects = []
-            if "permanent_health" in item["effects"]:
-                effects.append(f"+{item['effects']['permanent_health']} HP")
-            if "permanent_damage" in item["effects"]:
-                effects.append(f"+{item['effects']['permanent_damage']} DMG")
+            if "permanent_health" in item.effects:
+                effects.append(f"+{item.effects['permanent_health']} HP")
+            if "permanent_damage" in item.effects:
+                effects.append(f"+{item.effects['permanent_damage']} DMG")
             if effects:
                 effect = "Perm: " + "/".join(effects)
 
         # Key items
-        elif item.get("type") == "key" or "unlocks" in item:
+        elif item.type == "key" or item.unlocks:
             effect = "Unlocks areas"
 
         # Add the effect in parentheses if we found one

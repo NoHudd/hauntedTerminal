@@ -145,6 +145,24 @@ class Item(_Base):
     consumed_on_use: bool = False
     takeable: bool = True
     droppable: bool = True
+    consumable: bool = False
+    defense: int = 0
+    healing: int | None = None
+    content: str = ""
+    story_flag: str = ""
+    class_restriction: str = ""
+    max_spawn: int = 1
+    allowed_rooms: list[RoomId] = Field(default_factory=list)
+    special_effects: list[dict[str, object]] = Field(default_factory=list)
+    on_use: dict[str, object] = Field(default_factory=dict)
+    effects: dict[str, object] = Field(default_factory=dict)
+    status_effect: dict[str, object] | None = None
+    # Effect hooks run by ItemEffects.execute_effect (a dict of effects, or
+    # a bare string that is shown as flavour text).
+    on_take: dict[str, object] | str | None = None
+    on_drop: dict[str, object] | str | None = None
+    on_examine: dict[str, object] | str | None = None
+    on_read: dict[str, object] | str | None = None
 
     @field_validator("rarity", mode="before")
     @classmethod

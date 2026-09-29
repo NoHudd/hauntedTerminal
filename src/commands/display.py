@@ -74,8 +74,8 @@ class InventoryCommand(Command):
         sorted_items = sorted(
             [(item_id, ctx.player.get_item_from_inventory(item_id)) for item_id in items],
             key=lambda x: (
-                -RaritySystem.get_rarity_order(x[1].get("rarity", "common")) if x[1] else 0,
-                x[1].get("name", x[0]) if x[1] else x[0],
+                -RaritySystem.get_rarity_order(x[1].rarity) if x[1] else 0,
+                x[1].name if x[1] else x[0],
             ),
         )
 

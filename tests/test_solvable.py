@@ -79,7 +79,7 @@ def test_no_key_is_locked_behind_itself(player_class: str) -> None:
         for key_id, room_id in world.item_locations.items():
             if not ItemPlacer(world).is_key(key_id):
                 continue
-            unlocked_by_this_key = set(world.get_item(key_id).get("unlocks") or [])
+            unlocked_by_this_key = set(world.get_item(key_id).unlocks)
             reachable_without_it = set(ItemPlacer(world).rooms_reachable_with(
                 _keys_obtainable(world) - {key_id}
             ))

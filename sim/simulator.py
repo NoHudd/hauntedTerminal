@@ -17,7 +17,7 @@ import yaml
 from engine.schema import Enemy
 from src import difficulty, rng
 from src.combat import combat_system
-from src.data_loader import load_class_data, load_enemy_data, load_room_data, load_weapon_data
+from src.data_loader import load_class_data, load_enemy_data, load_item, load_room_data
 from src.game_world import GameWorld
 from src.player import Player
 
@@ -83,14 +83,6 @@ def _class_weapons(class_id: str) -> tuple[tuple[str, int], ...]:
     return tuple(usable)
 
 
-def _armor_data(armor_id: str) -> dict | None:
-    try:
-        with open("data/items/armor.yaml") as fh:
-            return (yaml.safe_load(fh) or {}).get(armor_id)
-    except Exception:
-        return None
-
-
 def _class_armor(class_id: str) -> tuple[tuple[str, int], ...]:
     """(armor_id, defense) obtainable by the class, ascending by defense.
 
@@ -120,7 +112,7 @@ def _equip_for_stage(player: Player, class_id: str, cleared: int, total: int) ->
         tier = min((cleared * len(weapons)) // max(1, total), len(weapons) - 1)
         weapon_id, _ = weapons[tier]
         if weapon_id != player.equipped_weapon:
-            weapon = load_weapon_data(weapon_id)
+            weapon = load_item(weapon_id)
             if weapon:
                 player.add_to_inventory(weapon_id, weapon)
                 player.equip_weapon(weapon_id)
@@ -130,7 +122,7 @@ def _equip_for_stage(player: Player, class_id: str, cleared: int, total: int) ->
         a_tier = min((cleared * len(armor)) // max(1, total), len(armor) - 1)
         armor_id, _ = armor[a_tier]
         if armor_id != player.equipped_armor:
-            adata = _armor_data(armor_id)
+            adata = load_item(armor_id)
             if adata:
                 player.add_to_inventory(armor_id, adata)
                 player.equip_armor(armor_id)
@@ -143,7 +135,7 @@ def _build_player(class_id: str) -> Player:
     cls = classes.get(class_id)
     weapon_id = cls.starter_weapon if cls else None
     if weapon_id:
-        weapon = load_weapon_data(weapon_id)
+        weapon = load_item(weapon_id)
         if weapon:
             player.add_to_inventory(weapon_id, weapon)
             player.equip_weapon(weapon_id)

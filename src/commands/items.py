@@ -19,6 +19,7 @@ from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
+    from engine.schema import Item
     from src.command_handler import CommandHandler
 
 
@@ -79,7 +80,7 @@ class TakeCommand(Command):
             )
             return
 
-        if not item.get("takeable", True):
+        if not item.takeable:
             debug_log(f"Item {actual_item_id} is not takeable")
             ctx.output.error(f"[bold red]You cannot take {item_id}.[/bold red]")
             return
@@ -101,14 +102,14 @@ class TakeCommand(Command):
             debug_log(f"Player took item {actual_item_id} from room {current_room}")
             ctx.world.remove_item_from_room(actual_item_id)
             ctx.player.run_stats["items_found"] = ctx.player.run_stats.get("items_found", 0) + 1
-            take_flag = item.get("story_flag")
+            take_flag = item.story_flag
             if take_flag:
                 ctx.player.set_story_flag(take_flag)
 
             from src.rarity import RaritySystem
 
-            item_name = item.get("name", actual_item_id)
-            rarity = item.get("rarity", "common")
+            item_name = item.name
+            rarity = item.rarity
             formatted_name = RaritySystem.format_item_name_with_rarity(
                 item_name, rarity, show_emoji=False
             )
@@ -121,13 +122,13 @@ class TakeCommand(Command):
                 "CommandHandler",
             )
 
-            if "on_take" in item:
+            if item.on_take is not None:
                 debug_log(f"Executing on_take effect for {item_id}")
-                ctx.effects.execute_effect(item["on_take"])
+                ctx.effects.execute_effect(item.on_take)
 
             if (
                 not ctx.player.tutorial_state.get("took_weapon", False)
-                and item.get("type") == "weapon"
+                and item.type == "weapon"
             ):
                 ctx.player.tutorial_state["took_weapon"] = True
                 ctx.tutorial.show_hint("step3", actual_item_id)
@@ -184,16 +185,17 @@ class CatCommand(Command):
             )
 
     @staticmethod
-    def _render(ctx: "CommandHandler", item: dict, item_id: str) -> bool:
+    def _render(ctx: "CommandHandler", item: "Item", item_id: str) -> bool:
         """Print the file; run on_read + story flag. Returns True if a story beat fired."""
-        item_name = item.get("name", item_id)
-        content = item.get(
-            "content",
-            item.get("description", "This file appears to be empty or corrupted."),
+        item_name = item.name
+        content = (
+            item.content
+            or item.description
+            or "This file appears to be empty or corrupted."
         )
         ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
-        if "on_read" in item:
-            ctx.effects.execute_effect(item["on_read"])
+        if item.on_read is not None:
+            ctx.effects.execute_effect(item.on_read)
         return ctx.effects.trigger_story_flag(item)
 
 
@@ -218,7 +220,7 @@ class DropCommand(Command):
 
         item = ctx.player.get_item_from_inventory(item_id)
 
-        if item.get("droppable", True) == False:  # noqa: E712 (preserve original)
+        if not item.droppable:
             ctx.output.error(
                 f"[bold red]You cannot drop {item_id}. It's too important.[/bold red]"
             )
@@ -231,8 +233,8 @@ class DropCommand(Command):
             ctx.output.write(
                 f"Dropped [green]{item_id}[/green] in the current directory."
             )
-            if "on_drop" in item:
-                ctx.effects.execute_effect(item["on_drop"])
+            if item.on_drop is not None:
+                ctx.effects.execute_effect(item.on_drop)
             # Reprint room contents so the dropped item shows up without `ls`.
             ctx.relist_room()
         else:
@@ -268,51 +270,46 @@ class ExamineCommand(Command):
 
         from src.rarity import RaritySystem
 
-        item_name = item.get("name", item_id)
-        rarity = item.get("rarity", "common")
+        item_name = item.name
+        rarity = item.rarity
         formatted_name = RaritySystem.format_item_name_with_rarity(
             item_name, rarity, show_emoji=False
         )
 
         title = f"Examining: {formatted_name}"
-        description = item.get("description", "No detailed description available.")
+        description = item.description or "No detailed description available."
 
         details = []
         color = RaritySystem.get_rarity_color(rarity)
         details.append(f"[bold]Rarity:[/bold] [{color}]{rarity.title()}[/{color}]")
 
-        item_type = item.get("type", "unknown")
+        item_type = item.type
         details.append(f"[bold]Type:[/bold] {item_type.title()}")
 
         if item_type == "weapon":
-            damage = item.get("damage", 0)
+            damage = item.damage
             if damage > 0:
                 details.append(f"[bold]Damage:[/bold] {damage}")
         elif item_type == "consumable":
-            healing = item.get("healing", 0)
+            healing = item.healing or 0
             if healing > 0:
                 details.append(f"[bold]Healing:[/bold] {healing} HP")
 
-        if item.get("usable", False):
+        if item.usable:
             details.append("[green]This item can be used.[/green]")
-        if item.get("consumed_on_use", False) or item.get("consumable", False):
+        if item.consumed_on_use or item.consumable:
             details.append("[yellow]This item will be consumed when used.[/yellow]")
-        if not item.get("takeable", True):
+        if not item.takeable:
             details.append("[red]This item cannot be taken.[/red]")
-        if not item.get("droppable", True):
+        if not item.droppable:
             details.append("[red]This item cannot be dropped once taken.[/red]")
 
-        if "class_restriction" in item:
-            allowed_classes = item["class_restriction"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
+        if item.class_restriction:
             details.append(
-                f"[bold]Class Restriction:[/bold] {', '.join(allowed_classes).title()}"
+                f"[bold]Class Restriction:[/bold] {item.class_restriction.title()}"
             )
-        elif "allowed_classes" in item:
-            allowed_classes = item["allowed_classes"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
+        elif item.allowed_classes:
+            allowed_classes = item.allowed_classes
             details.append(
                 f"[bold]Allowed Classes:[/bold] {', '.join(allowed_classes).title()}"
             )
@@ -323,8 +320,8 @@ class ExamineCommand(Command):
 
         ctx.output.write(f"[bold cyan]── {title} ──[/bold cyan]\n{content}")
 
-        if "on_examine" in item:
-            ctx.effects.execute_effect(item["on_examine"])
+        if item.on_examine is not None:
+            ctx.effects.execute_effect(item.on_examine)
 
 
 class TalkCommand(Command):
@@ -427,7 +424,7 @@ class EquipCommand(Command):
             return
 
         weapon = ctx.player.get_item_from_inventory(weapon_id)
-        weapon_type = weapon.get("type")
+        weapon_type = weapon.type
 
         is_armor = (
             weapon_type == "armor" or "armor" in str(weapon_type)
@@ -443,7 +440,7 @@ class EquipCommand(Command):
                 )
                 return
             if ctx.player.equip_armor(weapon_id):
-                armor_name = weapon.get("name", weapon_id)
+                armor_name = weapon.name
                 pct = round(getattr(ctx.player, "armor_mitigation", 0.0) * 100)
                 ctx.output.write(
                     f"You have equipped [green]{armor_name}[/green]. "
@@ -481,7 +478,7 @@ class EquipCommand(Command):
 
         success = ctx.player.equip_weapon(weapon_id)
         if success:
-            weapon_name = weapon.get("name", weapon_id)
+            weapon_name = weapon.name
             ctx.output.write(f"You have equipped [green]{weapon_name}[/green].")
             ctx.effects.show_damage_change(old_damage, ctx.player.calculate_damage())
 

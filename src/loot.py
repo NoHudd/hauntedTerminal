@@ -46,7 +46,9 @@ class LootService:
             dropped.append(gear_id)
 
         if dropped:
-            names = ", ".join((self.world.get_item(i) or {}).get("name", i) for i in dropped)
+            names = ", ".join(
+                self.world.items[i].name if i in self.world.items else i for i in dropped
+            )
             self.output.write(f"[bold yellow]The defeated enemy dropped: {names}[/bold yellow]")
             self._relist_room()
         return dropped
@@ -68,9 +70,9 @@ class LootService:
         target = str(rarity).lower()
         candidates = []
         for iid in self.world.items:
-            data = self.world.get_item(iid)  # dict via boundary
-            if (data.get("type") in ("weapon", "armor")
-                    and str(data.get("rarity", "")).lower() == target
+            data = self.world.items[iid]
+            if (data.type in ("weapon", "armor")
+                    and str(data.rarity).lower() == target
                     and self.player.can_use_item(data)
                     and iid not in self.world.item_locations):
                 candidates.append(iid)

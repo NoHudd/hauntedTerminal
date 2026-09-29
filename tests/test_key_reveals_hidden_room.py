@@ -13,7 +13,7 @@ def test_opt_key_reveals_and_unlocks_mage_tower():
         s.new_game("t", "weaver")
         h = s.engine.cmd_handler
         key = s.world.get_item("opt_key")
-        h.player.add_to_inventory("opt_key", dict(key))
+        h.player.add_to_inventory("opt_key", key)
         # stand adjacent: the tower is an exit of usr_lib_arcane
         entry = next(
             rid for rid, room in s.world.rooms.items()

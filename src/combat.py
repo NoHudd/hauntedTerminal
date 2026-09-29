@@ -426,9 +426,9 @@ class CombatSession:
         for item_id, item_data in self.player.inventory.items():
             # Check both old and new combat usability systems
             is_combat_usable = (
-                item_data.get("usable") and (
-                    "combat_usable" in item_data.get("tags", []) or  # Old system
-                    item_data.get("usable_in_combat", False)          # New system
+                item_data.usable and (
+                    "combat_usable" in item_data.tags or  # Old system
+                    item_data.usable_in_combat            # New system
                 )
             )
             if is_combat_usable:
@@ -508,13 +508,13 @@ class CombatSession:
             if resolved and resolved in self.player.inventory:
                 item_data = self.player.inventory[resolved]
                 is_combat_usable = (
-                    "combat_usable" in item_data.get("tags", []) or
-                    item_data.get("usable_in_combat", False)
+                    "combat_usable" in item_data.tags or
+                    item_data.usable_in_combat
                 )
                 if is_combat_usable:
                     self._process_player_action("item", resolved)
                 else:
-                    item_label = item_data.get("name", resolved)
+                    item_label = item_data.name
                     self.output.write(f"[yellow]{item_label} cannot be used in combat.[/yellow]")
                     self._request_player_action()
             else:
@@ -574,13 +574,13 @@ class CombatSession:
 
             # Handle healing items - support legacy and new combat_effects formats
             heal_amount = 0
-            combat_effects = item_data.get("combat_effects", {})
+            combat_effects = item_data.combat_effects
             if "player_heal" in combat_effects:
                 heal_amount = combat_effects["player_heal"]
-            elif "healing" in item_data:
-                heal_amount = item_data["healing"]
-            elif isinstance(item_data.get("on_use"), dict) and "heal" in item_data["on_use"]:
-                heal_amount = item_data["on_use"]["heal"]
+            elif item_data.healing is not None:
+                heal_amount = item_data.healing
+            elif "heal" in item_data.on_use:
+                heal_amount = item_data.on_use["heal"]
 
             actual_heal = 0
             if heal_amount > 0:
@@ -594,7 +594,7 @@ class CombatSession:
                 self.player.add_status_effect(
                     f"{action_value}_hot",
                     {"type": "heal_over_time", "heal_per_turn": per_turn,
-                     "name": item_data.get("name", action_value)},
+                     "name": item_data.name},
                     duration
                 )
 
@@ -610,15 +610,15 @@ class CombatSession:
 
             # Handle consumable items (remove after use) - support both formats
             should_consume = (
-                item_data.get("consumable", False) or           # Old format
-                item_data.get("consumed_on_use", False)         # New format
+                item_data.consumable or           # Old format
+                item_data.consumed_on_use         # New format
             )
             if should_consume:
                 self.player.remove_from_inventory(action_value)
             
             # Build detailed message for item usage. Make a heal pop so the player
             # clearly sees it landed even when the enemy also hits this turn.
-            item_name = item_data.get('name', action_value)
+            item_name = item_data.name
             if actual_heal > 0:
                 item_message = (
                     f"[bold green]💚 {self.player.name} used {item_name} — "

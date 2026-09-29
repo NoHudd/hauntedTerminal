@@ -87,8 +87,7 @@ def test_take_sets_item_story_flag():
     s = GameSession()
     try:
         s.new_game("t", "guardian")
-        item = dict(s.world.get_item("milk_of_motherboard"))
-        assert item.get("story_flag") == "milk_claimed"
+        assert s.world.get_item("milk_of_motherboard").story_flag == "milk_claimed"
         s.world.item_locations["milk_of_motherboard"] = s.player.current_room
         s.submit("take milk_of_motherboard")
         assert s.player.get_story_flag("milk_claimed")

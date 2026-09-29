@@ -295,12 +295,12 @@ class GameWorld:
         return npcs
     
     def get_item(self, item_id):
-        """Get item data by ID (typed template dumped to a runtime dict)."""
+        """A private copy of an item template; it may end up in the inventory."""
         item = self.items.get(item_id)
         if item is None:
             debug_log(f"WARNING: Requested non-existent item: {item_id}")
             return None
-        return item.model_dump(exclude_unset=True) if not isinstance(item, dict) else item
+        return item.model_copy(deep=True)
     
     def get_enemy(self, enemy_id, player_class=None):
         """Get enemy data by ID, optionally scaled for player class"""

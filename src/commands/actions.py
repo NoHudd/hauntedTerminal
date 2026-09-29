@@ -44,7 +44,7 @@ class UseCommand(Command):
             return
 
         item = ctx.player.get_item_from_inventory(actual_item_id)
-        item_type = item.get("type")
+        item_type = item.type
         debug_log(f"Using item {actual_item_id} of type {item_type}")
 
         is_weapon = (
@@ -58,7 +58,7 @@ class UseCommand(Command):
             )
             return
 
-        if not item.get("usable", False):
+        if not item.usable:
             debug_log(f"Item {actual_item_id} is not usable")
             ctx.output.error(f"[bold red]You cannot use {item_id}.[/bold red]")
             return
@@ -81,7 +81,7 @@ class UseCommand(Command):
         elif item_type == "lore":
             debug_log(f"Handling lore item: {actual_item_id}")
             ctx.effects.read_lore(actual_item_id, item)
-        elif item_type == "consumable" or "heal" in item.get("on_use", {}):
+        elif item_type == "consumable" or "heal" in item.on_use:
             debug_log(f"Handling consumable item: {actual_item_id}")
             if ctx.effects.use_consumable(actual_item_id, item) is False:
                 return  # Item had no effect — don't consume it
@@ -92,19 +92,19 @@ class UseCommand(Command):
             debug_log(f"Handling spell item: {actual_item_id}")
             ctx.effects.learn_spell(actual_item_id, item)
         else:
-            if "on_use" in item:
+            if item.on_use:
                 debug_log(f"Executing generic on_use effect for item: {actual_item_id}")
-                ctx.effects.execute_effect(item["on_use"])
-                item_name = item.get("name", item_id)
+                ctx.effects.execute_effect(item.on_use)
+                item_name = item.name
                 ctx.output.write(f"You used [green]{item_name}[/green].")
             else:
                 debug_log(f"Item {actual_item_id} has no on_use effect")
                 ctx.output.write(f"Nothing happens when you try to use {item_id}.")
 
-        if item.get("consumed_on_use", False):
+        if item.consumed_on_use:
             debug_log(f"Item {actual_item_id} was consumed on use")
             ctx.player.remove_from_inventory(actual_item_id)
-            item_name = item.get("name", item_id)
+            item_name = item.name
             ctx.output.write(f"The [green]{item_name}[/green] was consumed.")
 
 

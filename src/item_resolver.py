@@ -40,7 +40,7 @@ class ItemResolver:
             if self._normalize(item_id) == target:
                 return item_id
             item_data = get_item_fn(item_id)
-            if item_data and self._normalize(item_data.get("name", "")) == target:
+            if item_data and self._normalize(item_data.name) == target:
                 return item_id
         return None
 
@@ -58,7 +58,7 @@ class ItemResolver:
         """Get list of keys in player inventory."""
         keys = []
         for item_id, item_data in self.player.inventory.items():
-            if item_data and (item_data.get("type") == "key" or "key" in item_id.lower()):
+            if item_data and (item_data.type == "key" or "key" in item_id.lower()):
                 keys.append(item_id)
         return keys
 

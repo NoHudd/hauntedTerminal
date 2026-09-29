@@ -31,7 +31,7 @@ STORY_FLAG_DESCRIPTIONS = {
 def class_restriction_text(item):
     """Get the class restriction text for display in error messages."""
     for field in ("class_restriction", "allowed_classes"):
-        val = item.get(field)
+        val = getattr(item, field)
         if val:
             return " or ".join(val) if isinstance(val, list) else str(val)
     return "unknown"
@@ -41,19 +41,18 @@ class ItemEffects:
     """Applies item effects. start_encounter begins combat with whatever is in
     the current room; it is the command handler's check_for_enemies."""
 
-    def __init__(self, player, world, output, bus, room_aliases, tutorial, flow, start_encounter):
+    def __init__(self, player, world, output, bus, room_aliases, flow, start_encounter):
         self.player = player
         self.world = world
         self.output = output
         self.bus = bus
         self.room_aliases = room_aliases
-        self.tutorial = tutorial
         self.flow = flow
         self._start_encounter = start_encounter
 
     def use_key(self, item_id, item):
         """Handle the use of a key item"""
-        unlocks = item.get("unlocks")
+        unlocks = item.unlocks
         if not unlocks:
             self.output.write(f"You examine [green]{item_id}[/green], but it doesn't seem to unlock anything here.")
             return
@@ -85,43 +84,19 @@ class ItemEffects:
         else:
             self.output.write(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
 
-    def equip_weapon(self, item_id, item):
-        """Handle equipping a weapon"""
-        if not self.player.can_use_item(item):
-            self.output.error(f"[bold red]You cannot equip {item_id}.[/bold red]")
-            return
-
-        old_weapon_id = self.player.equipped_weapon
-        old_damage = self.player.calculate_damage()
-
-        self.player.equip_weapon(item_id, item)
-        self.output.write(f"You have equipped [green]{item_id}[/green].")
-
-        if old_weapon_id and old_weapon_id != item_id and old_weapon_id in self.player.inventory:
-            self.player.remove_from_inventory(old_weapon_id)
-            self.output.write(f"Your old weapon ({old_weapon_id}) was removed from inventory.")
-
-        self.show_damage_change(old_damage, self.player.calculate_damage())
-
-        if not self.player.tutorial_state.get("equipped_weapon", False):
-            self.player.tutorial_state["equipped_weapon"] = True
-            self.world.spawn_tutorial_enemy("home_grove")
-            self.tutorial.show_hint("step4")
-            self._start_encounter()
-
     def read_lore(self, item_id, item):
         """Handle reading a lore item"""
-        content = item.get("content", "This file appears to be empty or corrupted.")
-        name = item.get("name", item_id)
+        content = item.content or "This file appears to be empty or corrupted."
+        name = item.name
         self.output.write(f"[bold cyan]── {name} ──[/bold cyan]\n{content}")
-        if "on_read" in item:
-            self.execute_effect(item["on_read"])
+        if item.on_read is not None:
+            self.execute_effect(item.on_read)
         self.trigger_story_flag(item)
 
     def trigger_story_flag(self, item) -> bool:
         """Set the item's story_flag, show feedback, auto-save. Returns True if a new
         story beat fired (so callers can hold the room re-list a beat)."""
-        flag = item.get("story_flag")
+        flag = item.story_flag
         if not flag:
             return False
         if self.player.get_story_flag(flag):
@@ -147,10 +122,10 @@ class ItemEffects:
 
     def use_consumable(self, item_id, item):
         """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
-        item_name = item.get("name", item_id)
-        combat_effects = item.get("combat_effects", {})
-        on_use_effects = item.get("on_use", {})
-        special_effects = item.get("special_effects", [])
+        item_name = item.name
+        combat_effects = item.combat_effects
+        on_use_effects = item.on_use
+        special_effects = item.special_effects
 
         # Show the on_use message if present
         message = on_use_effects.get("message") if isinstance(on_use_effects, dict) else None
@@ -229,7 +204,7 @@ class ItemEffects:
     def use_upgrade(self, item_id, item):
         """Handle using an upgrade item"""
         # Process permanent stat boosts
-        effects = item.get("effects", {})
+        effects = item.effects
 
         # Health boosts
         if "permanent_health" in effects:
@@ -244,19 +219,19 @@ class ItemEffects:
             self.output.write(f"[bold]── Character Improvement ──[/bold]\n[green]Your base damage permanently increased by {amount} to {new_damage}![/green]")
 
         # Process on_use effects if any
-        if "on_use" in item:
-            self.execute_effect(item["on_use"])
+        if item.on_use:
+            self.execute_effect(item.on_use)
 
     def learn_spell(self, item_id, item):
         """Handle using a spell item"""
         # Learn the spell
         if self.player.learn_spell(item):
-            spell_name = item.get("name", "Unknown Spell")
+            spell_name = item.name
             self.output.write(f"[bold]── Spell Learned ──[/bold]\n[green]You learned the {spell_name} spell![/green]")
 
             # Apply any immediate status effects if defined
-            if "status_effect" in item:
-                effect_data = item["status_effect"]
+            if item.status_effect is not None:
+                effect_data = item.status_effect
                 effect_id = effect_data.get("id", item_id + "_effect")
                 effect_name = effect_data.get("name", spell_name + " Effect")
                 effect_duration = effect_data.get("duration", 3)  # Default 3 turns
@@ -311,12 +286,12 @@ class ItemEffects:
             item = self.world.get_item(item_id)
             if item:
                 self.player.add_to_inventory(item_id, item)
-                self.output.write(f"[green]You obtained {item.get('name', item_id)}![/green]")
+                self.output.write(f"[green]You obtained {item.name}![/green]")
 
         if "remove_item" in effect:
             item_id = effect["remove_item"]
             if self.player.has_item(item_id):
-                item_name = self.player.inventory[item_id].get("name", item_id)
+                item_name = self.player.inventory[item_id].name
                 self.player.remove_from_inventory(item_id)
                 self.output.write(f"[yellow]You lost {item_name}![/yellow]")
 

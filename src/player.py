@@ -1,5 +1,6 @@
 from utils.debug_tools import debug_log
-from src.data_loader import load_class_data, load_consumable_data
+from engine.schema import Item
+from src.data_loader import load_class_data, load_item
 
 # Armor mitigation: defense -> capped percent damage reduction.
 ARMOR_MITIGATION_CAP = 33       # max % damage reduced, so a tank can't become unkillable
@@ -106,9 +107,9 @@ class Player:
     def _add_starter_items(self):
         """Give the player starter consumables to help survive early game."""
         # Give 1 health packet to start
-        health_packet = load_consumable_data("health_packet")
+        health_packet = load_item("health_packet")
         if health_packet:
-            self.inventory["health_packet_1"] = health_packet.copy()
+            self.inventory["health_packet_1"] = health_packet
             debug_log("Starter items added: 1x Health Packet")
         else:
             debug_log("WARNING: Could not load health_packet for starter items")
@@ -140,12 +141,12 @@ class Player:
         if item_id in self.inventory:
             # Unequip previous weapon bonus if any
             if self.equipped_weapon and self.equipped_weapon in self.inventory:
-                old_bonus = self.inventory[self.equipped_weapon].get("damage", 0)
+                old_bonus = self.inventory[self.equipped_weapon].damage
                 self.total_damage -= old_bonus
                 
             # Equip new weapon
             self.equipped_weapon = item_id
-            weapon_bonus = self.inventory[item_id].get("damage", 0)
+            weapon_bonus = self.inventory[item_id].damage
             self.total_damage += weapon_bonus
             debug_log(f"Equipped weapon {item_id}, total_damage now {self.total_damage}.")
             return True
@@ -156,7 +157,7 @@ class Player:
         if item_id not in self.inventory:
             return False
         self.equipped_armor = item_id
-        defense = self.inventory[item_id].get("defense", 0) or 0
+        defense = self.inventory[item_id].defense
         self.armor_mitigation = min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT) / 100.0
         debug_log(f"Equipped armor {item_id}, mitigation now {self.armor_mitigation:.0%}.")
         return True
@@ -238,11 +239,8 @@ class Player:
     
     def can_use_item(self, item):
         """Check if the player can use this item based on class restrictions."""
-        if "allowed_classes" in item:
-            allowed_classes = item["allowed_classes"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
-            return self.player_class.lower() in [c.lower() for c in allowed_classes]
+        if item.allowed_classes:
+            return self.player_class.lower() in [c.lower() for c in item.allowed_classes]
         return True
 
     def apply_status_effect(self, effect_id, effect_data):
@@ -409,8 +407,7 @@ class Player:
         """Return only items with persistence: 'persistent' tag."""
         persistent = {}
         for item_id, item_data in self.inventory.items():
-            persistence = item_data.get("persistence", "persistent")  # Default to persistent for backwards compatibility
-            if persistence == "persistent":
+            if item_data.persistence == "persistent":
                 persistent[item_id] = item_data
         return persistent
 
@@ -418,8 +415,7 @@ class Player:
         """Remove ephemeral items on death."""
         ephemeral_items = []
         for item_id, item_data in list(self.inventory.items()):
-            persistence = item_data.get("persistence", "persistent")
-            if persistence == "ephemeral":
+            if item_data.persistence == "ephemeral":
                 ephemeral_items.append(item_id)
 
         # Remove all ephemeral items
@@ -457,7 +453,10 @@ class Player:
         player.permanent_damage_boost = data.get("permanent_damage_boost", 0)
         player.previous_room = data.get("previous_room", None)  # Load previous room
         player.spells = data.get("spells", [])
-        player.inventory = data.get("inventory", {})
+        player.inventory = {
+            item_id: Item.model_validate(body)
+            for item_id, body in data.get("inventory", {}).items()
+        }
         player.run_stats = data.get("runStats", {"kills": 0, "items_found": 0})
         player.met_npcs = set(data.get("metNpcs", []))
         player.equipped_weapon = data.get("equipped_weapon", None)
@@ -487,7 +486,10 @@ class Player:
             "permanent_health_boost": self.permanent_health_boost,
             "permanent_damage_boost": self.permanent_damage_boost,
             "spells": self.spells,
-            "inventory": self.inventory,
+            "inventory": {
+                item_id: item.model_dump(exclude_unset=True)
+                for item_id, item in self.inventory.items()
+            },
             "equipped_weapon": self.equipped_weapon,
             "current_room": self.current_room,
             "previous_room": self.previous_room,  # Save previous room

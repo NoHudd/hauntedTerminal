@@ -83,17 +83,14 @@ class ViewBuilder:
 
             items = []
             for item_id, item_data in inventory.items():
-                if not isinstance(item_data, dict):
-                    continue
-
                 items.append(InventoryItemView(
                     id=item_id,
-                    name=item_data.get('name', item_id),
-                    item_type=item_data.get('type', 'unknown'),
-                    rarity=item_data.get('rarity', 'common'),
+                    name=item_data.name,
+                    item_type=item_data.type,
+                    rarity=item_data.rarity,
                     is_equipped=(item_id in (equipped_weapon, equipped_armor)),
-                    damage=item_data.get('damage'),
-                    healing=item_data.get('healing')
+                    damage=item_data.damage or None,
+                    healing=item_data.healing
                 ))
 
             return InventoryView(items=items)
@@ -189,19 +186,16 @@ class ViewBuilder:
             usable_items = []
             inventory = getattr(player, 'inventory', {})
             for item_id, item_data in inventory.items():
-                if not isinstance(item_data, dict):
-                    continue
-
-                item_type = item_data.get('type', '')
+                item_type = item_data.type
                 if item_type in ['consumable', 'spell']:
                     usable_items.append(InventoryItemView(
                         id=item_id,
-                        name=item_data.get('name', item_id),
+                        name=item_data.name,
                         item_type=item_type,
-                        rarity=item_data.get('rarity', 'common'),
+                        rarity=item_data.rarity,
                         is_equipped=False,
-                        damage=item_data.get('damage'),
-                        healing=item_data.get('healing')
+                        damage=item_data.damage or None,
+                        healing=item_data.healing
                     ))
 
             return CombatView(

@@ -88,9 +88,9 @@ def test_loot_table_never_drops_a_healing_item(session: GameSession) -> None:
     for _ in range(50):
         got = h.loot.roll_loot_table([{"rarity": "rare", "chance": 100}])
         if got is not None:
-            data = h.world.get_item(got) or {}
-            assert data.get("type") in ("weapon", "armor"), f"{got} is not gear"
-            assert "healing" not in (data.get("tags") or [])
+            data = h.world.get_item(got)
+            assert data.type in ("weapon", "armor"), f"{got} is not gear"
+            assert "healing" not in data.tags
 
 
 def test_final_boss_has_a_legendary_loot_table() -> None:
