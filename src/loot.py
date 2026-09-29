@@ -65,8 +65,11 @@ class LootService:
         return None
 
     def random_gear_of_rarity(self, rarity):
-        """A class-appropriate, not-yet-placed weapon/armor of this rarity, or None.
-        Gear only — never a consumable — so drop tables can't inflate the heal economy."""
+        """A class-appropriate weapon/armor of this rarity that exists nowhere yet,
+        or None. Gear only — never a consumable — so drop tables can't inflate the
+        heal economy. Each piece exists once: not on a floor, not carried, and not
+        taken earlier (a picked-up item leaves the floor, and used to be rolled
+        again as a duplicate)."""
         target = str(rarity).lower()
         candidates = []
         for iid in self.world.items:
@@ -74,6 +77,8 @@ class LootService:
             if (data.type in ("weapon", "armor")
                     and str(data.rarity).lower() == target
                     and self.player.can_use_item(data)
-                    and iid not in self.world.item_locations):
+                    and iid not in self.world.item_locations
+                    and iid not in self.world.removed_items
+                    and not self.player.has_item(iid)):
                 candidates.append(iid)
         return rng.choice(candidates) if candidates else None

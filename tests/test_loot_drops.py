@@ -111,3 +111,27 @@ def test_some_enemy_can_drop_epic() -> None:
         if any(entry.get("rarity") == "epic" for entry in (e.get("loot_table") or [])):
             epic_droppers.append(path)
     assert epic_droppers, "at least one enemy must have an epic in its loot_table"
+
+
+def test_gear_you_already_have_never_drops_again(session: GameSession) -> None:
+    """Picking an item up takes it off the floor; the gear roll only excluded
+    floor items, so a held Null-Void Cloak came back as a second copy."""
+    h = session.engine.cmd_handler  # session is a weaver
+    h.world.item_locations["null_void_cloak"] = h.player.current_room
+    session.submit("take null_void_cloak")
+    assert h.player.has_item("null_void_cloak")
+
+    rng.seed(0)
+    rolls = {h.loot.random_gear_of_rarity("epic") for _ in range(200)}
+    assert "null_void_cloak" not in rolls
+
+
+def test_gear_taken_and_lost_never_drops_again(session: GameSession) -> None:
+    h = session.engine.cmd_handler
+    h.world.item_locations["null_void_cloak"] = h.player.current_room
+    session.submit("take null_void_cloak")
+    h.player.remove_from_inventory("null_void_cloak")  # e.g. lost on death
+
+    rng.seed(0)
+    rolls = {h.loot.random_gear_of_rarity("epic") for _ in range(200)}
+    assert "null_void_cloak" not in rolls
