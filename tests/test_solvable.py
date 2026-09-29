@@ -13,6 +13,7 @@ from engine.content.loader import load_items
 from src import rng, room_paths
 from src.data_loader import load_enemy_data, load_npc_data, load_room_data
 from src.game_world import GameWorld
+from src.item_placer import ItemPlacer
 
 CLASSES = ["guardian", "weaver", "shaman"]
 # Four seeds per class. The placer is dependency-ordered rather than
@@ -31,8 +32,9 @@ def _fresh_world(player_class: str, seed: int) -> GameWorld:
         load_room_data(), _ITEMS, load_enemy_data(), load_npc_data()
     )
     room_paths.refresh_from_rooms(world.rooms)
-    world.place_items(player_class)
-    world.place_starter_items(player_class)
+    placer = ItemPlacer(world)
+    placer.place_items(player_class)
+    placer.place_starter_items(player_class)
     return world
 
 
@@ -43,10 +45,10 @@ def _keys_obtainable(world: GameWorld) -> set[str]:
     boss_rewards = {"core": "system_badge", "mirror_sector": "sudo_privileges_badge"}
 
     for _ in range(len(world.rooms) + 2):     # bounded: reachability only grows
-        reachable = set(world._rooms_reachable_with(held))
+        reachable = set(ItemPlacer(world).rooms_reachable_with(held))
         found = {
             item_id for item_id, room in world.item_locations.items()
-            if room in reachable and world._is_key(item_id)
+            if room in reachable and ItemPlacer(world).is_key(item_id)
         }
         found |= {
             reward for room, reward in boss_rewards.items() if room in reachable
@@ -63,7 +65,7 @@ def test_run_is_completable(player_class: str, seed: int) -> None:
     world = _fresh_world(player_class, seed)
     held = _keys_obtainable(world)
 
-    assert GOAL in world._rooms_reachable_with(held), (
+    assert GOAL in ItemPlacer(world).rooms_reachable_with(held), (
         f"{player_class} seed {seed}: the boss room is unreachable with every "
         f"key the run can yield ({sorted(held)})"
     )
@@ -75,10 +77,10 @@ def test_no_key_is_locked_behind_itself(player_class: str) -> None:
     for seed in SEEDS:
         world = _fresh_world(player_class, seed)
         for key_id, room_id in world.item_locations.items():
-            if not world._is_key(key_id):
+            if not ItemPlacer(world).is_key(key_id):
                 continue
             unlocked_by_this_key = set(world.get_item(key_id).get("unlocks") or [])
-            reachable_without_it = set(world._rooms_reachable_with(
+            reachable_without_it = set(ItemPlacer(world).rooms_reachable_with(
                 _keys_obtainable(world) - {key_id}
             ))
             if unlocked_by_this_key and room_id not in reachable_without_it:

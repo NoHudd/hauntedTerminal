@@ -17,6 +17,7 @@ from typing import Optional, Dict, Any
 
 # Import game components
 from src.game_world import GameWorld
+from src.item_placer import ItemPlacer
 from src.player import Player
 from src.command_handler import CommandHandler
 from src.game_output import GameOutput
@@ -837,7 +838,7 @@ to this haunted filesystem.[/italic]
     def initialize_special_items(self, player_class: str):
         """Create and place special enhancement items based on player class."""
         if self.world:
-            self.world.place_items(player_class)
+            ItemPlacer(self.world).place_items(player_class)
             logger.info(f"Special items initialized for class: {player_class}")
     
     def _update_ui_panels(self):
@@ -867,7 +868,7 @@ to this haunted filesystem.[/italic]
 
             # Place class-appropriate starter items in home_grove
             if self.world:
-                self.world.place_starter_items(player_class)
+                ItemPlacer(self.world).place_starter_items(player_class)
                 logger.info(f"Placed starter items for {player_class} in home_grove")
 
             # Build view for player creation event
