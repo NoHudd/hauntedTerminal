@@ -19,12 +19,15 @@ logger = logging.getLogger(__name__)
 class CommandHandler:
     """Handles processing of player commands"""
     
-    def __init__(self, player, world, output, bus):
+    def __init__(self, player, world, output, bus, on_combat_start=None, on_combat_end=None):
         """Initialize with player, world, a GameOutput sink and the engine's EventBus.
 
         Phase 2b: the handler no longer holds a UI reference — it writes to
         ``self.output`` (a src.game_output.GameOutput). The engine drains it and
         forwards to the real UI.
+
+        on_combat_start() / on_combat_end(outcome) let the engine update the
+        game state as a fight begins and ends, in a fixed place in the sequence.
         """
         debug_log("Initializing CommandHandler")
         self.player = player
@@ -32,6 +35,8 @@ class CommandHandler:
         self.output = output
         self.bus = bus
         self.current_combat_session = None
+        self._on_combat_start = on_combat_start
+        self._on_combat_end = on_combat_end
         self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
 
         # Navigation aliases (path/name -> room id) are built from each room's
@@ -388,28 +393,32 @@ class CommandHandler:
         """
         debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
 
-        # Create combat session with enemy queue
-        self.current_combat_session = CombatSession(self.player, enemies_queue, self.output, self.bus)
+        self.current_combat_session = CombatSession(
+            self.player, enemies_queue, self.output, self.bus,
+            on_start=self._on_combat_start, on_end=self.end_combat,
+        )
         self.current_combat_session.start()
 
-        # Subscribe to combat ended event (no more COMBAT_VICTORY_CHECK)
-        self.bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+    def end_combat(self, outcome):
+        """A fight is over; CombatSession calls this directly with the outcome.
 
-    def _on_combat_ended(self, event):
-        """Handle combat ended event - cleanup and state management."""
+        The steps run in this order, every time: the engine updates the game
+        state (combat over, or game over on a death), then the player is sent
+        to game over, relocated after fleeing, or checked for victory. This
+        used to be four COMBAT_ENDED listeners whose order came from the order
+        they happened to be subscribed in.
+        """
         if self.current_combat_session is None:
             return  # No active session to clean up
 
-        victory = event.data.get("victory", False)
-        defeat = event.data.get("defeat", False)
-        fled = event.data.get("fled", False)
-        enemy_id = event.data.get("enemy_id")
+        victory = outcome.get("victory", False)
+        defeat = outcome.get("defeat", False)
+        fled = outcome.get("fled", False)
+        enemy_id = outcome.get("enemy_id")
 
-        # Unsubscribe from combat events
-        self.bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-
-        # Clear combat session
         self.current_combat_session = None
+        if self._on_combat_end is not None:
+            self._on_combat_end(outcome)
 
         if defeat:
             # Handle player death with game over screen

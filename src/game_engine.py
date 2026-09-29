@@ -134,8 +134,6 @@ class ImprovedGameEngine:
         self.bus.subscribe(EventType.UI_READY, self._on_ui_ready)
         self.bus.subscribe(EventType.UI_ERROR, self._on_ui_error)
         self.bus.subscribe(EventType.GAME_SAVED, self._on_save_requested)
-        self.bus.subscribe(EventType.COMBAT_STARTED, self._on_combat_started)
-        self.bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
         self.bus.subscribe(EventType.GAME_OVER, self._on_game_over)
         self.bus.subscribe(EventType.GAME_RESTART_REQUESTED, self._on_restart_requested)
 
@@ -286,17 +284,27 @@ class ImprovedGameEngine:
         except Exception as e:
             logger.error(f"Error saving game: {e}")
     
-    def _on_combat_started(self, event):
-        """Handle combat started event."""
+    def _new_command_handler(self):
+        """A CommandHandler for the current player and world, with the engine's
+        combat hooks attached. Every run (new, loaded, restarted) gets one."""
+        return CommandHandler(
+            self.player, self.world, self.output, self.bus,
+            on_combat_start=self._combat_started,
+            on_combat_end=self._combat_ended,
+        )
+
+    def _combat_started(self):
+        """Called by the combat session as a fight opens."""
         logger.info("Combat started, entering combat state")
         self.state_manager.enter_combat()
     
-    def _on_combat_ended(self, event):
-        """Handle combat ended event."""
+    def _combat_ended(self, outcome):
+        """Called by CommandHandler.end_combat before it relocates the player,
+        starts the game-over flow or checks for victory."""
         logger.info("Combat ended, exiting combat state")
 
         # Check if player was defeated - trigger game over immediately
-        if event.data.get('defeat', False):
+        if outcome.get('defeat', False):
             logger.info("Player defeated in combat - triggering game over")
             self.state_manager.set_state(GameState.GAME_OVER)
             self.bus.emit_event(
@@ -314,7 +322,7 @@ class ImprovedGameEngine:
 
         # On flee, CommandHandler relocates the player and announces the room
         # they land in; this room is no longer theirs to show.
-        if event.data.get("fled", False):
+        if outcome.get("fled", False):
             self._update_ui_panels()
             return
 
@@ -377,7 +385,7 @@ class ImprovedGameEngine:
             self._load_game_data()
 
             # Create new command handler with fresh references
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
+            self.cmd_handler = self._new_command_handler()
             self._bind_ui_refs()
 
             # Restart the game loop
@@ -436,7 +444,7 @@ class ImprovedGameEngine:
         # reacting to ENEMY_DEFEATED with its stale player.
         if self.cmd_handler:
             self.cmd_handler.cleanup_event_subscriptions()
-        self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
+        self.cmd_handler = self._new_command_handler()
         self._bind_ui_refs()
 
         if welcome:
@@ -859,7 +867,7 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             if self.cmd_handler:
                 self.cmd_handler.cleanup_event_subscriptions()
             self.player = Player(name=name, player_class=player_class)
-            self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
+            self.cmd_handler = self._new_command_handler()
             self._bind_ui_refs()
 
             # Set up event subscriptions for command handler
@@ -967,8 +975,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             self.bus.unsubscribe(EventType.UI_READY, self._on_ui_ready)
             self.bus.unsubscribe(EventType.UI_ERROR, self._on_ui_error)
             self.bus.unsubscribe(EventType.GAME_SAVED, self._on_save_requested)
-            self.bus.unsubscribe(EventType.COMBAT_STARTED, self._on_combat_started)
-            self.bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
             self.bus.unsubscribe(EventType.GAME_OVER, self._on_game_over)
             
             logger.info("Game engine cleanup completed")

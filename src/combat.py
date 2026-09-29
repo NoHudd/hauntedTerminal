@@ -271,7 +271,7 @@ class CombatSystem:
 class CombatSession:
     """Manages an active combat session using event-driven approach."""
 
-    def __init__(self, player, enemies_queue, output, bus):
+    def __init__(self, player, enemies_queue, output, bus, on_start=None, on_end=None):
         """
         Initialize combat session with enemy queue.
 
@@ -280,8 +280,13 @@ class CombatSession:
             enemies_queue: List of (enemy_id, Enemy) tuples
             output: GameOutput sink (Phase 2b — no direct UI reference)
             bus: the owning engine's EventBus
+            on_start: called once the fight is announced (game enters combat)
+            on_end: called with the outcome once the fight is over; the game's
+                reaction to a fight ending runs from here, not from COMBAT_ENDED
         """
         self.player = player
+        self._on_start = on_start
+        self._on_end = on_end
         self.enemies_queue = enemies_queue  # List of (enemy_id, enemy_data)
         self.current_enemy_index = 0
         self.output = output
@@ -321,6 +326,8 @@ class CombatSession:
             combat_view.to_dict(),
             "CombatSession"
         )
+        if self._on_start is not None:
+            self._on_start()
 
         # Emit combat intro message as a combat log entry
         combat_intro = f"⚔  Combat initiated with {enemy_name}!"
@@ -791,18 +798,17 @@ class CombatSession:
         # Reset cooldowns after combat ends (normal or fled)
         combat_system.reset_cooldowns(self.player)
 
-        # Emit combat ended event with primitive data only
-        self.bus.emit_event(
-            EventType.COMBAT_ENDED,
-            {
-                "victory": victory,
-                "defeat": defeat,
-                "fled": fled,
-                "enemy_id": self.enemy_id,
-                "enemies_defeated": self.current_enemy_index + (1 if victory else 0)
-            },
-            "CombatSession"
-        )
+        outcome = {
+            "victory": victory,
+            "defeat": defeat,
+            "fled": fled,
+            "enemy_id": self.enemy_id,
+            "enemies_defeated": self.current_enemy_index + (1 if victory else 0)
+        }
+        # Tell observers (UI, tutorial) first, then let the game react.
+        self.bus.emit_event(EventType.COMBAT_ENDED, outcome, "CombatSession")
+        if self._on_end is not None:
+            self._on_end(outcome)
 
     def abort(self):
         """Force-end this session with no victory/defeat/flee outcome and no

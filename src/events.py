@@ -123,8 +123,10 @@ class EventType(Enum):
     # ========================================
 
     ROOM_ENTERED = auto()
-    # Emitted by: game_engine.py, command_handler.py
-    # Subscribed by: command_handler.py, textual_ui.py
+    # Emitted by: CommandHandler.announce_room (cd, flee, new game, load, ls -a
+    #             reveal, post-victory redraw)
+    # Subscribed by: textual_ui.py. A notification only: arrival rules run from
+    #             CommandHandler.arrive(), called directly.
     # Data: {"room": RoomView dict, "player_name": str}
 
     ROOM_CHANGED = auto()
@@ -154,7 +156,8 @@ class EventType(Enum):
 
     COMBAT_STARTED = auto()
     # Emitted by: combat.py
-    # Subscribed by: game_engine.py, textual_ui.py
+    # Subscribed by: textual_ui.py. The engine enters combat via the session's
+    #             on_start callback, not this event.
     # Data: CombatView dict (includes enemy info, player health, available attacks)
 
     COMBAT_ACTION_SELECTED = auto()
@@ -173,8 +176,9 @@ class EventType(Enum):
     # Data: CombatView dict — updated health values and cooldowns for current frame
 
     COMBAT_ENDED = auto()
-    # Emitted by: combat.py
-    # Subscribed by: command_handler.py, tutorial_coach.py, game_engine.py, textual_ui.py
+    # Emitted by: combat.py, before it calls CommandHandler.end_combat directly
+    # Subscribed by: textual_ui.py, tutorial_coach.py (observers only; the game's
+    #             reaction runs from end_combat in a fixed order)
     # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str, "enemies_defeated": int}
 
 @dataclass
