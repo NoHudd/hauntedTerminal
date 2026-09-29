@@ -23,7 +23,6 @@ from src.events import EventBus, EventType
 from src.game_states import GameState, UIState
 from src.state_manager import StateManager
 from src.viewmodels.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
-from utils.typewriter import TypewriterPresets, request_skip as request_typewriter_skip
 from config.dev_config import SKIP_INTRO
 
 from src.ui.panels.inventory_panel import InventoryPanel
@@ -34,7 +33,10 @@ from src.ui.screens.log_viewer import LogViewerScreen
 from src.ui.screens.quit_confirm import QuitConfirmScreen
 from src.ui.screens.selection_screen import SelectionCard, SelectionScreen
 from src.ui.screens.settings_screen import SettingsScreen
+from src.ui.combat_log import render_combat_output
 from src.ui.command_suggester import CommandSuggester
+from src.ui.endings import FinaleReveal, game_over_text
+from src.ui.title_menu import TitleMenu
 from config.settings_manager import SettingsManager
 
 import logging
@@ -83,13 +85,8 @@ class TextualGameUI(App):
         self._world_ref = None   # Set by game engine; used by autocomplete suggester
         self._room_aliases_ref: dict = {}  # Populated from CommandHandler for cd autocomplete
 
-        # Intro / main-menu state (arrow-key navigation)
-        self._menu_index = 0
-        self._menu_state = "idle"  # "typing" | "menu_ready" | "idle"
-        self._intro_title: Optional[Text] = None
-        self._intro_skip_hint: Optional[Text] = None
-        self._intro_story_text = ""
-        self._intro_full_story = ""
+        self._title_menu = TitleMenu(self)
+        self._finale = FinaleReveal(self)
 
         super().__init__(*args, **kwargs)
         self.ui_state = UIState.INITIALIZING
@@ -464,63 +461,11 @@ class TextualGameUI(App):
 
     # -- victory finale ---------------------------------------------------------
 
-    _FINALE_SECTION_SECONDS = 2.5
-
     def _on_game_won(self, event):
         """Victory: scene brightens; epilogue arrives in beats; recap card last."""
-        data = event.data or {}
         reduce_motion = bool(self._settings_manager.settings.get("reduce_motion", False))
         self._scene_view.play_finale(reduce_motion=reduce_motion)
-
-        parts = list(data.get("sections", [])) + [self._build_recap(data.get("stats", {}))]
-        self._finale_queue = parts
-        self._finale_timers = []
-
-        first = self._finale_queue.pop(0)
-        if reduce_motion:
-            self.update_output(first)
-            for part in self._finale_queue:
-                self.append_output(part)
-            self._finale_queue = []
-            return
-        self.update_output(first)
-        for i, part in enumerate(self._finale_queue, 1):
-            self._finale_timers.append(
-                self.set_timer(self._FINALE_SECTION_SECONDS * i,
-                               lambda p=part: self._finale_step(p))
-            )
-
-    def _finale_step(self, part: str) -> None:
-        if part in getattr(self, "_finale_queue", []):
-            self._finale_queue.remove(part)
-        self.append_output(part)
-        if not self._finale_queue:
-            self._finale_timers = []
-
-    def _skip_finale(self) -> None:
-        """Any key during the reveal: dump everything remaining at once."""
-        if not getattr(self, "_finale_timers", None):
-            return
-        for t in self._finale_timers:
-            t.stop()
-        self._finale_timers = []
-        for part in self._finale_queue:
-            self.append_output(part)
-        self._finale_queue = []
-
-    @staticmethod
-    def _build_recap(stats: dict) -> str:
-        return (
-            "── YOUR RUN ──────────────────────────\n"
-            f"[bold]{stats.get('player_name', '?')}[/bold] · "
-            f"{str(stats.get('player_class', '?')).title()} · "
-            f"ending: [cyan]{str(stats.get('ending', '?')).upper()}[/cyan]\n"
-            f"Level {stats.get('level', 1)} · {stats.get('cycles', 0)} cycles harvested\n"
-            f"{stats.get('kills', 0)} enemies purged · {stats.get('items_found', 0)} items recovered\n"
-            f"difficulty: {stats.get('difficulty', '?')}\n"
-            "──────────────────────────────────────\n"
-            "[green]n[/green] new run · [red]q[/red] quit"
-        )
+        self._finale.start(event.data or {}, reduce_motion)
 
     def _on_combat_ended(self, event):
         """Handle combat ended event with styling reset."""
@@ -572,8 +517,8 @@ class TextualGameUI(App):
     def on_key(self, event):
         """Handle key press events."""
         # Victory finale in progress: any key fast-forwards the reveal.
-        if getattr(self, "_finale_timers", None):
-            self._skip_finale()
+        if self._finale.revealing:
+            self._finale.skip()
             event.stop()
             return
 
@@ -596,22 +541,8 @@ class TextualGameUI(App):
 
         # Main menu: arrow-key navigation; any other key fast-forwards typewriter
         if self.state_manager.current_state == GameState.MENU:
-            if self._menu_state == "typing":
-                request_typewriter_skip()
+            if self._title_menu.handle_key(event.key):
                 event.stop()
-                return
-            if self._menu_state == "menu_ready":
-                if event.key == "up":
-                    self._menu_index = (self._menu_index - 1) % 3
-                    self._render_intro()
-                    event.stop()
-                elif event.key == "down":
-                    self._menu_index = (self._menu_index + 1) % 3
-                    self._render_intro()
-                    event.stop()
-                elif event.key in ("enter", "return"):
-                    self._select_menu_option()
-                    event.stop()
 
     def _cancel_pending_input(self) -> bool:
         """Clear a half-typed command. True if there was one to clear."""
@@ -950,16 +881,7 @@ class TextualGameUI(App):
         )
 
         player_name = self._player_view.player_name if self._player_view else 'Unknown Sysadmin'
-
-        game_over_content = f"""[bold red]GAME OVER[/bold red]
-
-[bold]System Critical Failure[/bold]
-
-Brave sysadmin {player_name}, your session has been terminated.
-
-[yellow]Press any key to return to the main menu...[/yellow]"""
-
-        self.update_output(game_over_content)
+        self.update_output(game_over_text(player_name))
         self.query_one("#input-field").focus()
 
     def save_current_game(self) -> None:
@@ -1018,99 +940,12 @@ Brave sysadmin {player_name}, your session has been terminated.
         """Update main output panel with combat log and actions."""
         if self._combat_view is None:
             return
-
-        output_lines = []
-
-        if self._combat_log:
-            # Mid-combat: show only outcomes. Controls live in the footer; the
-            # attack list was shown at combat start. Keeps the log readable
-            # instead of re-dumping the full controls block every turn.
-            output_lines.append("[bold yellow]⚔ COMBAT LOG ⚔[/bold yellow]")
-            output_lines.append("=" * 40)
-
-            _ACTOR_FORMAT = {
-                "player": ("green",  "👤"),
-                "enemy":  ("red",    "👹"),
-                "system": ("yellow", "⚡"),
-            }
-            for action in self._combat_log[-10:]:
-                actor = action.get('actor', 'system')
-                message = action.get('message', 'Action performed')
-                color, icon = _ACTOR_FORMAT.get(actor, ("white", "📋"))
-                output_lines.append(f"[{color}]{icon} {message}[/{color}]")
-
-            output_lines.append("=" * 40)
-            output_lines.append(
-                "[dim]Attacks: number keys in the footer · "
-                "type 'use <item>' or 'flee'[/dim]"
-            )
-        else:
-            # Combat start: introduce the fight and show attack options once.
-            output_lines.extend([
-                "[bold yellow]⚔ BATTLE STARTED ⚔[/bold yellow]",
-                "=" * 40,
-                "[dim]Selection Mode active — press 1-9 to attack, 0 to flee. "
-                "TAB to type 'use <item>' instead.[/dim]",
-                "",
-                self._get_dynamic_hotkey_display(),
-            ])
-
-        content_text = "\n".join(output_lines)
+        content_text = render_combat_output(
+            self._combat_log, self._player_view, self._available_attacks
+        )
         # Bypass update_output's combat-routing to avoid recursion.
         self._add_to_history(content_text)
         self.output_content = content_text
-
-    def _get_dynamic_hotkey_display(self):
-        """Generate dynamic hotkey display based on available attacks."""
-        if self._player_view is None:
-            return "[dim]Attack options loading...[/dim]"
-
-        try:
-            # Use available attacks from combat view data (list of AttackView dicts)
-            hotkey_lines = ["[bold green]QUICK ATTACKS:[/bold green]"]
-
-            # Get base damage from player view
-            base_damage = self._player_view.damage
-
-            hotkey_num = 1
-            for attack_data in self._available_attacks:
-                if hotkey_num > 9:
-                    break
-
-                attack_name = attack_data.name
-                on_cooldown = attack_data.on_cooldown
-
-                # Calculate total damage and gather metadata
-                total_damage = base_damage + attack_data.bonus_damage
-                accuracy = attack_data.accuracy
-                cooldown = attack_data.cooldown
-                # AttackView carries no attack type, so every row gets the plain bullet.
-                type_icon = "•"
-                cd_label = f"CD {cooldown}t" if cooldown > 0 else "no CD"
-
-                if not on_cooldown:
-                    hotkey_lines.append(
-                        f"[cyan][{hotkey_num}][/cyan] {type_icon} {attack_name} — "
-                        f"[yellow]{total_damage} dmg[/yellow] "
-                        f"([dim]{accuracy}% hit · {cd_label}[/dim])"
-                    )
-                    hotkey_num += 1
-                else:
-                    cooldown_remaining = attack_data.cooldown_remaining
-                    hotkey_lines.append(
-                        f"[dim][{hotkey_num}] {type_icon} {attack_name} — "
-                        f"on cooldown ({cooldown_remaining}t left)[/dim]"
-                    )
-                    hotkey_num += 1
-
-            if hotkey_num == 1:
-                hotkey_lines.append("[dim]No attacks available[/dim]")
-
-            return "\n".join(hotkey_lines)
-
-        except Exception as e:
-            logger.error(f"Error generating hotkey display: {e}")
-            return "[dim]Attack options loading...[/dim]"
 
     # =====================================
     # ENHANCED STYLING METHODS
@@ -1198,125 +1033,4 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _display_title_screen(self, skip_typewriter: bool = False):
         """Display the title screen, full-panel, with arrow-key main menu."""
-        title_ascii = '''
-██╗  ██╗ █████╗ ██╗   ██╗███╗   ██╗████████╗███████╗██████╗
-██║  ██║██╔══██╗██║   ██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗
-███████║███████║██║   ██║██╔██╗ ██║   ██║   █████╗  ██║  ██║
-██╔══██║██╔══██║██║   ██║██║╚██╗██║   ██║   ██╔══╝  ██║  ██║
-██║  ██║██║  ██║╚██████╔╝██║ ╚████║   ██║   ███████╗██████╔╝
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═════╝
-
-████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗
-╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║
-   ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║
-   ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║
-   ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗
-   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
-
-A Terminal Adventure by NoHudd'''
-
-        opening_story = '''
-
-[bold cyan]>>> INITIALIZING SYSTEM MEMORY... <<<[/bold cyan]
-Fragments of directories flicker. File clusters scream in silence.
-The great corruption has spread through the machine, leaving broken symlinks and
-phantom processes where life once pulsed.
-
-Once, sysadmins kept balance between order and entropy.
-But now… your body is gone. Your essence remains—
-a [green]Sysadmin Spirit[/green], bound to the filesystem.
-
-At the system's heart lurks the [red]Daemon Overlord[/red],
-a malignant process feeding on entropy,
-rewriting directories into its dominion of chaos.
-
-Your mission: traverse the haunted filesystem,
-purge corrupted sectors, reclaim lost commands,
-and [bold]restore the root.[/bold]
-
-Fail, and the machine is consumed.
-Succeed, and the filesystem breathes again.
-
-'''
-
-        # Switch to full-panel intro mode
-        self.add_class("intro-mode")
-        self._menu_index = 0
-        self._intro_title = Text(title_ascii, style="bold green", justify="center")
-        self._intro_skip_hint = Text(
-            "\n[press any key to skip intro]\n",
-            style="dim italic", justify="center",
-        )
-        self._intro_full_story = opening_story
-
-        if skip_typewriter:
-            self._intro_story_text = opening_story
-            self._menu_state = "menu_ready"
-            self._render_intro()
-            return
-
-        self._intro_story_text = ""
-        self._menu_state = "typing"
-        self._render_intro()
-
-        def run_typewriter():
-            try:
-                def cb(text: str):
-                    self._intro_story_text = text
-                    self.call_from_thread(self._render_intro)
-                TypewriterPresets.INTRO.type_text_sync(opening_story, cb)
-            except Exception as e:
-                logger.error(f"Typewriter effect failed for title screen: {e}")
-            finally:
-                self._intro_story_text = opening_story
-                self._menu_state = "menu_ready"
-                self.call_from_thread(self._render_intro)
-
-        threading.Thread(target=run_typewriter, daemon=True).start()
-
-    def _render_intro(self):
-        """Compose and display the intro screen for the current menu state."""
-        out = Text()
-        if self._intro_title is not None:
-            out.append_text(self._intro_title)
-        if self._intro_skip_hint is not None:
-            out.append_text(self._intro_skip_hint)
-
-        if self._intro_story_text:
-            story = Text.from_markup(self._intro_story_text)
-            story.justify = "center"
-            out.append_text(story)
-
-        if self._menu_state == "menu_ready":
-            out.append("\n")
-            labels = ["NEW GAME", "LOAD GAME", "EXIT"]
-            for i, label in enumerate(labels):
-                if i == self._menu_index:
-                    line = Text(f"  ▶  {label}  ◀  \n", style="reverse bold green", justify="center")
-                else:
-                    line = Text(f"     {label}     \n", style="dim cyan", justify="center")
-                out.append_text(line)
-            out.append_text(Text(
-                "\n↑/↓ to select   ↵ to confirm   esc to quit\n",
-                style="dim italic", justify="center",
-            ))
-
-        self.update_output(out)
-
-    def _select_menu_option(self):
-        """Confirm the highlighted main-menu option."""
-        if self._menu_state != "menu_ready":
-            return
-        choice = ["1", "2", "3"][self._menu_index]
-        self.remove_class("intro-mode")
-        self._menu_state = "idle"
-        try:
-            input_widget = self.query_one("#input-field", Input)
-            input_widget.focus()
-        except Exception:
-            pass
-        self.bus.emit_event(
-            EventType.COMMAND_ENTERED,
-            {"command": choice, "game_state": self.state_manager.current_state},
-            "TextualGameUI"
-        )
+        self._title_menu.show(skip_typewriter)
