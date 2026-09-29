@@ -25,6 +25,7 @@ from src.state_manager import StateManager
 from src.viewmodels.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
 from config.dev_config import SKIP_INTRO
 
+from src.ui.panels.echo_panel import EchoPanel
 from src.ui.panels.inventory_panel import InventoryPanel
 from src.ui.panels.stats_panel import StatsPanel
 from src.ui.panels.scene_view import SceneView
@@ -121,6 +122,7 @@ class TextualGameUI(App):
         (EventType.GAME_WON, "_on_game_won"),
         (EventType.GAME_QUIT, "_on_game_quit"),
         (EventType.QUIT_CONFIRM_REQUESTED, "_on_quit_confirm_requested"),
+        (EventType.TUTORIAL_HINT, "_on_tutorial_hint"),
     ]
 
     def _setup_event_subscriptions(self):
@@ -143,6 +145,7 @@ class TextualGameUI(App):
             with Container(id="sidebar"):
                 yield InventoryPanel(id="inventory-panel")
                 yield StatsPanel(id="stats-panel")
+        yield EchoPanel(id="echo-panel")
         yield Footer()
         yield Input(placeholder="Enter command...", id="input-field")
 
@@ -153,6 +156,7 @@ class TextualGameUI(App):
             self._inv_panel = self.query_one("#inventory-panel", InventoryPanel)
             self._stats_panel = self.query_one("#stats-panel", StatsPanel)
             self._scene_view = self.query_one("#scene-view", SceneView)
+            self._echo_panel = self.query_one("#echo-panel", EchoPanel)
 
             # Set panel titles
             self._inv_panel.border_title = "📦 Inventory"
@@ -248,6 +252,8 @@ class TextualGameUI(App):
         # Clear combat data
         self._combat_log.clear()
         self._available_attacks = []
+
+        self._echo_panel.clear()
 
         # Remove combat UI styling and leave battle mode
         self.remove_class("combat-active")
@@ -451,6 +457,18 @@ class TextualGameUI(App):
             # Use StateManager to check combat state
             if self.state_manager.is_in_combat():
                 self._update_combat_panels()
+
+    def _on_tutorial_hint(self, event):
+        """Pin the current tutorial step; the closing summary goes to the output."""
+        data = event.data or {}
+        if data.get("final"):
+            self._ui_call(self._echo_panel.clear)
+            self._ui_call(self.append_output, data.get("text", ""))
+            return
+        self._ui_call(
+            self._echo_panel.show_hint,
+            data.get("text", ""), data.get("step"), data.get("total", 0),
+        )
 
     def _on_enemy_defeated(self, event):
         """Enemy died: scene drains its HP bar to zero and removes the sprite.

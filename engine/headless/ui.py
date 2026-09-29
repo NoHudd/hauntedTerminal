@@ -44,6 +44,10 @@ class HeadlessUI:
         self.state_manager = state_manager
         bus.subscribe(EventType.GAME_WON, self._on_game_won)
         bus.subscribe(EventType.GAME_QUIT, self._on_game_quit)
+        bus.subscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
+
+    def _on_tutorial_hint(self, event: Any) -> None:
+        self.output_log.append(str((getattr(event, "data", None) or {}).get("text", "")))
 
     def _on_game_quit(self, event: Any) -> None:
         self.quit_requested = True
@@ -90,6 +94,7 @@ class HeadlessUI:
         from src.events import EventType
         self.bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
         self.bus.unsubscribe(EventType.GAME_QUIT, self._on_game_quit)
+        self.bus.unsubscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
         self.bus = None
 
     def update_inventory(self, content: str) -> None:

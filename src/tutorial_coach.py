@@ -1,5 +1,15 @@
 """The guided tutorial: which step the player is on and the hint for it."""
+from src.events import EventType
 from utils.debug_tools import debug_log
+
+# Hint id -> the numbered step it belongs to, for the "step N of TOTAL" label.
+STEP_NUMBERS = {
+    "step1": 1, "step2": 2, "step3": 3, "step4": 4, "step4_fled": 4,
+    "step5": 5, "step5_postcombat": 5, "step6": 6, "step6b": 6,
+}
+TOTAL_STEPS = 6
+# Hints that close the tutorial; the frontend drops its pinned guidance.
+FINAL_HINTS = ("completed", "skip_summary")
 
 
 class TutorialCoach:
@@ -8,9 +18,9 @@ class TutorialCoach:
     # Fallback if a class ever lacks a starter_weapon in classes.yaml.
     _FALLBACK_WEAPON = "segfault_shield"
 
-    def __init__(self, player, output):
+    def __init__(self, player, bus):
         self.player = player
-        self.output = output
+        self.bus = bus
 
     def show_hint(self, hint_type, item_name=None):
         """Show a gated tutorial hint. Text lives in data/tutorial_hints.yaml.
@@ -45,7 +55,17 @@ class TutorialCoach:
             debug_log(f"Tutorial hint '{hint_type}' has a bad placeholder: {e}")
             text = template
 
-        self.output.write(text)
+        self.bus.emit_event(
+            EventType.TUTORIAL_HINT,
+            {
+                "hint_id": hint_type,
+                "text": text,
+                "step": STEP_NUMBERS.get(hint_type),
+                "total": TOTAL_STEPS,
+                "final": hint_type in FINAL_HINTS,
+            },
+            "TutorialCoach",
+        )
 
         if hint_type == "completed":
             self.player.tutorial_state["completed"] = True

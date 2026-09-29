@@ -835,15 +835,16 @@ to this haunted filesystem.[/italic]
             # *enter* Selection Mode, which combat has entered automatically
             # since the auto-entry change (TAB now leaves it).
             #
-            # Shown before the tutorial is marked complete, because
+            # After start_game, whose GAME_STARTED resets the UI and would wipe
+            # it; before the tutorial is marked complete, because
             # tutorial.show_hint returns early once it is.
+            self.start_game()
             self.cmd_handler.tutorial.show_hint("skip_summary")
             self.player.tutorial_state["completed"] = True
-            self.start_game()
         else:
-            # Tutorial path: show Step 1 hint, then start game
-            self.cmd_handler.tutorial.show_hint("step1")
+            # Tutorial path: start the game, then Step 1 (after the UI reset).
             self.start_game()
+            self.cmd_handler.tutorial.show_hint("step1")
     
     def initialize_special_items(self, player_class: str):
         """Create and place special enhancement items based on player class."""

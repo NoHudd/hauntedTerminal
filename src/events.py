@@ -36,6 +36,11 @@ class EventType(Enum):
     # Subscribed by: game_engine.py, textual_ui.py
     # Data: {"message": str, "action": str (optional)}
 
+    TUTORIAL_HINT = auto()
+    # Emitted by: tutorial_coach.py (show_hint)
+    # Subscribed by: textual_ui.py (Echo panel), engine/headless/ui.py (text passthrough)
+    # Data: {"hint_id": str, "text": str, "step": int | None, "total": int, "final": bool}
+
     GAME_WON = auto()
     # Emitted by: game_flow.py (win_game)
     # Subscribed by: textual_ui.py (finale), engine/headless/ui.py (text passthrough)

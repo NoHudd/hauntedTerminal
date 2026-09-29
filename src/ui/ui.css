@@ -30,12 +30,14 @@
 .intro-mode #sidebar { display: none; }
 .intro-mode #scene-view { display: none; }
 .intro-mode #input-field { display: none; }
+.intro-mode #echo-panel { display: none; }
 
 /* Selection mode (difficulty / class / name entry): the game panels carry no
    information yet — give the output panel the whole screen, keep the input. */
 .selection-mode #sidebar { display: none; }
 .selection-mode #scene-view { display: none; }
 .selection-mode #main-area { width: 1fr; }
+.selection-mode #echo-panel { display: none; }
 
 /* Name entry etc.: center the prose block like the title screen does. */
 .selection-mode #output-panel {
@@ -214,6 +216,16 @@
 Footer {
     background: $primary-darken-3;
     color: white;
+}
+
+#echo-panel {
+    border: heavy $success;
+    border-title-style: bold;
+    border-title-color: $success;
+    background: $success 10%;
+    height: auto;
+    max-height: 8;
+    padding: 0 1;
 }
 
 #input-field {
