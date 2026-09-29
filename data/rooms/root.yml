@@ -13,8 +13,6 @@ detailed_description: |
   Paths branch in all directions: /home to the Graveyard, /bin to the Armory, /usr to the libraries,
   /var to the Memory Banks. The entire system spreads out before you like a corrupted tree.
 
-  Legendary items spawn here - the rarest artifacts of the old system, waiting for those with root access to claim them.
-
   A faint message scrolls across a terminal: "You have been granted temporary Superuser privileges. Use them wisely."
 exits:
   - bin_armory
@@ -23,13 +21,12 @@ exits:
   - archive
   - deprecated_dir
 items: []
-# Legendary item spawns - highest tier directory
 npcs:
   - helper_script.bin
 enemies: []
 hidden: false
 zone: core
-zone_level: 7
+zone_level: 1  # the hub above /home; zone stays core for its look
 requires_sudo: false  # Will be true after story progression
 
 # Navigation: canonical path + everything a player may type to get here.

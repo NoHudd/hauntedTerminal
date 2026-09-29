@@ -109,7 +109,7 @@ null_void_cloak:
     - shaman
   rarity: epic
   tags: ["armor", "cloak", "evasion", "void"]
-  allowed_zones: ["dev", "root"]
+  allowed_zones: ["dev", "etc", "opt", "srv"]
   persistence: "persistent"
   special_effects:
     - type: "evasion_boost"
@@ -156,5 +156,5 @@ aegis_partition:
     - guardian
   rarity: epic
   tags: ["armor", "partition", "bulwark"]
-  allowed_zones: ["dev", "root"]
+  allowed_zones: ["dev", "etc", "opt", "srv"]
   persistence: "persistent"

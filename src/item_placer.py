@@ -382,6 +382,8 @@ class ItemPlacer:
             # No specific room restrictions: any room, locked or not.
             eligible_rooms = list(self.world.rooms.keys())
         
+        eligible_rooms = [r for r in eligible_rooms if self._top_tier_allowed(item_data, r)]
+
         # If no eligible rooms, item can't be placed
         if not eligible_rooms:
             debug_log(f"No eligible rooms to place item {item_id}")
@@ -435,7 +437,8 @@ class ItemPlacer:
         - /bin, /etc, /usr: Uncommon items more frequent
         - /lib: Rare items appear
         - /dev: Epic items spawn
-        - /root: Legendary items exclusive
+        - / (room id "root"): the hub above /home, common and uncommon only
+        - /etc and /boot: where legendaries land (both start locked)
 
         Returns a dict of multipliers for each rarity tier.
         """
@@ -465,8 +468,20 @@ class ItemPlacer:
                 "unique": 0
             }
 
-        # Bin, etc, usr: Common and uncommon, some rare
-        elif room_dir in ['bin', 'etc', 'usr']:
+        # Etc: locked late room, where epic and legendary gear can land
+        elif room_dir in ['etc']:
+            return {
+                "common": 0.3,
+                "uncommon": 0.6,
+                "rare": 1.2,
+                "epic": 1.5,
+                "legendary": 1.0,
+                "secret": 0,
+                "unique": 0
+            }
+
+        # Bin, usr: Common and uncommon, some rare
+        elif room_dir in ['bin', 'usr']:
             return {
                 "common": 1.2,
                 "uncommon": 1.5,    # Increased uncommon
@@ -501,15 +516,17 @@ class ItemPlacer:
                 "unique": 0
             }
 
-        # Root: All rarities, legendary exclusive
+        # Root (/) is the hub everyone walks through from /home. The rules here
+        # were written for /root, the superuser's home, before the filesystem
+        # tree made the room with id "root" the top of the tree.
         elif room_dir in ['root']:
             return {
-                "common": 0.2,      # Very rare common
-                "uncommon": 0.5,
-                "rare": 1.0,
-                "epic": 1.5,
-                "legendary": 3.0,   # Triple legendary spawn rate
-                "secret": 0,        # Still requires special trigger
+                "common": 1.0,
+                "uncommon": 1.0,
+                "rare": 0,
+                "epic": 0,
+                "legendary": 0,
+                "secret": 0,
                 "unique": 0
             }
 
@@ -787,10 +804,35 @@ class ItemPlacer:
                 return False
         return True
 
+    TOP_TIER = ("epic", "legendary")
+
+    def _starts_open(self, room_id) -> bool:
+        """Can a new player walk in with no keys? Nothing on the path, the room
+        included, starts locked. (Class restrictions don't count: an open room
+        is open to someone.)"""
+        from src.room_paths import ancestors, room_at, room_path
+
+        target = room_path(room_id)
+        for path in ancestors(target) + [target]:
+            rid = room_at(path)
+            if rid is not None and self.world.room_states.get(rid, {}).get("locked", False):
+                return False
+        return True
+
+    def _top_tier_allowed(self, item_data, room_id) -> bool:
+        """Epic and legendary gear is earned: it never starts in a room a new
+        player can walk into without a key. Root (/) is one step above /home and
+        used to collect 2-3 legendaries a run."""
+        if self._normalize_rarity(item_data.rarity) not in self.TOP_TIER:
+            return True
+        return not self._starts_open(room_id)
+
     def _place_item_in_room(self, item_id, item_data, room_id, max_items_per_room=5):
         """Place a specific item in a specific room."""
         # Check item's own zone/room constraints
         if not self._item_fits_room(item_data, room_id):
+            return False
+        if not self._top_tier_allowed(item_data, room_id):
             return False
 
         # Check per-room item limit

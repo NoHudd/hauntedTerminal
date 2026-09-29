@@ -111,7 +111,8 @@ zero_day_blade:
     - shaman
   rarity: legendary
   tags: ["legendary", "exploit", "true_damage", "zero_day"]
-  allowed_zones: ["root"]
+  allowed_zones: ["etc", "core"]
+  allowed_rooms: ["etc_hidden_configs", "core"]  # /etc and /boot, both locked
   persistence: "persistent"
   special_effects:
     - type: "true_damage"
@@ -221,7 +222,8 @@ rootkit_reaper:
     - shaman
   rarity: legendary
   tags: ["legendary", "exploit", "stealth", "offensive"]
-  allowed_zones: ["root"]
+  allowed_zones: ["etc", "core"]
+  allowed_rooms: ["etc_hidden_configs", "core"]  # /etc and /boot, both locked
   persistence: "persistent"
 
 segfault_singularity:
@@ -233,5 +235,6 @@ segfault_singularity:
     - guardian
   rarity: legendary
   tags: ["legendary", "memory", "gravity", "offensive"]
-  allowed_zones: ["root", "dev"]
+  allowed_zones: ["etc", "core"]
+  allowed_rooms: ["etc_hidden_configs", "core"]  # /etc and /boot, both locked
   persistence: "persistent"
