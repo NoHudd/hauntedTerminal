@@ -13,6 +13,8 @@ This is a refactored version of the game engine with:
 import os
 import sys
 import logging
+
+from rich.markup import escape
 from typing import Optional, Dict, Any
 
 # Import game components
@@ -564,10 +566,24 @@ class ImprovedGameEngine:
             self.ui.update_output(f"Error loading game: {e}. Starting new game instead...")
             self._start_new_game()
     
+    @staticmethod
+    def _reserved_name(name: str) -> bool:
+        """A command word typed at the name prompt is a player who thinks they
+        are already playing, not a name."""
+        from src.commands import build_registry
+        word = name.strip().lower()
+        return word in build_registry() or word in {"yes", "no", "skip", "exit", "menu"}
+
     def _handle_name_input(self, name: str):
         """Handle player name input."""
         if not name.strip():
             self.ui.update_output("Name cannot be empty. Please enter your character name:")
+            return
+        if self._reserved_name(name):
+            self.ui.update_output(
+                f"[bold yellow]'{escape(name.strip())}' is a command, not a name.[/bold yellow] "
+                "Please enter your character name:"
+            )
             return
             
         self.pending_player_name = name.strip()
@@ -794,10 +810,15 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             return
 
         # Validate name
-        if not name.strip():
+        if not name.strip() or self._reserved_name(name):
+            heard = (
+                f"[bold]{escape(name.strip())}[/bold] is a command — you'll use those soon.\n"
+                "For now I only need your name."
+                if name.strip() else "I didn't catch that."
+            )
             self.ui.update_output(
                 "[bold green]🗨  ECHO[/bold green]\n\n"
-                "I didn't catch that.\n\n"
+                f"{heard}\n\n"
                 "[bold yellow]What is your name, spirit?[/bold yellow]\n"
                 "[dim]Type it below and press Enter[/dim]"
             )
@@ -909,6 +930,9 @@ But first, I must know what to call you. The old sysadmin records are fragmented
     def start_game(self):
         """Start the main game."""
         try:
+            # Whatever led here (name prompt, tutorial offer) is answered: the
+            # game starts on the room itself, not under a stale prompt.
+            self.ui.clear_console()
             self.state_manager.set_state(GameState.PLAYING)
 
             # Build views for game start
@@ -927,6 +951,9 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             # Update UI panels with initial game state
             logger.debug("Starting game - updating UI panels...")
             self._update_ui_panels()
+
+            if self.cmd_handler:
+                self.cmd_handler.display_location()
 
             # Emit room entered event for starting room
             if self.player and hasattr(self.player, 'current_room'):

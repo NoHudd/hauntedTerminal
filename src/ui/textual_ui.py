@@ -463,7 +463,7 @@ class TextualGameUI(App):
         data = event.data or {}
         if data.get("final"):
             self._ui_call(self._echo_panel.clear)
-            self._ui_call(self.append_output, data.get("text", ""))
+            self._ui_call(self.append_output, "\n" + data.get("text", ""))
             return
         self._ui_call(
             self._echo_panel.show_hint,

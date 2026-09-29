@@ -43,7 +43,7 @@ class CombatModeHintScreen(ModalScreen):
   • Press [bold cyan]0[/bold cyan]
 
 [bold green]To use an item instead:[/bold green]
-  • Press [bold cyan]TAB[/bold cyan] to type [bold]use [item][/bold], then
+  • Press [bold cyan]TAB[/bold cyan] to type [bold]use <item>[/bold], then
     [bold cyan]TAB[/bold cyan] again to return to Selection Mode
 
 [dim]────────────────────────────────────────────────────────────────[/dim]

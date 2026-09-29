@@ -162,7 +162,7 @@ class ManCommand(Command):
             purpose = MANPAGES[name][1]
             out.append(f"  {name:<8}", style="cyan")
             out.append(f"{purpose}\n")
-        out.append("\n[dim]Try: man ls[/dim]\n")
+        out.append("\nTry: man ls\n", style="dim")
         ctx.output.write(out)
 
 

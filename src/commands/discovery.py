@@ -20,7 +20,7 @@ class FindCommand(Command):
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         if not args:
-            ctx.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
+            ctx.output.write("[yellow]Usage: find <path> -name <pattern>[/yellow]")
             return
 
         if len(args) >= 3 and args[1] == "-name":
@@ -48,7 +48,7 @@ class FindCommand(Command):
             else:
                 ctx.output.write(f"[red]find: '{path}': No such file or directory[/red]")
         else:
-            ctx.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
+            ctx.output.write("[yellow]Usage: find <path> -name <pattern>[/yellow]")
 
 
 class PsCommand(Command):
@@ -59,7 +59,7 @@ class PsCommand(Command):
             lines = [
                 "PID  PPID  CMD",
                 "  1     0  /sbin/init",
-                " 42     1  [mount_daemon]",
+                " 42     1  \\[mount_daemon]",
                 "127     1  /proc/secrets_handler",
                 "...",
             ]
@@ -75,8 +75,8 @@ class PsCommand(Command):
             lines = [
                 "PID  PPID  CMD",
                 "  1     0  /sbin/init",
-                " 23     1  [kthreadd]",
-                " 42     1  [ksoftirqd/0]",
+                " 23     1  \\[kthreadd]",
+                " 42     1  \\[ksoftirqd/0]",
             ]
         ctx.output.write("\n".join(lines))
         ctx.tutorial.after_ps()
