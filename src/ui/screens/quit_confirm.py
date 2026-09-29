@@ -51,11 +51,11 @@ class QuitConfirmScreen(ModalScreen):
             yield Static(id="quit-confirm-body")
 
     def on_mount(self) -> None:
-        self._render()
+        self._draw()
 
     # -- rendering ------------------------------------------------------------
 
-    def _render(self) -> None:
+    def _draw(self) -> None:
         lines = [
             "[bold yellow]Quit — you have unsaved progress[/bold yellow]",
             "",
@@ -76,18 +76,18 @@ class QuitConfirmScreen(ModalScreen):
         try:
             self.query_one("#quit-confirm-body", Static).update("\n".join(lines))
         except NoMatches:
-            # Not mounted yet (or under unit test): on_mount renders again.
+            # Not mounted yet (or under unit test): on_mount draws again.
             pass
 
     # -- actions --------------------------------------------------------------
 
     def action_move_up(self) -> None:
         self._index = (self._index - 1) % len(CHOICES)
-        self._render()
+        self._draw()
 
     def action_move_down(self) -> None:
         self._index = (self._index + 1) % len(CHOICES)
-        self._render()
+        self._draw()
 
     def action_confirm(self) -> None:
         self._choose(CHOICES[self._index][0])
