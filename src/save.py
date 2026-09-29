@@ -4,10 +4,14 @@ import json
 import time
 import logging
 
+from src import difficulty
+
 logger = logging.getLogger(__name__)
 
-# Current on-disk save format version.
-SAVE_VERSION = 3
+# Current on-disk save format version. v4 added the run's difficulty and the
+# player's equipped armor and status effects; a v3 save loads with medium
+# difficulty, no armor and no effects.
+SAVE_VERSION = 4
 
 # Saves older than this cannot be loaded. v2 and earlier predate the filesystem
 # tree: they persist room_states captured when /usr, /var and /boot carried no
@@ -96,6 +100,7 @@ class SaveManager:
             "version": SAVE_VERSION,
             "player": player.to_dict(),
             "world": world_state,
+            "difficulty": difficulty.current_mode(),
             "savedAt": time.time(),
             "saveDate": time.strftime("%Y-%m-%d %H:%M:%S")
         }

@@ -421,6 +421,8 @@ class ImprovedGameEngine:
             player_data = save_data.get("player", {})
             from src.player import Player
             self.player = Player.from_dict(player_data)
+            from src import difficulty
+            difficulty.set_mode(save_data.get("difficulty", difficulty.DEFAULT_MODE))
             
             # Load fresh game data
             self._load_game_data_for_load()
@@ -516,6 +518,8 @@ class ImprovedGameEngine:
             player_data = save_data.get("player", {})
             from src.player import Player
             self.player = Player.from_dict(player_data)
+            from src import difficulty
+            difficulty.set_mode(save_data.get("difficulty", difficulty.DEFAULT_MODE))
             
             # Load fresh game data but don't initialize world state
             self._load_game_data_for_load()

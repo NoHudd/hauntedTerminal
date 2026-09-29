@@ -463,6 +463,12 @@ class Player:
         player.run_stats = data.get("runStats", {"kills": 0, "items_found": 0})
         player.met_npcs = set(data.get("metNpcs", []))
         player.equipped_weapon = data.get("equipped_weapon", None)
+        # Mitigation is derived from the armor's defense, so re-equip rather
+        # than trust a stored number. v3 saves have no armor: none equipped.
+        armor = data.get("equipped_armor")
+        if armor:
+            player.equip_armor(armor)
+        player.status_effects = data.get("status_effects", {})
         # Restore player_id if it exists, otherwise keep the generated one
         if "player_id" in data:
             player.player_id = data["player_id"]
@@ -494,6 +500,8 @@ class Player:
                 for item_id, item in self.inventory.items()
             },
             "equipped_weapon": self.equipped_weapon,
+            "equipped_armor": self.equipped_armor,
+            "status_effects": self.status_effects,
             "current_room": self.current_room,
             "previous_room": self.previous_room,  # Save previous room
             "player_id": self.player_id,
