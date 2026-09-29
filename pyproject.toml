@@ -1,6 +1,9 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "rejects_transition: the test provokes a rejected state transition on purpose",
+]
 
 [tool.ruff]
 line-length = 100

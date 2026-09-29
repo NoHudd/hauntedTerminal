@@ -96,7 +96,7 @@ class EventType(Enum):
     COMMAND_ENTERED = auto()
     # Emitted by: textual_ui.py
     # Subscribed by: game_engine.py
-    # Data: {"command": str, "game_state": GameState}
+    # Data: {"command": str}. The engine routes on its own state, not the sender's.
 
     UI_READY = auto()
     # Emitted by: textual_ui.py

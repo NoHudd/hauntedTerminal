@@ -10,17 +10,23 @@ from utils.debug_tools import debug_log
 logger = logging.getLogger(__name__)
 
 
+class InvalidTransitionError(RuntimeError):
+    """A state change the transition table does not allow: a bug in the flow."""
+
+
 class StateManager:
     """Game-state machine for one engine; emits transitions on that engine's bus."""
 
-    # Define valid state transitions for validation
+    # Every transition the game makes, and no others. MENU -> PLAYING is Load
+    # Game; the -> MENU edges out of setup and play are F5 (restart) and the
+    # error fallbacks; PLAYING -> MENU is also "new game" after a win.
     _valid_transitions: dict[GameState, list[GameState]] = {
-        GameState.MENU: [GameState.WAITING_FOR_DIFFICULTY],
+        GameState.MENU: [GameState.WAITING_FOR_DIFFICULTY, GameState.PLAYING],
         GameState.WAITING_FOR_DIFFICULTY: [GameState.WAITING_FOR_CLASS, GameState.MENU],
-        GameState.WAITING_FOR_CLASS: [GameState.PLAYING],
-        GameState.TUTORIAL_NAME_INPUT: [GameState.WAITING_FOR_CLASS, GameState.PLAYING],
-        GameState.PLAYING: [GameState.IN_COMBAT, GameState.GAME_OVER, GameState.MENU],
-        GameState.IN_COMBAT: [GameState.PLAYING, GameState.GAME_OVER],
+        GameState.WAITING_FOR_CLASS: [GameState.TUTORIAL_NAME_INPUT, GameState.MENU],
+        GameState.TUTORIAL_NAME_INPUT: [GameState.PLAYING, GameState.MENU],
+        GameState.PLAYING: [GameState.IN_COMBAT, GameState.MENU],
+        GameState.IN_COMBAT: [GameState.PLAYING, GameState.GAME_OVER, GameState.MENU],
         GameState.GAME_OVER: [GameState.MENU],
     }
 
@@ -48,14 +54,11 @@ class StateManager:
 
         old_state = self._current_state
 
-        # Validate state transition (warn but allow for flexibility)
-        valid_next_states = self._valid_transitions.get(old_state, [])
-        if valid_next_states and new_state not in valid_next_states:
-            logger.warning(
-                f"Potentially invalid state transition: {old_state} -> {new_state}. "
-                f"Expected one of: {valid_next_states}"
+        if new_state not in self._valid_transitions.get(old_state, []):
+            raise InvalidTransitionError(
+                f"{old_state} -> {new_state} is not a transition the game makes; "
+                f"from {old_state} it goes to {self._valid_transitions.get(old_state, [])}"
             )
-            debug_log(f"WARNING: Unexpected state transition: {old_state} -> {new_state}")
 
         self._current_state = new_state
 

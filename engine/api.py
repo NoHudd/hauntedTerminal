@@ -45,7 +45,7 @@ class GameSession:
         self.ui.clear_console()
         self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": command, "game_state": self.state},
+            {"command": command},
             "GameSession",
         )
         return self.ui.drain()

@@ -191,12 +191,13 @@ class ImprovedGameEngine:
     def _on_command_entered(self, event):
         """Handle command entered from UI."""
         command = event.data.get('command', '')
-        game_state = event.data.get('game_state', self.state_manager.current_state)
+        # The engine decides what mode the game is in; the UI only sends text.
+        game_state = self.state_manager.current_state
 
         # New command: its first output write replaces the panel (see _forward_output).
         self._fresh_command_output = True
 
-        logger.debug(f"Command entered: '{command}' (UI state: {game_state}, Engine state: {self.state_manager.current_state})")
+        logger.debug(f"Command entered: '{command}' (state: {game_state})")
         
         try:
             if game_state == GameState.PLAYING and self.cmd_handler:

@@ -360,7 +360,7 @@ class TextualGameUI(App):
         def on_pick(card: SelectionCard) -> None:
             self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": card.command, "game_state": self.state_manager.current_state},
+                {"command": card.command},
                 "SelectionScreen",
             )
 
@@ -563,7 +563,7 @@ class TextualGameUI(App):
         # Emit command event with current state from StateManager
         self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": command, "game_state": self.state_manager.current_state},
+            {"command": command},
             "TextualGameUI"
         )
 
@@ -587,7 +587,7 @@ class TextualGameUI(App):
             # Emit quit command to use existing confirmation flow
             self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": "quit", "game_state": self.state_manager.current_state},
+                {"command": "quit"},
                 "TextualGameUI"
             )
             return
@@ -627,7 +627,7 @@ class TextualGameUI(App):
         """Ask the domain to quit, so the usual save prompt runs first."""
         self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": "quit", "game_state": self.state_manager.current_state},
+            {"command": "quit"},
             "TextualGameUI",
         )
 
@@ -636,7 +636,7 @@ class TextualGameUI(App):
         def answer(choice: str) -> None:
             self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": choice, "game_state": self.state_manager.current_state},
+                {"command": choice},
                 "QuitConfirmScreen",
             )
 

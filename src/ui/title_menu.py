@@ -150,7 +150,7 @@ Succeed, and the filesystem breathes again.
             pass
         self._app.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": choice, "game_state": self._app.state_manager.current_state},
+            {"command": choice},
             "TextualGameUI"
         )
 
