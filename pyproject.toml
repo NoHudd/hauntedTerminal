@@ -43,6 +43,12 @@ explicit_package_bases = true
 module = "yaml"
 ignore_missing_imports = true
 
+# Optional local dev flags, gitignored (copied from settings.example.py);
+# config/dev_config.py falls back to defaults when it is absent.
+[[tool.mypy.overrides]]
+module = "config.settings"
+ignore_missing_imports = true
+
 # Legacy game code is untyped and out of scope for strict checking. Treat it as
 # Any at the engine boundary rather than following into it.
 [[tool.mypy.overrides]]
