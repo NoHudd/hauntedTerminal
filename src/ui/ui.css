@@ -39,13 +39,20 @@
 .selection-mode #main-area { width: 1fr; }
 .selection-mode #echo-panel { display: none; }
 
-/* Name entry etc.: center the prose block like the title screen does. */
+/* Name entry, tutorial offer etc.: a single centered card, like the title
+   screen. The panel centers its child; the child sizes to its text. */
 .selection-mode #output-panel {
-    padding: 2 6;
+    align: center middle;
+    padding: 1 2;
 }
 .selection-mode #output-display {
-    width: 100%;
-    content-align: center middle;
+    width: 84;
+    max-width: 100%;
+    height: auto;
+    text-align: center;
+    border: round $success;
+    background: $success 6%;
+    padding: 1 4;
 }
 
 .intro-mode #main-area {

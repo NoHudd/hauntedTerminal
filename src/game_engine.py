@@ -762,21 +762,21 @@ class ImprovedGameEngine:
                 cls.display.echo_description if cls else "a mysterious entity"
             )
             
-            tutorial_intro = f"""
-[bold cyan]>>> ECHO SYSTEM INITIALIZING... <<<[/bold cyan]
+            tutorial_intro = f"""[bold cyan]>>> ECHO SYSTEM INITIALIZING <<<[/bold cyan]
 
-[dim]A faint digital whisper echoes through the corrupted filesystem...[/dim]
+[dim italic]A faint digital whisper echoes through the corrupted filesystem…[/dim italic]
 
-[bold green]ECHO:[/bold green] [italic]Spirit... I sense your presence in the digital void. 
-You have chosen to manifest as a [bold]{selected_class_name}[/bold] - {selected_class_desc}.
+[bold green]🗨  ECHO[/bold green]
+
+[italic]Spirit… I sense your presence in the digital void.
+You have chosen to manifest as a [bold]{selected_class_name}[/bold] — {selected_class_desc}.
 
 The corruption spreads deeper each nanosecond. The Daemon Overlord's influence grows stronger.
-But first, I must know... what shall I call you, spirit?
 
-The old sysadmin records are fragmented. I need a name to anchor your essence 
-to this haunted filesystem.[/italic]
+But first, I must know what to call you. The old sysadmin records are fragmented, and I need a name to anchor your essence to this haunted filesystem.[/italic]
 
-[bold yellow]ECHO asks for your name:[/bold yellow]"""
+[bold yellow]What is your name, spirit?[/bold yellow]
+[dim]Type it below and press Enter[/dim]"""
 
             self.ui.update_output(tutorial_intro)
             self.state_manager.set_state(GameState.TUTORIAL_NAME_INPUT)
@@ -796,7 +796,10 @@ to this haunted filesystem.[/italic]
         # Validate name
         if not name.strip():
             self.ui.update_output(
-                "\n[bold green]ECHO:[/bold green] I didn't catch that. What's your name?\n"
+                "[bold green]🗨  ECHO[/bold green]\n\n"
+                "I didn't catch that.\n\n"
+                "[bold yellow]What is your name, spirit?[/bold yellow]\n"
+                "[dim]Type it below and press Enter[/dim]"
             )
             return
 
@@ -815,9 +818,12 @@ to this haunted filesystem.[/italic]
         self._awaiting_skip_response = True
         self.player.tutorial_state["skip_offered"] = True
         self.ui.update_output(
-            f"\n[bold green]ECHO:[/bold green] Welcome, [bold]{player_name}[/bold]. "
+            f"[bold green]🗨  ECHO[/bold green]\n\n"
+            f"Welcome, [bold]{player_name}[/bold].\n"
             f"Want a quick tutorial? It covers all the commands you'll need.\n\n"
-            f"[bold yellow](yes / skip)[/bold yellow]\n"
+            f"[bold green]yes[/bold green] [dim]— show me around[/dim]"
+            f"        "
+            f"[bold yellow]skip[/bold yellow] [dim]— I know my way[/dim]"
         )
 
     def _handle_skip_response(self, response: str):
