@@ -186,8 +186,13 @@ class Event:
 
 class EventBus:
     """Central event bus for decoupled communication."""
-    
-    def __init__(self) -> None:
+
+    #: Default for new buses. The test suite turns this on (tests/conftest.py)
+    #: so a listener that raises fails the test instead of only being logged.
+    strict_by_default: bool = False
+
+    def __init__(self, strict: bool | None = None) -> None:
+        self.strict = self.strict_by_default if strict is None else strict
         self._listeners: Dict[EventType, List[Callable[[Event], None]]] = {}
         self._event_history: List[Event] = []
         self._max_history = 100
@@ -239,6 +244,8 @@ class EventBus:
                     logger.warning(f"Slow callback for {event.type}: {callback_time:.3f}s")
                     
             except Exception as e:
+                if self.strict:
+                    raise
                 callback_errors += 1
                 logger.error(f"Error in event callback for {event.type}: {e}")
         
