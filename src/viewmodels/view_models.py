@@ -115,17 +115,3 @@ class CombatView:
             "usable_items": [item.to_dict() for item in self.usable_items]
         }
 
-
-@dataclass(frozen=True)
-class EnemyView:
-    """Enemy display data."""
-    id: str
-    name: str
-    health: int
-    max_health: int
-    damage: int
-    description: str = ""
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for event serialization."""
-        return asdict(self)

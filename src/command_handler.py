@@ -356,8 +356,8 @@ class CommandHandler:
         for enemy_id in enemies:
             enemy = self.world.get_enemy(enemy_id, self.player.player_class)
             if enemy:
-                name = enemy.get("name", enemy_id)
-                health = enemy.get("health", "??")
+                name = enemy.name
+                health = enemy.health
                 lines.append(f"  [red]{enemy_id}[/red] - {name} (HP: {health})")
 
         lines.append("\nUse [cyan]attack [enemy][/cyan] to engage in combat.")
@@ -368,7 +368,7 @@ class CommandHandler:
         Start combat with queue of enemies.
 
         Args:
-            enemies_queue: List of (enemy_id, enemy_data) tuples
+            enemies_queue: List of (enemy_id, Enemy) tuples
         """
         debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
 
@@ -494,8 +494,8 @@ class CommandHandler:
 
         # Show detection message for first enemy
         first_enemy_id, first_enemy_data = enemies_queue[0]
-        enemy_name = first_enemy_data.get('name', first_enemy_id)
-        enemy_description = first_enemy_data.get('description', 'A menacing presence')
+        enemy_name = first_enemy_data.name
+        enemy_description = first_enemy_data.description or 'A menacing presence'
 
         enemy_count_msg = f" ({len(enemies_queue)} hostiles detected!)" if len(enemies_queue) > 1 else ""
 

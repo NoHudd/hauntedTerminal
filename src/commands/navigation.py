@@ -393,9 +393,9 @@ class LsCommand(Command):
         for enemy_id in enemies:
             enemy = ctx.world.get_enemy(enemy_id, ctx.player.player_class)
             if enemy:
-                name = enemy.get("name", enemy_id)
-                health = enemy.get("health", "??")
-                damage = enemy.get("damage", "??")
+                name = enemy.name
+                health = enemy.health
+                damage = enemy.damage
                 output.append(f"  {enemy_id}", style="red")
                 output.append(f" - {name} (HP: {health}, DMG: {damage})\n")
             else:

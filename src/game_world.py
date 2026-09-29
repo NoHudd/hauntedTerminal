@@ -99,15 +99,13 @@ class GameWorld:
             self.enemy_locations[enemy_id] = room_id
             debug_log(f"Tutorial enemy {enemy_id} spawned in {room_id}")
 
-    def scale_enemy_stats(self, enemy_data, player_class):
-        """Scale enemy stats based on player class power scaling"""
-        if not enemy_data or not player_class:
-            return enemy_data
-        
-        # Create scaled copy to avoid modifying original data
-        scaled_enemy = enemy_data.copy()
-        base_health = enemy_data.get("health", 50)
-        base_damage = enemy_data.get("damage", 10)
+    def scale_enemy_stats(self, enemy, player_class):
+        """Scale an enemy for the player's class, in place (callers pass a copy)."""
+        if not enemy or not player_class:
+            return enemy
+
+        base_health = enemy.health
+        base_damage = enemy.damage
         
         # Per-class enemy scaling is neutralized: it previously made enemies
         # TOUGHER for the fragile "aggressive" class (Weaver) and EASIER for the
@@ -118,17 +116,15 @@ class GameWorld:
         damage_multiplier = 1.0
         
         # Apply scaling
-        scaled_enemy["health"] = max(1, int(base_health * health_multiplier))
-        scaled_enemy["damage"] = max(1, int(base_damage * damage_multiplier))
-        
-        # Scale attack patterns if they exist
-        if "attack_patterns" in scaled_enemy:
-            for attack in scaled_enemy["attack_patterns"]:
-                if "damage" in attack:
-                    attack["damage"] = max(1, int(attack["damage"] * damage_multiplier))
-        
-        debug_log(f"Enemy scaled: {base_health}HP -> {scaled_enemy['health']}HP, {base_damage}DMG -> {scaled_enemy['damage']}DMG")
-        return scaled_enemy
+        enemy.health = max(1, int(base_health * health_multiplier))
+        enemy.damage = max(1, int(base_damage * damage_multiplier))
+
+        for attack in enemy.attack_patterns:
+            if "damage" in attack:
+                attack["damage"] = max(1, int(attack["damage"] * damage_multiplier))
+
+        debug_log(f"Enemy scaled: {base_health}HP -> {enemy.health}HP, {base_damage}DMG -> {enemy.damage}DMG")
+        return enemy
 
     def _initialize_world_state(self):
         """Initialize item and enemy locations from room data"""
@@ -316,10 +312,9 @@ class GameWorld:
 
         debug_log(f"Retrieved enemy data for {enemy_id}")
 
-        # Boundary: typed template model -> plain runtime dict. Everything below
-        # (scaling, combat, sim) stays dict-based and unchanged.
-        if not isinstance(enemy, dict):
-            enemy = enemy.model_dump(exclude_unset=True)
+        # A private copy: scaling mutates it, and a fight holds it for its
+        # whole duration, so the shared template must never be handed out.
+        enemy = enemy.model_copy(deep=True)
 
         # Apply class-based scaling if player class is provided
         if player_class:
@@ -398,8 +393,8 @@ class GameWorld:
                 {
                     "enemy_id": enemy_id,
                     "room": room_id,
-                    "enemy_name": enemy_data.get("name", enemy_id) if enemy_data else enemy_id,
-                    "was_boss": enemy_data.get("is_boss", False) if enemy_data else False
+                    "enemy_name": enemy_data.name if enemy_data else enemy_id,
+                    "was_boss": enemy_data.is_boss if enemy_data else False
                 },
                 "GameWorld"
             )

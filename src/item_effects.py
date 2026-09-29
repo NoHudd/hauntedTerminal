@@ -332,5 +332,5 @@ class ItemEffects:
             if enemy:
                 self.world.enemy_locations[enemy_id] = room_id
                 if room_id == self.player.current_room:
-                    self.output.write(f"[bold red]{enemy.get('name', enemy_id)} has appeared![/bold red]")
+                    self.output.write(f"[bold red]{enemy.name} has appeared![/bold red]")
                     self._start_encounter()

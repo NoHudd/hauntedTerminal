@@ -27,9 +27,6 @@ class LootService:
         Existing `drops` (heals/keys/badges) are activated here — the difficulty
         tune already assumes these fire. Gear `loot_table` is added in Task 2.
         """
-        # get_enemy dumps the typed Enemy model to a plain dict (self.world.enemies
-        # holds models); reading the raw model with .get() crashes and aborts the
-        # ENEMY_DEFEATED handler before removal, leaving the enemy to be re-fought.
         enemy = self.world.get_enemy(enemy_id)
         if not enemy:
             return []
@@ -37,13 +34,13 @@ class LootService:
         self.player.run_stats["kills"] = self.player.run_stats.get("kills", 0) + 1
 
         dropped = []
-        for drop in enemy.get("drops", []) or []:
-            item_id = drop.get("item")
-            if item_id and rng.random() * 100 < drop.get("chance", 0):
+        for drop in enemy.drops:
+            item_id = drop.item
+            if item_id and rng.random() * 100 < drop.chance:
                 self.world.add_item_to_room(item_id, room_id)
                 dropped.append(item_id)
 
-        gear_id = self.roll_loot_table(enemy.get("loot_table", []) or [])
+        gear_id = self.roll_loot_table(enemy.loot_table)
         if gear_id:
             self.world.add_item_to_room(gear_id, room_id)
             dropped.append(gear_id)

@@ -102,9 +102,8 @@ class ItemPlacer:
         """Key ids obtainable as enemy drops, so they are not also scattered."""
         granted = set()
         for enemy in self.world.enemies.values():
-            drops = enemy.get("drops", []) if isinstance(enemy, dict) else (enemy.drops or [])
-            for drop in drops:
-                item_id = drop.get("item") if isinstance(drop, dict) else getattr(drop, "item", None)
+            for drop in enemy.drops:
+                item_id = drop.item
                 if item_id and self.is_key(item_id):
                     granted.add(str(item_id))
         return granted

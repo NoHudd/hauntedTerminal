@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 import yaml
 
+from engine.schema import Enemy
 from src import difficulty, rng
 from src.combat import combat_system
 from src.data_loader import load_class_data, load_enemy_data, load_room_data, load_weapon_data
@@ -150,10 +151,10 @@ def _build_player(class_id: str) -> Player:
     return player
 
 
-def _fight(player: Player, enemy: dict) -> bool:
+def _fight(player: Player, enemy: Enemy) -> bool:
     """Resolve one fight to the death. Returns True if the player survives."""
-    enemy_hp = enemy.get("health", 1)
-    enemy_damage = enemy.get("damage", 0)
+    enemy_hp = enemy.health
+    enemy_damage = enemy.damage
     pending_reduction = 0.0
 
     turns = 0
@@ -203,14 +204,12 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
                 player.health / max(1, player.max_health),
             )
         cleared += 1
-        base = enemy.get("experience", 50)
-        if enemy.get("boss_room") or enemy.get("boss_enemy"):
-            base *= 3
+        base = enemy.experience
         player.harvest_cycles(difficulty.scale_xp(base))
         # Loot heals only if this enemy actually drops one and the roll hits —
         # faithful to the real (stingy) drop economy, not a free per-fight heal.
-        for drop in enemy.get("drops", []) or []:
-            if drop.get("item") in _HEAL_ITEMS and rng.random() * 100 < drop.get("chance", 0):
+        for drop in enemy.drops:
+            if drop.item in _HEAL_ITEMS and rng.random() * 100 < drop.chance:
                 player._sim_heals += 1  # type: ignore[attr-defined]
 
     return RunResult(

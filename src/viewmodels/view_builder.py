@@ -17,7 +17,6 @@ from src.viewmodels.view_models import (
     RoomView,
     AttackView,
     CombatView,
-    EnemyView
 )
 
 logger = logging.getLogger(__name__)
@@ -166,14 +165,14 @@ class ViewBuilder:
             )
 
     @staticmethod
-    def build_combat_view(player, enemy_data: dict, enemy_health: int,
+    def build_combat_view(player, enemy_data, enemy_health: int,
                          combat_system, enemy_id: str = "") -> CombatView:
         """
         Build combat view from player, enemy, and combat system.
 
         Args:
             player: Player object
-            enemy_data: Dict with enemy information
+            enemy_data: the fight's Enemy model
             enemy_health: Current enemy health
             combat_system: CombatSystem instance for attacks
 
@@ -204,9 +203,9 @@ class ViewBuilder:
                     ))
 
             return CombatView(
-                enemy_name=enemy_data.get('name', 'Unknown Enemy'),
+                enemy_name=enemy_data.name,
                 enemy_health=enemy_health,
-                enemy_max_health=enemy_data.get('health', enemy_health),
+                enemy_max_health=enemy_data.health,
                 player_health=getattr(player, 'health', 0),
                 player_max_health=getattr(player, 'max_health', 100),
                 enemy_id=enemy_id,
@@ -224,38 +223,6 @@ class ViewBuilder:
                 player_max_health=getattr(player, 'max_health', 100),
                 available_attacks=[],
                 usable_items=[]
-            )
-
-    @staticmethod
-    def build_enemy_view(enemy_id: str, enemy_data: dict) -> EnemyView:
-        """
-        Build enemy view from enemy data.
-
-        Args:
-            enemy_id: Enemy identifier
-            enemy_data: Dict with enemy information
-
-        Returns:
-            EnemyView with enemy display data
-        """
-        try:
-            return EnemyView(
-                id=enemy_id,
-                name=enemy_data.get('name', enemy_id),
-                health=enemy_data.get('health', 50),
-                max_health=enemy_data.get('health', 50),
-                damage=enemy_data.get('damage', 10),
-                description=enemy_data.get('description', 'A hostile entity.')
-            )
-        except Exception as e:
-            logger.error(f"Error building enemy view for {enemy_id}: {e}", exc_info=True)
-            return EnemyView(
-                id=enemy_id,
-                name=enemy_id,
-                health=50,
-                max_health=50,
-                damage=10,
-                description='A hostile entity.'
             )
 
     @staticmethod

@@ -277,7 +277,7 @@ class CombatSession:
 
         Args:
             player: Player object
-            enemies_queue: List of (enemy_id, enemy_data) tuples
+            enemies_queue: List of (enemy_id, Enemy) tuples
             output: GameOutput sink (Phase 2b — no direct UI reference)
             bus: the owning engine's EventBus
         """
@@ -292,10 +292,10 @@ class CombatSession:
         # Initialize with first enemy
         if enemies_queue:
             self.enemy_id, self.enemy_data = enemies_queue[0]
-            self.enemy_health = self.enemy_data.get("health", 50)
+            self.enemy_health = self.enemy_data.health
             self.enemy_max_health = self.enemy_health
-            self.enemy_damage = self.enemy_data.get("damage", 10)
-            self.is_boss = self.enemy_data.get("is_boss", False)
+            self.enemy_damage = self.enemy_data.damage
+            self.is_boss = self.enemy_data.is_boss
 
         debug_log(f"CombatSession created with {len(enemies_queue)} enemies in queue")
 
@@ -304,7 +304,7 @@ class CombatSession:
     
     def start(self):
         """Start the combat session."""
-        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        enemy_name = self.enemy_data.name
         debug_log(f"Starting combat with {enemy_name}")
 
         # Build combat view and emit combat started event
@@ -324,8 +324,8 @@ class CombatSession:
 
         # Emit combat intro message as a combat log entry
         combat_intro = f"⚔  Combat initiated with {enemy_name}!"
-        if "dialogue" in self.enemy_data:
-            combat_intro += f" | {enemy_name}: {self.enemy_data['dialogue']}"
+        if self.enemy_data.dialogue:
+            combat_intro += f" | {enemy_name}: {self.enemy_data.dialogue}"
 
         self.bus.emit_event(
             EventType.COMBAT_ACTION_RESULT,
@@ -355,12 +355,12 @@ class CombatSession:
 
         # Get next enemy
         self.enemy_id, self.enemy_data = self.enemies_queue[self.current_enemy_index]
-        self.enemy_health = self.enemy_data.get("health", 50)
+        self.enemy_health = self.enemy_data.health
         self.enemy_max_health = self.enemy_health
-        self.enemy_damage = self.enemy_data.get("damage", 10)
-        self.is_boss = self.enemy_data.get("is_boss", False)
+        self.enemy_damage = self.enemy_data.damage
+        self.is_boss = self.enemy_data.is_boss
 
-        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        enemy_name = self.enemy_data.name
         debug_log(f"Engaging next enemy: {enemy_name} ({self.current_enemy_index + 1}/{len(self.enemies_queue)})")
 
         # Reduce cooldowns by 1 for sequential combat
@@ -378,8 +378,8 @@ class CombatSession:
         self.output.write(transition_msg)
 
         # Show enemy dialogue if available
-        if "dialogue" in self.enemy_data:
-            self.output.write(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data['dialogue']}")
+        if self.enemy_data.dialogue:
+            self.output.write(f"[bold red]{enemy_name}:[/bold red] {self.enemy_data.dialogue}")
 
         # Reset combat UI flag for new enemy
         self._combat_initialized = False
@@ -666,7 +666,7 @@ class CombatSession:
         
         # Check if enemy is defeated
         if self.enemy_health <= 0:
-            enemy_name = self.enemy_data.get("name", self.enemy_id)
+            enemy_name = self.enemy_data.name
             self.output.write(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
 
             # Emit enemy defeated event (for loot, achievements, etc)
@@ -680,10 +680,7 @@ class CombatSession:
             )
 
             # Award harvesting cycles (XP) from the enemy's authored experience value.
-            base_cycles = self.enemy_data.get("experience", 50)
-            is_boss = self.enemy_data.get("boss_room", False) or self.enemy_data.get("boss_enemy", False)
-            if is_boss:
-                base_cycles *= 3
+            base_cycles = self.enemy_data.experience
             # Scale XP by difficulty mode (easier = faster leveling).
             from src import difficulty
             base_cycles = difficulty.scale_xp(base_cycles)
@@ -730,7 +727,7 @@ class CombatSession:
     
     def _enemy_turn(self):
         """Process enemy's turn."""
-        enemy_name = self.enemy_data.get("name", self.enemy_id)
+        enemy_name = self.enemy_data.name
 
         damage = self.enemy_damage
         self.player.take_damage(damage)

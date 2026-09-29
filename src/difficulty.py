@@ -72,16 +72,12 @@ def all_multipliers() -> dict[str, dict[str, float]]:
     return {m: dict(_multipliers.get(m, _FALLBACK[m])) for m in MODES}
 
 
-def scale_enemy(enemy: dict) -> dict:
-    """Return a copy of enemy data with HP/damage scaled for the active mode."""
-    if not isinstance(enemy, dict):
-        return enemy
+def scale_enemy(enemy):
+    """Return a copy of an Enemy with HP/damage scaled for the active mode."""
     m = _mult()
-    scaled = dict(enemy)
-    if "health" in scaled and isinstance(scaled["health"], (int, float)):
-        scaled["health"] = max(1, round(scaled["health"] * m["enemy_hp"]))
-    if "damage" in scaled and isinstance(scaled["damage"], (int, float)):
-        scaled["damage"] = max(0, round(scaled["damage"] * m["enemy_damage"]))
+    scaled = enemy.model_copy()
+    scaled.health = max(1, round(enemy.health * m["enemy_hp"]))
+    scaled.damage = max(0, round(enemy.damage * m["enemy_damage"]))
     return scaled
 
 

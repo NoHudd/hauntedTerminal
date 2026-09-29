@@ -13,6 +13,7 @@ import pytest
 
 import src.rng as rng
 from engine.api import GameSession
+from engine.schema import Enemy
 from src.events import EventType
 
 
@@ -33,10 +34,10 @@ def test_existing_drops_are_awarded_into_the_room(session: GameSession) -> None:
     # health_packet + starter weapon), and assert it newly appears after the drop.
     drop_item = "kill_script"
     assert drop_item not in h.world.get_items_in_room(room)
-    h.world.enemies["test_dropper"] = {
-        "id": "test_dropper", "name": "Test Dropper",
-        "drops": [{"item": drop_item, "chance": 100}],
-    }
+    h.world.enemies["test_dropper"] = Enemy(
+        id="test_dropper", name="Test Dropper", health=10, damage=1,
+        drops=[{"item": drop_item, "chance": 100}],
+    )
     h.world.enemy_locations["test_dropper"] = room
 
     session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper"}, "test")
@@ -47,10 +48,10 @@ def test_existing_drops_are_awarded_into_the_room(session: GameSession) -> None:
 def test_drops_are_awarded_only_once(session: GameSession) -> None:
     h = session.engine.cmd_handler
     room = h.player.current_room
-    h.world.enemies["test_dropper2"] = {
-        "id": "test_dropper2", "name": "Test Dropper 2",
-        "drops": [{"item": "health_packet", "chance": 100}],
-    }
+    h.world.enemies["test_dropper2"] = Enemy(
+        id="test_dropper2", name="Test Dropper 2", health=10, damage=1,
+        drops=[{"item": "health_packet", "chance": 100}],
+    )
     h.world.enemy_locations["test_dropper2"] = room
 
     session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
@@ -62,10 +63,10 @@ def test_drops_are_awarded_only_once(session: GameSession) -> None:
 def test_loot_table_drops_class_appropriate_gear(session: GameSession) -> None:
     h = session.engine.cmd_handler  # session is a weaver
     room = h.player.current_room
-    h.world.enemies["test_boss"] = {
-        "id": "test_boss", "name": "Test Boss",
-        "loot_table": [{"rarity": "epic", "chance": 100}],
-    }
+    h.world.enemies["test_boss"] = Enemy(
+        id="test_boss", name="Test Boss", health=10, damage=1,
+        loot_table=[{"rarity": "epic", "chance": 100}],
+    )
     h.world.enemy_locations["test_boss"] = room
     rng.seed(1)
 
