@@ -6,6 +6,7 @@ from src.combat import CombatSession
 from src.commands import build_registry
 from src.events import EventType
 from src.game_flow import GameFlow
+from src.game_world import TUTORIAL_ENEMY
 from src.item_effects import ItemEffects
 from src.item_resolver import ItemResolver
 from src.loot import LootService
@@ -400,6 +401,14 @@ class CommandHandler:
             self.flow.show_game_over_screen()
             return
 
+        tutorial_active = not self.player.tutorial_state.get("completed", False)
+        if fled and enemy_id == TUTORIAL_ENEMY and tutorial_active:
+            # Fleeing would take the scripted enemy out of the room until the
+            # player leaves and comes back, stranding the tutorial on "press 1".
+            # It stays put instead, so `attack` restarts the fight.
+            self.tutorial.show_hint("step4_fled")
+            return
+
         if fled and enemy_id:
             # Mark enemy as fled
             fled_from_room = self.player.current_room
@@ -535,6 +544,8 @@ class CommandHandler:
         ts = getattr(self.player, "tutorial_state", {}) or {}
         if not ts.get("completed", False):
             current_step = self.tutorial.current_step()
+            if current_step == "step4" and self.current_combat_session is None:
+                current_step = "step4_fled"
             if current_step:
                 self.tutorial.show_hint(current_step)
                 return

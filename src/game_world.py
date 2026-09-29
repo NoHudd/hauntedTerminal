@@ -2,6 +2,8 @@
 from utils.debug_tools import debug_log
 from src.events import EventBus, EventType
 
+TUTORIAL_ENEMY = "glitched_process.tmp"
+
 
 class GameWorld:
     """Manages the game world, including rooms, items, enemies, and NPCs"""
@@ -91,7 +93,7 @@ class GameWorld:
         The enemy is not persisted to save state — it re-spawns if the player
         reloads before completing the tutorial.
         """
-        enemy_id = "glitched_process.tmp"
+        enemy_id = TUTORIAL_ENEMY
         if enemy_id not in self.enemies:
             debug_log(f"Tutorial enemy {enemy_id} not found in enemies data")
             return

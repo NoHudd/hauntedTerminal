@@ -7,6 +7,7 @@
 #   step2        take the weapon      (weapon_name = the one actually on the floor)
 #   step3        equip it
 #   step4        combat opens
+#   step4_fled   fled the tutorial fight (it waits in the room for `attack`)
 #   step5        after the first landed hit
 #   step5_postcombat  after the fight
 #   step6/step6b navigation
@@ -22,6 +23,8 @@
   [bold green]ECHO>[/bold green] You're carrying it, but it's not active yet. Type: [bold]equip {weapon_name}[/bold] to ready it. Equipping means it'll be used in combat.
 "step4": |-
   [bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat, and you're already in Selection Mode. Press [bold]1[/bold] to attack.
+"step4_fled": |-
+  [bold green]ECHO>[/bold green] You got away — [bold]0[/bold] (or [bold]flee[/bold]) escapes any fight. This process is still here, though, and it can't hurt you much. Type: [bold]attack[/bold] to face it again.
 "step5": |-
   [bold green]ECHO>[/bold green] Nice hit. One more should finish it. Need to use an item or flee instead? Press [bold]TAB[/bold] to type [bold]use [item][/bold] or [bold]flee[/bold] — TAB again to get back to Selection Mode.
 "step5_postcombat": |-

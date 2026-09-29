@@ -126,16 +126,16 @@ class TakeCommand(Command):
                 debug_log(f"Executing on_take effect for {item_id}")
                 ctx.effects.execute_effect(item.on_take)
 
+            # Reprint room contents so the player sees the item is gone without
+            # having to retype `ls`.
+            ctx.relist_room()
+
             if (
                 not ctx.player.tutorial_state.get("took_weapon", False)
                 and item.type == "weapon"
             ):
                 ctx.player.tutorial_state["took_weapon"] = True
                 ctx.tutorial.show_hint("step3", actual_item_id)
-
-            # Reprint room contents so the player sees the item is gone without
-            # having to retype `ls`.
-            ctx.relist_room()
         else:
             debug_log(f"Failed to add {actual_item_id} to inventory")
             ctx.output.error(
@@ -485,8 +485,10 @@ class EquipCommand(Command):
             if not ctx.player.tutorial_state.get("equipped_weapon", False):
                 ctx.player.tutorial_state["equipped_weapon"] = True
                 ctx.world.spawn_tutorial_enemy("home_grove")
-                ctx.tutorial.show_hint("step4")
+                # After the fight opens, so the hint lands in the combat log
+                # instead of being replaced by it.
                 ctx.check_for_enemies()
+                ctx.tutorial.show_hint("step4")
 
             stats_view = ViewBuilder.build_stats_view(ctx.player)
             ctx.bus.emit_event(

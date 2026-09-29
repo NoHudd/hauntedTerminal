@@ -12,37 +12,43 @@ _ACTOR_FORMAT = {
 }
 
 
+def _format_entry(action: dict[str, Any]) -> str:
+    actor = action.get('actor', 'system')
+    message = action.get('message', 'Action performed')
+    color, icon = _ACTOR_FORMAT.get(actor, ("white", "📋"))
+    return f"[{color}]{icon} {message}[/{color}]"
+
+
 def render_combat_output(
     combat_log: list[dict[str, Any]],
     player_view: StatsView | None,
     attacks: list[AttackView],
 ) -> str:
-    """The combat panel's text: the last ten log entries, or the opening attack list."""
+    """The combat panel's text: the attack list until the first blow, then the log."""
     output_lines = []
 
-    if combat_log:
+    if any(action.get("actor") in ("player", "enemy") for action in combat_log):
         # Mid-combat: show only outcomes. Controls live in the footer; the
         # attack list was shown at combat start. Keeps the log readable
         # instead of re-dumping the full controls block every turn.
         output_lines.append("[bold yellow]⚔ COMBAT LOG ⚔[/bold yellow]")
         output_lines.append("=" * 40)
-
-        for action in combat_log[-10:]:
-            actor = action.get('actor', 'system')
-            message = action.get('message', 'Action performed')
-            color, icon = _ACTOR_FORMAT.get(actor, ("white", "📋"))
-            output_lines.append(f"[{color}]{icon} {message}[/{color}]")
-
+        output_lines.extend(_format_entry(action) for action in combat_log[-10:])
         output_lines.append("=" * 40)
         output_lines.append(
             "[dim]Attacks: number keys in the footer · "
             "type 'use <item>' or 'flee'[/dim]"
         )
     else:
-        # Combat start: introduce the fight and show attack options once.
+        # Before the first blow: introduce the fight and show attack options,
+        # keeping system lines such as the enemy's opening taunt and tutorial hints.
         output_lines.extend([
             "[bold yellow]⚔ BATTLE STARTED ⚔[/bold yellow]",
             "=" * 40,
+        ])
+        output_lines.extend(_format_entry(action) for action in combat_log[-10:])
+        output_lines.extend([
+            "",
             "[dim]Selection Mode active — press 1-9 to attack, 0 to flee. "
             "TAB to type 'use <item>' instead.[/dim]",
             "",
