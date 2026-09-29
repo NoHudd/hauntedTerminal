@@ -98,8 +98,7 @@ class ImprovedGameEngine:
 
         # Drop the outgoing handler's subscriptions before letting go of it.
         # Without this, F5 (restart) left the dead run's CommandHandler on the
-        # bus: ROOM_ENTERED then fired check_for_enemies twice (every enemy
-        # fought twice) and ENEMY_DEFEATED fired twice (loot rolled twice).
+        # bus: ENEMY_DEFEATED fired twice (loot rolled twice).
         if getattr(self, "cmd_handler", None):
             self.cmd_handler.cleanup_event_subscriptions()
 
@@ -313,28 +312,18 @@ class ImprovedGameEngine:
         # Use StateManager to exit combat
         self.state_manager.exit_combat()
 
-        # On flee, CommandHandler relocates player + emits ROOM_ENTERED itself.
-        # Emitting here would fire check_for_enemies on the room they just fled,
-        # restarting combat before the flee handler can mark the enemy fled.
+        # On flee, CommandHandler relocates the player and announces the room
+        # they land in; this room is no longer theirs to show.
         if event.data.get("fled", False):
             self._update_ui_panels()
             return
 
-        # ROOM_ENTERED goes out BEFORE the panel refresh. The UI leaves combat
+        # The room goes out BEFORE the panel refresh. The UI leaves combat
         # mode on this same event, and it needs the fresh room view to be in
         # hand by then — when the order was reversed it was not, which is why
         # the UI used to defer its panel restore behind a 0.1s timer.
-        if self.world and self.player:
-            room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
-
-            self.bus.emit_event(
-                EventType.ROOM_ENTERED,
-                {
-                    "room": room_view.to_dict(),
-                    "player_name": self.player.name
-                },
-                "ImprovedGameEngine"
-            )
+        if self.cmd_handler:
+            self.cmd_handler.announce_room()
 
         self._update_ui_panels()
     
@@ -444,7 +433,7 @@ class ImprovedGameEngine:
         self.world.set_state(save_data.get("world", {}))
 
         # Unsubscribe the old handler first, or the dead run's handler keeps
-        # reacting to ROOM_ENTERED/ENEMY_DEFEATED with its stale player.
+        # reacting to ENEMY_DEFEATED with its stale player.
         if self.cmd_handler:
             self.cmd_handler.cleanup_event_subscriptions()
         self.cmd_handler = CommandHandler(self.player, self.world, self.output, self.bus)
@@ -465,17 +454,8 @@ class ImprovedGameEngine:
         )
         self._update_ui_panels()
 
-        # Subscribed before ROOM_ENTERED so arriving in the saved room runs the
-        # usual encounter check.
         self.cmd_handler.setup_event_subscriptions()
-        self.bus.emit_event(
-            EventType.ROOM_ENTERED,
-            {
-                "room": ViewBuilder.build_room_view(self.world, self.player.current_room).to_dict(),
-                "player_name": self.player.name,
-            },
-            "ImprovedGameEngine",
-        )
+        self.cmd_handler.arrive()
 
     def _handle_menu_command(self, command: str):
         """Handle commands in menu state."""
@@ -874,8 +854,8 @@ But first, I must know what to call you. The old sysadmin records are fragmented
     def create_player(self, name: str, player_class: str) -> bool:
         """Create a new player."""
         try:
-            # Idempotent: never leave a prior handler subscribed, or ROOM_ENTERED /
-            # ENEMY_DEFEATED fire on both and everything doubles (fight enemies twice).
+            # Idempotent: never leave a prior handler subscribed, or ENEMY_DEFEATED
+            # fires on both and loot doubles.
             if self.cmd_handler:
                 self.cmd_handler.cleanup_event_subscriptions()
             self.player = Player(name=name, player_class=player_class)
@@ -935,19 +915,7 @@ But first, I must know what to call you. The old sysadmin records are fragmented
 
             if self.cmd_handler:
                 self.cmd_handler.display_location()
-
-            # Emit room entered event for starting room
-            if self.player and hasattr(self.player, 'current_room'):
-                room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
-
-                self.bus.emit_event(
-                    EventType.ROOM_ENTERED,
-                    {
-                        "room": room_view.to_dict(),
-                        "player_name": self.player.name
-                    },
-                    "ImprovedGameEngine"
-                )
+                self.cmd_handler.arrive()
             
         except Exception as e:
             logger.error(f"Error starting game: {e}")

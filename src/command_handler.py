@@ -63,7 +63,6 @@ class CommandHandler:
 
     def _subscriptions(self):
         return [
-            (EventType.ROOM_ENTERED, self._on_room_entered),
             (EventType.ALL_ENEMIES_DEFEATED, self._on_all_enemies_defeated),
             (EventType.ROOM_CHANGED, self._on_room_changed_for_npc),
             (EventType.COMBAT_ENDED, self.tutorial.on_combat_ended),
@@ -81,8 +80,7 @@ class CommandHandler:
 
         Must mirror every subscribe — including ENEMY_DEFEATED (subscribed in
         __init__, not via _subscriptions). A missed unsubscribe leaves a stale
-        handler alive: ROOM_ENTERED then fires check_for_enemies twice (fight each
-        enemy twice) and ENEMY_DEFEATED fires twice (double loot).
+        handler alive: ENEMY_DEFEATED then fires twice (double loot).
 
         Also aborts any still-active combat session. A CombatSession only
         unsubscribes its own COMBAT_ACTION_SELECTED listener when it reaches a
@@ -98,14 +96,32 @@ class CommandHandler:
             self.current_combat_session = None
         debug_log("CommandHandler event subscriptions cleaned up")
     
-    def _on_room_entered(self, event):
-        """Handle room entered event to respawn fled enemies."""
-        # Get room_id from player's current room (event contains RoomView dict, not room_id)
+    def announce_room(self):
+        """Tell the UI which room the player is in (scene, exits, theme).
+
+        A notification only: nothing in the game reacts to ROOM_ENTERED, so a
+        UI refresh (e.g. `ls -a` revealing a directory) can't start a fight.
+        """
+        room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
+        self.bus.emit_event(
+            EventType.ROOM_ENTERED,
+            {"room": room_view.to_dict(), "player_name": self.player.name},
+            "CommandHandler",
+        )
+
+    def arrive(self):
+        """The player has just entered their current room.
+
+        Shows it to the UI, then applies the arrival rules: enemies they fled
+        from here come back, and any hostile here starts a fight. Callers invoke
+        this directly after moving the player (cd, flee, new game, load); it
+        used to hang off the ROOM_ENTERED event, and a load path that forgot to
+        subscribe silently turned encounters off.
+        """
+        self.announce_room()
         room_id = self.player.current_room
         if room_id:
-            debug_log(f"Player entered room {room_id}, checking for fled enemies to respawn")
             self.world.respawn_fled_enemies(room_id)
-            # Check for enemies after respawning fled ones
             self.check_for_enemies()
     
     def _on_all_enemies_defeated(self, event):
@@ -420,19 +436,9 @@ class CommandHandler:
                 debug_log(f"Player fled from {fled_from_room} back to {prev_room}")
                 self.output.write(f"[bold magenta]You were forced back to {prev_room}![/bold magenta]")
 
-                # Move player to previous room
                 self.player.move_to(prev_room)
-
-                # Emit ROOM_ENTERED so UI re-themes panels and clears combat styling.
-                room_view = ViewBuilder.build_room_view(self.world, prev_room)
-                self.bus.emit_event(
-                    EventType.ROOM_ENTERED,
-                    {"room": room_view.to_dict(), "player_name": self.player.name},
-                    "CommandHandler"
-                )
-
-                # Show new room info
                 self.display_location()
+                self.arrive()
                 return
             else:
                 debug_log("Player fled but no previous room available")

@@ -1,8 +1,9 @@
 """Regression: a new CommandHandler must not leave a prior one subscribed.
 
-Two live handlers made ROOM_ENTERED fire check_for_enemies twice (fight each enemy
-twice) and ENEMY_DEFEATED fire _on_enemy_defeated twice (double loot + 'enemy not
-found' warning). Creating a player must leave exactly one subscribed handler.
+Two live handlers made ENEMY_DEFEATED fire _on_enemy_defeated twice (double loot +
+'enemy not found' warning). Creating a player must leave exactly one subscribed
+handler. ROOM_ENTERED is a UI notification: the handler must not react to it at
+all (arrival rules run from CommandHandler.arrive, called directly).
 """
 from __future__ import annotations
 
@@ -32,7 +33,7 @@ def test_recreating_player_leaves_one_subscribed_handler():
 
         checks["n"] = 0
         eng.bus.emit_event(EventType.ROOM_ENTERED, {}, "test")
-        assert checks["n"] == 1, f"ROOM_ENTERED fired check_for_enemies {checks['n']}x (expected 1)"
+        assert checks["n"] == 0, f"ROOM_ENTERED fired check_for_enemies {checks['n']}x (expected 0)"
 
         defeats["n"] = 0
         eng.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "nope"}, "test")

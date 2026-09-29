@@ -21,8 +21,6 @@ import config.dev_config as dev_cfg
 from src import room_paths
 from src.commands.base import Command
 from src.commands.hints import show_not_found
-from src.events import EventType
-from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -133,13 +131,8 @@ class CdCommand(Command):
             f"[bold cyan]{destination_path}[/bold cyan] — entering {room_name}..."
         )
 
-        room_view = ViewBuilder.build_room_view(ctx.world, target)
-        ctx.bus.emit_event(
-            EventType.ROOM_ENTERED,
-            {"room": room_view.to_dict(), "player_name": ctx.player.name},
-            "CommandHandler",
-        )
         ctx.display_location()
+        ctx.arrive()
         ctx.tutorial.after_move()
 
     @staticmethod
@@ -230,12 +223,7 @@ class LsCommand(Command):
             # The sidebar and scene only rebuild on ROOM_ENTERED. Without this a
             # newly revealed directory stays invisible in the persistent UI until
             # the player leaves and comes back.
-            room_view = ViewBuilder.build_room_view(ctx.world, room_id)
-            ctx.bus.emit_event(
-                EventType.ROOM_ENTERED,
-                {"room": room_view.to_dict(), "player_name": ctx.player.name},
-                "CommandHandler",
-            )
+            ctx.announce_room()
 
         ctx.tutorial.after_ls(weapon_found, weapon_id, has_directories=bool(directories))
 
