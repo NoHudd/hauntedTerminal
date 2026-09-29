@@ -32,12 +32,12 @@ class EventType(Enum):
     # Data: basic game start info
 
     GAME_OVER = auto()
-    # Emitted by: game_engine.py, command_handler.py
+    # Emitted by: game_engine.py, game_flow.py
     # Subscribed by: game_engine.py, textual_ui.py
     # Data: {"message": str, "action": str (optional)}
 
     GAME_WON = auto()
-    # Emitted by: command_handler.py (win_game)
+    # Emitted by: game_flow.py (win_game)
     # Subscribed by: textual_ui.py (finale), engine/headless/ui.py (text passthrough)
     # Data: {"ending_id": str, "sections": list[str], "stats": dict}
 
@@ -60,7 +60,7 @@ class EventType(Enum):
     # event (the headless driver) keeps working exactly as before.
 
     GAME_QUIT = auto()
-    # Emitted by: command_handler.py (_perform_quit), game_engine.py (menu exit)
+    # Emitted by: game_flow.py (perform_quit), game_engine.py (menu exit)
     # Subscribed by: textual_ui.py (App.exit), engine/headless/ui.py (records it)
     # Data: {}
     #
@@ -78,7 +78,7 @@ class EventType(Enum):
     # Data: StatsView dict
 
     PLAYER_STATS_CHANGED = auto()
-    # Emitted by: game_engine.py, command_handler.py
+    # Emitted by: game_engine.py, item_effects.py, commands/items.py
     # Subscribed by: textual_ui.py
     # Data: StatsView dict
 
@@ -167,7 +167,7 @@ class EventType(Enum):
 
     COMBAT_ENDED = auto()
     # Emitted by: combat.py
-    # Subscribed by: command_handler.py, game_engine.py, textual_ui.py
+    # Subscribed by: command_handler.py, tutorial_coach.py, game_engine.py, textual_ui.py
     # Data: {"victory": bool, "defeat": bool, "fled": bool, "enemy_id": str, "enemies_defeated": int}
 
 @dataclass

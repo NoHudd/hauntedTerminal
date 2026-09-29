@@ -61,7 +61,7 @@ def test_get_current_tutorial_step_reaches_step6_after_combat():
         s.new_game("t", "guardian")
         h = _start_tutorial_fight(s)
         s.player.tutorial_state["combat_action_taken"] = True
-        assert h._get_current_tutorial_step() == "step6"
+        assert h.tutorial.current_step() == "step6"
     finally:
         s.close()
 
@@ -89,7 +89,7 @@ def test_completed_hint_documents_flee_hotkey():
     try:
         s.new_game("t", "guardian")
         h = s.engine.cmd_handler
-        h.show_tutorial_hint("completed")
+        h.tutorial.show_hint("completed")
         out = "\n".join(s.ui.drain())
     finally:
         s.close()

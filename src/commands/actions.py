@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Action commands: use (consume/apply an item), attack (start combat).
 
-use fans out to the handler's _handle_* sub-handlers, and attack delegates to
-start_combat; those stay on CommandHandler. Bodies moved verbatim (self -> ctx).
+use fans out to ItemEffects (ctx.effects) by item type; attack delegates to
+the handler's start_combat.
 """
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from src.commands.base import Command
+from src.item_effects import class_restriction_text
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -25,7 +26,7 @@ class UseCommand(Command):
             ctx.output.error("[bold red]No item specified. Use 'use [item]'[/bold red]")
             return
 
-        actual_item_id = ctx._resolve_item_shortcut(item_id, "inventory")
+        actual_item_id = ctx.resolver.resolve_shortcut(item_id, "inventory")
         if not actual_item_id:
             debug_log(f"Item {item_id} not found in inventory after shortcut resolution")
             ctx.output.error(
@@ -63,7 +64,7 @@ class UseCommand(Command):
             return
 
         if not ctx.player.can_use_item(item):
-            class_restriction = ctx._get_class_restriction_text(item)
+            class_restriction = class_restriction_text(item)
             debug_log(
                 f"Item {actual_item_id} has class restriction: {class_restriction}, "
                 f"player is: {ctx.player.player_class}"
@@ -76,24 +77,24 @@ class UseCommand(Command):
 
         if item_type == "key":
             debug_log(f"Handling key item: {actual_item_id}")
-            ctx._handle_key_item(actual_item_id, item)
+            ctx.effects.use_key(actual_item_id, item)
         elif item_type == "lore":
             debug_log(f"Handling lore item: {actual_item_id}")
-            ctx._handle_lore_item(actual_item_id, item)
+            ctx.effects.read_lore(actual_item_id, item)
         elif item_type == "consumable" or "heal" in item.get("on_use", {}):
             debug_log(f"Handling consumable item: {actual_item_id}")
-            if ctx._handle_consumable_item(actual_item_id, item) is False:
+            if ctx.effects.use_consumable(actual_item_id, item) is False:
                 return  # Item had no effect — don't consume it
         elif "upgrade" in item_type if item_type else False:
             debug_log(f"Handling upgrade item: {actual_item_id}")
-            ctx._handle_upgrade_item(actual_item_id, item)
+            ctx.effects.use_upgrade(actual_item_id, item)
         elif "spell" in item_type if item_type else False:
             debug_log(f"Handling spell item: {actual_item_id}")
-            ctx._handle_spell_item(actual_item_id, item)
+            ctx.effects.learn_spell(actual_item_id, item)
         else:
             if "on_use" in item:
                 debug_log(f"Executing generic on_use effect for item: {actual_item_id}")
-                ctx.execute_effect(item["on_use"])
+                ctx.effects.execute_effect(item["on_use"])
                 item_name = item.get("name", item_id)
                 ctx.output.write(f"You used [green]{item_name}[/green].")
             else:

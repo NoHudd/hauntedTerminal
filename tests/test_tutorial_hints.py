@@ -16,17 +16,17 @@ from engine.api import GameSession
 from src.data_loader import load_class_data, load_tutorial_hints
 
 # Every hint id the game asks for, read out of the source rather than restated,
-# so adding a show_tutorial_hint("stepN") call without YAML text fails here.
+# so adding a show_hint("stepN") call without YAML text fails here.
 SRC = "\n".join(p.read_text() for p in Path("src").rglob("*.py"))
 
-# Direct calls: show_tutorial_hint("step2")
-_DIRECT = re.findall(r'show_tutorial_hint\(\s*["\']([a-z0-9_]+)["\']', SRC)
+# Direct calls: tutorial.show_hint("step2")
+_DIRECT = re.findall(r'show_hint\(\s*["\']([a-z0-9_]+)["\']', SRC)
 
 # Indirect: handle_unknown_command re-shows whatever step the player is on, via
-# show_tutorial_hint(current_step). Those ids are the string literals returned
-# by _get_current_tutorial_step, so read them out of that function's body.
+# tutorial.show_hint(current_step). Those ids are the string literals returned
+# by TutorialCoach.current_step, so read them out of that function's body.
 _STEP_FN = re.search(
-    r"def _get_current_tutorial_step\(self\).*?(?=\n    def )", SRC, re.S
+    r"def current_step\(self\).*?(?=\n    def )", SRC, re.S
 )
 _INDIRECT = re.findall(r'return\s+["\']([a-z0-9_]+)["\']', _STEP_FN.group(0)) if _STEP_FN else []
 
@@ -48,7 +48,7 @@ def _text(lines) -> str:
 
 
 def test_source_actually_requests_hints() -> None:
-    assert REQUESTED_IDS, "found no show_tutorial_hint call sites — check the regex"
+    assert REQUESTED_IDS, "found no show_hint call sites — check the regex"
 
 
 @pytest.mark.parametrize("hint_id", REQUESTED_IDS)
@@ -73,7 +73,7 @@ def test_hint_renders_without_leftover_placeholders(
     handler.player.tutorial_state["completed"] = False
     session.ui.clear_console()
 
-    handler.show_tutorial_hint(hint_id)
+    handler.tutorial.show_hint(hint_id)
     out = _text(session.ui.drain())
 
     assert out.strip(), f"{hint_id} rendered nothing"
@@ -87,7 +87,7 @@ def test_weapon_name_comes_from_class_data(session: GameSession) -> None:
     handler.player.tutorial_state["completed"] = False
     session.ui.clear_console()
 
-    handler.show_tutorial_hint("step2")
+    handler.tutorial.show_hint("step2")
     expected = load_class_data()["weaver"].starter_weapon
 
     assert expected in _text(session.ui.drain())
@@ -100,7 +100,7 @@ def test_explicit_item_name_wins(session: GameSession) -> None:
     handler.player.tutorial_state["completed"] = False
     session.ui.clear_console()
 
-    handler.show_tutorial_hint("step2", "a_specific_weapon")
+    handler.tutorial.show_hint("step2", "a_specific_weapon")
 
     assert "a_specific_weapon" in _text(session.ui.drain())
 
@@ -109,7 +109,7 @@ def test_completed_marks_the_tutorial_done(session: GameSession) -> None:
     handler = session.engine.cmd_handler
     handler.player.tutorial_state["completed"] = False
 
-    handler.show_tutorial_hint("completed")
+    handler.tutorial.show_hint("completed")
 
     assert handler.player.tutorial_state["completed"] is True
 
@@ -119,7 +119,7 @@ def test_hints_are_silent_once_complete(session: GameSession) -> None:
     handler.player.tutorial_state["completed"] = True
     session.ui.clear_console()
 
-    handler.show_tutorial_hint("step1")
+    handler.tutorial.show_hint("step1")
 
     assert _text(session.ui.drain()).strip() == ""
 
@@ -129,7 +129,7 @@ def test_unknown_hint_id_is_survivable(session: GameSession) -> None:
     handler.player.tutorial_state["completed"] = False
     session.ui.clear_console()
 
-    handler.show_tutorial_hint("no_such_step")  # must not raise
+    handler.tutorial.show_hint("no_such_step")  # must not raise
 
     assert _text(session.ui.drain()).strip() == ""
 

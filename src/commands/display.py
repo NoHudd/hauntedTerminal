@@ -4,9 +4,8 @@
 The old `map` verb now lives in shell.py as `tree`, which renders the same
 information as a real directory hierarchy (and still answers to "map").
 
-Bodies moved verbatim from CommandHandler (self -> ctx); they reuse handler
-helpers (get_formatted_item_description, _get_room_status_indicator,
-_get_player_keys, STORY_FLAG_* tables) during the strangler migration.
+Keys come from ctx.resolver; item blurbs from the handler's
+get_formatted_item_description.
 """
 from __future__ import annotations
 
@@ -15,6 +14,7 @@ from typing import TYPE_CHECKING
 from rich.text import Text
 
 from src.commands.base import Command
+from src.item_effects import STORY_FLAG_DESCRIPTIONS, STORY_FLAG_TITLES
 
 if TYPE_CHECKING:  # pragma: no cover
     from src.command_handler import CommandHandler
@@ -40,13 +40,13 @@ class JournalCommand(Command):
             return
 
         for flag in discovered:
-            title = ctx.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
-            desc = ctx.STORY_FLAG_DESCRIPTIONS.get(flag, "")
+            title = STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
+            desc = STORY_FLAG_DESCRIPTIONS.get(flag, "")
             output.append(f"\n✦ {title}\n", style="bold magenta")
             if desc:
                 output.append(f"  {desc}\n", style="dim")
 
-        total = len(ctx.STORY_FLAG_TITLES)
+        total = len(STORY_FLAG_TITLES)
         output.append(
             f"\n[dim]Progress: {len(discovered)}/{total} memories restored.[/dim]"
         )
@@ -136,7 +136,7 @@ class KeysCommand(Command):
             )
             output.append(f"   💡 {info['description']}\n", style="italic")
 
-        player_keys = ctx._get_player_keys()
+        player_keys = ctx.resolver.player_keys()
         if player_keys:
             output.append("\n🎒 KEYS IN INVENTORY:\n", style="bold green")
             for key in player_keys:

@@ -3,9 +3,8 @@
 
 Each takes a single identifier token (item/npc id). To preserve the original
 behaviour these read args[0]; item ids are single tokens, so nothing is lost.
-Bodies moved verbatim from CommandHandler (self -> ctx); shared helpers
-(execute_effect, _get_class_restriction_text, _show_damage_change,
-show_tutorial_hint, check_for_enemies) remain on the handler.
+Item behaviour comes from ctx.effects, lookups from ctx.resolver and hints
+from ctx.tutorial; starting a fight is still the handler's check_for_enemies.
 """
 from __future__ import annotations
 
@@ -15,6 +14,7 @@ from typing import TYPE_CHECKING
 from src.commands.base import Command
 from src.commands.hints import inventory_names, show_not_found
 from src.events import EventType
+from src.item_effects import class_restriction_text
 from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
@@ -38,12 +38,12 @@ class TakeCommand(Command):
 
         current_room = ctx.player.current_room
 
-        has_enemies, enemy_output = ctx._check_enemies_blocking_exploration(current_room)
+        has_enemies, enemy_output = ctx.check_enemies_blocking_exploration(current_room)
         if has_enemies:
             ctx.output.write(enemy_output)
             return
 
-        actual_item_id = ctx._resolve_item_shortcut(item_id, "room")
+        actual_item_id = ctx.resolver.resolve_shortcut(item_id, "room")
         if not actual_item_id:
             debug_log(f"Item {item_id} not found in room after shortcut resolution")
             show_not_found(
@@ -85,7 +85,7 @@ class TakeCommand(Command):
             return
 
         if not ctx.player.can_use_item(item):
-            class_restriction = ctx._get_class_restriction_text(item)
+            class_restriction = class_restriction_text(item)
             debug_log(
                 f"Item {actual_item_id} is class-restricted, player class "
                 f"{ctx.player.player_class} not allowed"
@@ -123,14 +123,14 @@ class TakeCommand(Command):
 
             if "on_take" in item:
                 debug_log(f"Executing on_take effect for {item_id}")
-                ctx.execute_effect(item["on_take"])
+                ctx.effects.execute_effect(item["on_take"])
 
             if (
                 not ctx.player.tutorial_state.get("took_weapon", False)
                 and item.get("type") == "weapon"
             ):
                 ctx.player.tutorial_state["took_weapon"] = True
-                ctx.show_tutorial_hint("step3", actual_item_id)
+                ctx.tutorial.show_hint("step3", actual_item_id)
 
             # Reprint room contents so the player sees the item is gone without
             # having to retype `ls`.
@@ -154,7 +154,7 @@ class CatCommand(Command):
         current_room = ctx.player.current_room
         items_in_room = ctx.world.get_items_in_room(current_room)
 
-        item_id = ctx._find_item_by_name_or_id(filename, items_in_room)
+        item_id = ctx.resolver.find_in_list(filename, items_in_room)
 
         if item_id:
             item = ctx.world.get_item(item_id)
@@ -165,8 +165,8 @@ class CatCommand(Command):
                 # file text read as a glitchy wall. `ls` re-lists on demand.
             else:
                 ctx.output.error(f"[bold red]Error: Could not read {filename}[/bold red]")
-        elif ctx.player.has_item(filename) or ctx._find_item_in_inventory_by_name(filename):
-            item_id_inv = ctx._find_item_in_inventory_by_name(filename) or filename
+        elif ctx.player.has_item(filename) or ctx.resolver.find_in_inventory(filename):
+            item_id_inv = ctx.resolver.find_in_inventory(filename) or filename
             item = ctx.player.get_item_from_inventory(item_id_inv)
             if item:
                 self._render(ctx, item, item_id_inv)
@@ -193,8 +193,8 @@ class CatCommand(Command):
         )
         ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
         if "on_read" in item:
-            ctx.execute_effect(item["on_read"])
-        return ctx._trigger_story_flag(item)
+            ctx.effects.execute_effect(item["on_read"])
+        return ctx.effects.trigger_story_flag(item)
 
 
 class DropCommand(Command):
@@ -232,7 +232,7 @@ class DropCommand(Command):
                 f"Dropped [green]{item_id}[/green] in the current directory."
             )
             if "on_drop" in item:
-                ctx.execute_effect(item["on_drop"])
+                ctx.effects.execute_effect(item["on_drop"])
             # Reprint room contents so the dropped item shows up without `ls`.
             ctx.relist_room()
         else:
@@ -324,7 +324,7 @@ class ExamineCommand(Command):
         ctx.output.write(f"[bold cyan]── {title} ──[/bold cyan]\n{content}")
 
         if "on_examine" in item:
-            ctx.execute_effect(item["on_examine"])
+            ctx.effects.execute_effect(item["on_examine"])
 
 
 class TalkCommand(Command):
@@ -391,7 +391,7 @@ class TalkCommand(Command):
         )
 
         if "on_talk" in npc:
-            ctx.execute_effect(npc["on_talk"])
+            ctx.effects.execute_effect(npc["on_talk"])
 
 
 class EquipCommand(Command):
@@ -436,7 +436,7 @@ class EquipCommand(Command):
         )
         if is_armor:
             if not ctx.player.can_use_item(weapon):
-                class_restriction = ctx._get_class_restriction_text(weapon)
+                class_restriction = class_restriction_text(weapon)
                 ctx.output.write(
                     f"[bold red]This armor can only be used by {class_restriction} "
                     "class.[/bold red]"
@@ -466,7 +466,7 @@ class EquipCommand(Command):
             return
 
         if not ctx.player.can_use_item(weapon):
-            class_restriction = ctx._get_class_restriction_text(weapon)
+            class_restriction = class_restriction_text(weapon)
             debug_log(
                 f"Weapon {weapon_id} has class restriction: {class_restriction}, "
                 f"player is: {ctx.player.player_class}"
@@ -483,12 +483,12 @@ class EquipCommand(Command):
         if success:
             weapon_name = weapon.get("name", weapon_id)
             ctx.output.write(f"You have equipped [green]{weapon_name}[/green].")
-            ctx._show_damage_change(old_damage, ctx.player.calculate_damage())
+            ctx.effects.show_damage_change(old_damage, ctx.player.calculate_damage())
 
             if not ctx.player.tutorial_state.get("equipped_weapon", False):
                 ctx.player.tutorial_state["equipped_weapon"] = True
                 ctx.world.spawn_tutorial_enemy("home_grove")
-                ctx.show_tutorial_hint("step4")
+                ctx.tutorial.show_hint("step4")
                 ctx.check_for_enemies()
 
             stats_view = ViewBuilder.build_stats_view(ctx.player)

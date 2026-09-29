@@ -56,7 +56,7 @@ def test_drops_are_awarded_only_once(session: GameSession) -> None:
     session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
     session.bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": "test_dropper2"}, "test")
 
-    assert "test_dropper2" in h._awarded_drops
+    assert "test_dropper2" in h.loot.awarded
 
 
 def test_loot_table_drops_class_appropriate_gear(session: GameSession) -> None:
@@ -85,7 +85,7 @@ def test_loot_table_never_drops_a_healing_item(session: GameSession) -> None:
     # if a healing item happened to share a rarity tier.
     h = session.engine.cmd_handler
     for _ in range(50):
-        got = h._roll_loot_table([{"rarity": "rare", "chance": 100}])
+        got = h.loot.roll_loot_table([{"rarity": "rare", "chance": 100}])
         if got is not None:
             data = h.world.get_item(got) or {}
             assert data.get("type") in ("weapon", "armor"), f"{got} is not gear"

@@ -182,7 +182,7 @@ class TreeCommand(Command):
             return
         self._branch(ctx, out, root_id, prefix="", is_last=True, is_root=True)
 
-        keys = ctx._get_player_keys()
+        keys = ctx.resolver.player_keys()
         if keys:
             out.append("\nKeys you carry: ", style="bold blue")
             out.append(", ".join(keys) + "\n", style="blue")

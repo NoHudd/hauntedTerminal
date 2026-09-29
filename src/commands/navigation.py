@@ -145,7 +145,7 @@ class CdCommand(Command):
         if not ts.get("completed", False) and ts.get("navigation_ls", False):
             if not ts.get("navigation_moved", False):
                 ts["navigation_moved"] = True
-                ctx.show_tutorial_hint("completed")
+                ctx.tutorial.show_hint("completed")
 
     @staticmethod
     def _deny(ctx: "CommandHandler", typed: str, denial: dict | None) -> None:
@@ -202,7 +202,7 @@ class LsCommand(Command):
         has_content = False
         hints = getattr(dev_cfg, "SHOW_HINTS", True)
 
-        has_enemies, enemy_output = ctx._check_enemies_blocking_exploration(room_id)
+        has_enemies, enemy_output = ctx.check_enemies_blocking_exploration(room_id)
         if has_enemies:
             ctx.output.write(enemy_output)
             return
@@ -412,7 +412,7 @@ class LsCommand(Command):
             ts["first_ls"] = True
             if weapon_found:
                 ts["found_weapon"] = True
-                ctx.show_tutorial_hint("step2", weapon_id)
+                ctx.tutorial.show_hint("step2", weapon_id)
         elif ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
             ts["navigation_ls"] = True
-            ctx.show_tutorial_hint("step6b")
+            ctx.tutorial.show_hint("step6b")

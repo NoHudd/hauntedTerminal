@@ -836,13 +836,13 @@ to this haunted filesystem.[/italic]
             # since the auto-entry change (TAB now leaves it).
             #
             # Shown before the tutorial is marked complete, because
-            # show_tutorial_hint returns early once it is.
-            self.cmd_handler.show_tutorial_hint("skip_summary")
+            # tutorial.show_hint returns early once it is.
+            self.cmd_handler.tutorial.show_hint("skip_summary")
             self.player.tutorial_state["completed"] = True
             self.start_game()
         else:
             # Tutorial path: show Step 1 hint, then start game
-            self.cmd_handler.show_tutorial_hint("step1")
+            self.cmd_handler.tutorial.show_hint("step1")
             self.start_game()
     
     def initialize_special_items(self, player_class: str):
