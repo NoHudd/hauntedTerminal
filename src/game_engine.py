@@ -108,9 +108,7 @@ class ImprovedGameEngine:
         self.cmd_handler: Optional[CommandHandler] = None
         self.current_room = DEFAULT_ROOM
         self.state_manager.set_state(DEFAULT_GAME_STATE, emit_event=False)
-        self.pending_player_name = ""
         self._awaiting_skip_response: bool = False
-        self._pending_player_name: str = ""
 
         # Load game data
         try:
@@ -132,8 +130,6 @@ class ImprovedGameEngine:
         """Subscribe to relevant events."""
         self.bus.subscribe(EventType.COMMAND_ENTERED, self._on_command_entered)
         self.bus.subscribe(EventType.UI_READY, self._on_ui_ready)
-        self.bus.subscribe(EventType.UI_ERROR, self._on_ui_error)
-        self.bus.subscribe(EventType.GAME_SAVED, self._on_save_requested)
         self.bus.subscribe(EventType.GAME_RESTART_REQUESTED, self._on_restart_requested)
 
     def restart_game(self):
@@ -210,8 +206,6 @@ class ImprovedGameEngine:
                 self.cmd_handler.handle_command(command)
             elif game_state == GameState.MENU:
                 self._handle_menu_command(command)
-            elif game_state == GameState.WAITING_FOR_NAME:
-                self._handle_name_input(command)
             elif game_state == GameState.WAITING_FOR_DIFFICULTY:
                 self._handle_difficulty_input(command)
             elif game_state == GameState.WAITING_FOR_CLASS:
@@ -262,26 +256,6 @@ class ImprovedGameEngine:
         """Handle UI ready event."""
         logger.info("UI is ready, starting main menu")
         self.state_manager.set_state(GameState.MENU)
-    
-    def _on_ui_error(self, event):
-        """Handle UI error event."""
-        error = event.data.get('error', 'Unknown UI error')
-        logger.error(f"UI Error: {error}")
-        # Could implement fallback UI here
-    
-    def _on_save_requested(self, event):
-        """Handle save game request from UI."""
-        try:
-            if self.player and self.world:
-                success = save_manager.save_game(self.player, self.world.get_state())
-                if success:
-                    logger.info("Game saved successfully")
-                else:
-                    logger.warning("Game save failed")
-            else:
-                logger.warning("Cannot save: no player or world data")
-        except Exception as e:
-            logger.error(f"Error saving game: {e}")
     
     def _new_command_handler(self):
         """A CommandHandler for the current player and world, with the engine's
@@ -350,44 +324,6 @@ class ImprovedGameEngine:
         logger.info("Game restart requested from UI")
         self.restart_game()
 
-    def _restart_new_game(self):
-        """Restart the game with a fresh state."""
-        try:
-            logger.info("Restarting with new game")
-
-            # Reset game state
-            self.state_manager.set_state(GameState.MENU, emit_event=False)
-
-            # Clear event history
-            self.bus.clear_history()
-
-            # Unsubscribe stale handlers before replacing them
-            if self.cmd_handler:
-                self.cmd_handler.cleanup_event_subscriptions()
-
-            # Create new player (this will trigger character creation)
-            from src.player import Player
-            self.player = Player()
-
-            # Reset world state by reloading all game data
-            self._load_game_data()
-
-            # Create new command handler with fresh references
-            self.cmd_handler = self._new_command_handler()
-            self._bind_ui_refs()
-
-            # Restart the game loop
-            self.state_manager.set_state(GameState.PLAYING)
-
-            # Update UI
-            self._update_ui_panels()
-            
-            logger.info("New game restart completed successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to restart new game: {e}")
-            self.ui.display_message(f"[bold red]Failed to start new game: {e}[/bold red]")
-    
     def _restart_from_save(self):
         """Restart the game from the most recent save."""
         try:
@@ -531,23 +467,6 @@ class ImprovedGameEngine:
         word = name.strip().lower()
         return word in build_registry() or word in {"yes", "no", "skip", "exit", "menu"}
 
-    def _handle_name_input(self, name: str):
-        """Handle player name input."""
-        if not name.strip():
-            self.ui.update_output("Name cannot be empty. Please enter your character name:")
-            return
-        if self._reserved_name(name):
-            self.ui.update_output(
-                f"[bold yellow]'{escape(name.strip())}' is a command, not a name.[/bold yellow] "
-                "Please enter your character name:"
-            )
-            return
-            
-        self.pending_player_name = name.strip()
-        
-        # Show class selection
-        self._show_class_selection()
-    
     def _handle_class_input(self, choice: str):
         """Handle player class selection."""
         from src.data_loader import load_class_data
@@ -782,7 +701,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             return
 
         player_name = name.strip()
-        self._pending_player_name = player_name
 
         # Create player (tutorial_state is initialized on the player object)
         if not self.create_player(player_name, self.selected_class):
@@ -917,22 +835,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             logger.error(f"Error starting game: {e}")
             raise GameEngineError(f"Failed to start game: {e}")
     
-    def end_game(self):
-        """End the current game."""
-        try:
-            self.state_manager.set_state(GameState.GAME_OVER)
-
-            self.bus.emit_event(
-                EventType.GAME_OVER,
-                {"player": self.player},
-                "ImprovedGameEngine"
-            )
-
-            logger.info("Game ended")
-            
-        except Exception as e:
-            logger.error(f"Error ending game: {e}")
-    
     def run(self):
         """Main game loop that manages game states."""
         try:
@@ -961,8 +863,6 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             # Unsubscribe from events
             self.bus.unsubscribe(EventType.COMMAND_ENTERED, self._on_command_entered)
             self.bus.unsubscribe(EventType.UI_READY, self._on_ui_ready)
-            self.bus.unsubscribe(EventType.UI_ERROR, self._on_ui_error)
-            self.bus.unsubscribe(EventType.GAME_SAVED, self._on_save_requested)
             
             logger.info("Game engine cleanup completed")
             

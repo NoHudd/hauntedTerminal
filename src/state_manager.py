@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from src.game_states import GameState
 from src.events import EventBus, EventType
@@ -16,25 +15,18 @@ class StateManager:
 
     # Define valid state transitions for validation
     _valid_transitions: dict[GameState, list[GameState]] = {
-        GameState.MENU: [GameState.WAITING_FOR_DIFFICULTY, GameState.WAITING_FOR_NAME, GameState.LOADING, GameState.EXIT],
+        GameState.MENU: [GameState.WAITING_FOR_DIFFICULTY],
         GameState.WAITING_FOR_DIFFICULTY: [GameState.WAITING_FOR_CLASS, GameState.MENU],
-        GameState.WAITING_FOR_NAME: [GameState.WAITING_FOR_CLASS, GameState.TUTORIAL_NAME_INPUT],
         GameState.WAITING_FOR_CLASS: [GameState.PLAYING],
         GameState.TUTORIAL_NAME_INPUT: [GameState.WAITING_FOR_CLASS, GameState.PLAYING],
-        GameState.PLAYING: [GameState.IN_COMBAT, GameState.SAVING, GameState.PAUSED, GameState.GAME_OVER, GameState.MENU, GameState.EXIT],
+        GameState.PLAYING: [GameState.IN_COMBAT, GameState.GAME_OVER, GameState.MENU],
         GameState.IN_COMBAT: [GameState.PLAYING, GameState.GAME_OVER],
-        GameState.GAME_OVER: [GameState.MENU, GameState.EXIT],
-        GameState.LOADING: [GameState.PLAYING, GameState.MENU],
-        GameState.SAVING: [GameState.PLAYING],
-        GameState.PAUSED: [GameState.PLAYING, GameState.MENU],
-        GameState.EXIT: []  # Terminal state
+        GameState.GAME_OVER: [GameState.MENU],
     }
 
     def __init__(self, bus: EventBus) -> None:
         self._bus = bus
         self._current_state: GameState = GameState.MENU
-        self._previous_state: GameState | None = None
-        self._combat_context: Any = None  # Track combat-specific state
         debug_log("StateManager initialized")
 
     @property
@@ -65,7 +57,6 @@ class StateManager:
             )
             debug_log(f"WARNING: Unexpected state transition: {old_state} -> {new_state}")
 
-        self._previous_state = old_state
         self._current_state = new_state
 
         debug_log(f"State transition: {old_state} -> {new_state}")
@@ -77,47 +68,18 @@ class StateManager:
                 "StateManager"
             )
 
-    def enter_combat(self, combat_context: Any = None) -> None:
-        """Enter combat state with optional context."""
-        self._combat_context = combat_context
+    def enter_combat(self) -> None:
+        """Enter combat state."""
         self.set_state(GameState.IN_COMBAT)
 
     def exit_combat(self) -> None:
         """Exit combat state."""
-        self._combat_context = None
         self.set_state(GameState.PLAYING)
 
     def is_in_combat(self) -> bool:
         """Check if currently in combat."""
         return bool(self._current_state == GameState.IN_COMBAT)
 
-    def get_combat_context(self) -> Any:
-        """Get combat context (enemy queue, etc)."""
-        return self._combat_context
-
-    # Additional convenience methods for state checking
-
-    def is_playing(self) -> bool:
-        """Check if currently in playing state."""
-        return bool(self._current_state == GameState.PLAYING)
-
-    def is_in_menu(self) -> bool:
-        """Check if currently in menu state."""
-        return bool(self._current_state == GameState.MENU)
-
     def is_in_game_over(self) -> bool:
         """Check if currently in game over state."""
         return bool(self._current_state == GameState.GAME_OVER)
-
-    def is_waiting_for_input(self) -> bool:
-        """Check if waiting for user input (name, class, tutorial)."""
-        return self._current_state in [
-            GameState.WAITING_FOR_NAME,
-            GameState.WAITING_FOR_CLASS,
-            GameState.TUTORIAL_NAME_INPUT
-        ]
-
-    def can_accept_commands(self) -> bool:
-        """Check if game can accept player commands."""
-        return self._current_state in [GameState.PLAYING, GameState.IN_COMBAT]
-

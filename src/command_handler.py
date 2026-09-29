@@ -40,7 +40,6 @@ class CommandHandler:
         self.current_combat_session = None
         self._on_combat_start = on_combat_start
         self._on_combat_end = on_combat_end
-        self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
 
         # Navigation aliases (path/name -> room id) are built from each room's
         # own `path`/`aliases` YAML fields, so there is one source of truth per
@@ -70,7 +69,6 @@ class CommandHandler:
 
     def _subscriptions(self):
         return [
-            (EventType.ROOM_CHANGED, self._on_room_changed_for_npc),
             (EventType.COMBAT_ENDED, self.tutorial.on_combat_ended),
             (EventType.COMBAT_ACTION_RESULT, self.tutorial.on_combat_action_result),
         ]
@@ -128,79 +126,25 @@ class CommandHandler:
             self.world.respawn_fled_enemies(room_id)
             self.check_for_enemies()
     
-    def _on_room_changed_for_npc(self, event):
-        """Handle room change event to trigger initial NPC guidance."""
-        debug_log(f"_on_room_changed_for_npc event received: {event.data}")
-        to_room = event.data.get("to_room")
-        if to_room:
-            debug_log(f"Player moved to {to_room}, checking for NPCs to provide guidance")
-            # Check cooldown to avoid spam (allow one greeting per room per session)
-            cooldown_key = f"first_visit_{to_room}"
-            if cooldown_key not in self.npc_dialogue_cooldown:
-                self.npc_dialogue_cooldown[cooldown_key] = True
-                self._trigger_automatic_npc_dialogue(to_room, "first_visit")
-            else:
-                debug_log(f"NPC greeting cooldown active for {to_room}, skipping")
-    
-    def _trigger_automatic_npc_dialogue(self, room_id, context):
-        """Automatically trigger NPC dialogue for guidance."""
-        debug_log(f"_trigger_automatic_npc_dialogue called: room={room_id}, context={context}")
+    def _npc_speaks_after_combat(self, room_id):
+        """The room was just cleared: the first NPC here, if any, offers its
+        closing line."""
         npcs_in_room = self.world.get_npcs_in_room(room_id)
-        debug_log(f"NPCs found in {room_id}: {npcs_in_room}")
         if not npcs_in_room:
-            debug_log(f"No NPCs in {room_id}, skipping automatic dialogue")
             return
-        
-        debug_log(f"Found {len(npcs_in_room)} NPCs in {room_id} for {context} dialogue")
-        
-        # Get the first NPC (could be enhanced to pick most relevant)
         npc_id = npcs_in_room[0]
         npc_data = self.world.get_npc(npc_id)
-        
-        if not npc_data:
+        if not npc_data or not npc_data.dialogues:
             return
-        
-        # Select appropriate dialogue based on context
-        dialogues = npc_data.dialogues
-        if not dialogues:
-            return
-        
-        # Choose dialogue based on context
-        if context == "post_combat":
-            # Use encouraging/guiding dialogue after combat
-            dialogue_index = len(dialogues) - 1 if len(dialogues) > 1 else 0
-        else:  # first_visit
-            # Use welcoming/introductory dialogue
-            dialogue_index = 0
-        
-        selected_dialogue = dialogues[dialogue_index]
+
         npc_name = npc_data.name
-        
-        # Format and display the automatic dialogue (markup string so styles render)
-        output = (
+        self.output.write(
             f"\n[bold cyan]🗨  {npc_name} speaks:[/bold cyan]\n"
-            f"[italic cyan]\"{selected_dialogue}\"[/italic cyan]\n"
+            f"[italic cyan]\"{npc_data.dialogues[-1]}\"[/italic cyan]\n"
+            f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
         )
-        if context == "post_combat":
-            output += f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
-        else:
-            output += f"\n[dim]Use 'talk {npc_id}' to converse further with the {npc_name}.[/dim]"
+        debug_log(f"Post-combat dialogue from {npc_id} in {room_id}")
 
-        self.output.write(output)
-        debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
-
-    def create_health_bar(self, current_health, max_health, color="white"):
-        """Create an ASCII health bar with the specified color."""
-        if max_health <= 0:
-            return f"[{color}]░░░░░░░░░░░░░░░░░░░░[/{color}] (0%)"
-        
-        percentage = (current_health / max_health) * 100
-        filled_blocks = int((current_health / max_health) * 20)  # 20 character bar
-        empty_blocks = 20 - filled_blocks
-        
-        health_bar = "█" * filled_blocks + "░" * empty_blocks
-        return f"[{color}]{health_bar}[/{color}] ({percentage:.0f}%)"
-        
     def handle_command(self, command):
         """Process a command from the player"""
         cmd_parts = command.split()
@@ -463,7 +407,7 @@ class CommandHandler:
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)
         if not self.world.get_enemies_in_room(current_room):
-            self._trigger_automatic_npc_dialogue(current_room, "post_combat")
+            self._npc_speaks_after_combat(current_room)
 
     def _handle_combat_command(self, command):
         """Handle commands during combat."""

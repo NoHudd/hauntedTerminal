@@ -112,7 +112,6 @@ class TextualGameUI(App):
         (EventType.PLAYER_STATS_CHANGED, "_on_player_stats_changed"),
         (EventType.PLAYER_INVENTORY_CHANGED, "_on_player_inventory_changed"),
         (EventType.ROOM_ENTERED, "_on_room_entered"),
-        (EventType.DELAYED_ROOM_REFRESH, "_on_delayed_room_refresh"),
         (EventType.UI_STATE_CHANGED, "_on_ui_state_changed"),
         (EventType.COMBAT_STARTED, "_on_combat_started"),
         (EventType.COMBAT_FRAME_UPDATED, "_on_combat_frame_updated"),
@@ -329,27 +328,12 @@ class TextualGameUI(App):
             # Apply exploring game state
             self._apply_game_state_styling("exploring")
 
-    _DELAYED_RELIST_SECONDS = 2.0
-
-    def _on_delayed_room_refresh(self, event):
-        """After a story-beat `cat`, re-list the room a beat later so the
-        '✦ Memory restored / ✓ saved' message is readable first."""
-        self.set_timer(self._DELAYED_RELIST_SECONDS, self._deferred_relist)
-
-    def _deferred_relist(self):
-        self.bus.emit_event(
-            EventType.COMMAND_ENTERED,
-            {"command": "ls", "game_state": self.state_manager.current_state},
-            "TextualGameUI",
-        )
-
     # States where the player is picking difficulty/class/name — the game panels
     # (scene, inventory, stats, combat) carry no information yet, so the output
     # panel takes the whole screen (input stays for typing the choice).
     _SELECTION_STATES = {
         "waiting_for_difficulty",
         "waiting_for_class",
-        "waiting_for_name",
         "tutorial_name_input",
     }
 
@@ -914,28 +898,6 @@ class TextualGameUI(App):
         else:
             self.output_content = f"{old}\n{content}"
 
-    def update_inventory(self, content: str) -> None:
-        """Update the inventory panel."""
-        self._check_ready()
-        self._ui_call(self._inv_panel.update, content)
-
-    def update_stats(self, content: str) -> None:
-        """Update the stats panel."""
-        self._check_ready()
-        self._ui_call(self._stats_panel.update, content)
-
-    def update_exits(self, exits: list) -> None:
-        """Update the scene's exits display (border subtitle)."""
-        self._check_ready()
-        if self._room_view is not None:
-            room = replace(self._room_view, exits=list(exits))
-            self._ui_call(self._scene_view.show_explore, room)
-
-    def update_player_name(self, name: str) -> None:
-        """Update the player name display."""
-        self._check_ready()
-        self._ui_call(setattr, self, "header_content", f"Haunted Terminal - {name}")
-
     def clear_console(self) -> None:
         """Clear the output display."""
         self._check_ready()
@@ -951,16 +913,6 @@ class TextualGameUI(App):
         player_name = self._player_view.player_name if self._player_view else 'Unknown Sysadmin'
         self.update_output(game_over_text(player_name))
         self.query_one("#input-field").focus()
-
-    def save_current_game(self) -> None:
-        """Handle game saving UI feedback."""
-        self.bus.emit_event(EventType.GAME_SAVED, {"trigger": "ui_request"}, "TextualGameUI")
-        save_text = Text("Game saved successfully!", style="green")
-        self.update_output(save_text)
-
-    # =====================================
-    # COMBAT UI SYSTEM
-    # =====================================
 
     def _show_combat_ui(self):
         """Activate combat UI mode: battle scene + combat styling."""

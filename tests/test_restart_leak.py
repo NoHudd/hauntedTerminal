@@ -15,7 +15,6 @@ from src.events import EventType
 # Events a CommandHandler subscribes to. Exactly one handler may be listening on
 # each of these at a time, however many times the game has been restarted.
 HANDLER_EVENTS = [
-    EventType.ROOM_CHANGED,
     EventType.COMBAT_ENDED,
     EventType.COMBAT_ACTION_RESULT,
 ]

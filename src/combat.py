@@ -350,7 +350,6 @@ class CombatSession:
             "CombatSession"
         )
 
-        self._show_combat_status()
         self._request_player_action()
 
     def _engage_next_enemy(self):
@@ -400,29 +399,10 @@ class CombatSession:
         self._update_ui_panels()
 
         # Show status and request action
-        self._show_combat_status()
         self._request_player_action()
 
         return True
 
-    def _show_combat_status(self):
-        """Display current combat status."""
-        # Health status is shown in the Battle Status panel (right side)
-        # Combat log with actions is shown in main output panel
-        # No need to output anything here - UI handles all display via events
-        pass
-    
-    def _create_health_bar(self, current, maximum, color):
-        """Create ASCII health bar."""
-        if maximum <= 0:
-            return "[gray]▒▒▒▒▒▒▒▒▒▒[/gray]"
-        
-        bar_length = 20
-        filled = int((current / maximum) * bar_length)
-        empty = bar_length - filled
-        bar = "█" * filled + "▒" * empty
-        return f"[{color}]{bar}[/{color}]"
-    
     def _request_player_action(self):
         """Request action from player via UI."""
         if not self.is_active:
@@ -735,7 +715,6 @@ class CombatSession:
         # Update UI with new health values
         self._update_ui_panels()
         
-        self._show_combat_status()
         self._request_player_action()
     
     def _enemy_turn(self):

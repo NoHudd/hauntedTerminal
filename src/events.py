@@ -48,11 +48,6 @@ class EventType(Enum):
     # Subscribed by: textual_ui.py (finale), engine/headless/ui.py (text passthrough)
     # Data: {"ending_id": str, "sections": list[str], "stats": dict}
 
-    GAME_SAVED = auto()
-    # Emitted by: save.py, textual_ui.py
-    # Subscribed by: game_engine.py
-    # Data: {"trigger": str, "filename": str (optional)}
-
     GAME_RESTART_REQUESTED = auto()
     # Emitted by: textual_ui.py
     # Subscribed by: game_engine.py
@@ -103,11 +98,6 @@ class EventType(Enum):
     # Subscribed by: game_engine.py
     # Data: {"command": str, "game_state": GameState}
 
-    UI_ERROR = auto()
-    # Emitted by: textual_ui.py
-    # Subscribed by: game_engine.py
-    # Data: {"error": str}
-
     UI_READY = auto()
     # Emitted by: textual_ui.py
     # Subscribed by: game_engine.py
@@ -128,17 +118,6 @@ class EventType(Enum):
     # Subscribed by: textual_ui.py. A notification only: arrival rules run from
     #             CommandHandler.arrive(), called directly.
     # Data: {"room": RoomView dict, "player_name": str}
-
-    ROOM_CHANGED = auto()
-    # Emitted by: command_handler.py
-    # Subscribed by: command_handler.py
-    # Data: {"player_name": str, "from_room": str, "to_room": str}
-
-    DELAYED_ROOM_REFRESH = auto()
-    # Emitted by: commands/items.py (cat, after a story-beat read) so the "✦ Memory
-    # restored / ✓ saved" message stays on screen before the room re-lists.
-    # Subscribed by: textual_ui.py (schedules an `ls` via set_timer). Headless ignores it.
-    # Data: {"room_id": str}
 
     ENEMY_DEFEATED = auto()
     # Emitted by: combat.py, before it calls CommandHandler.on_kill directly

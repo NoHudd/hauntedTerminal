@@ -102,23 +102,5 @@ class HeadlessUI:
         self.bus.unsubscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
         self.bus = None
 
-    def update_inventory(self, content: str) -> None:
-        pass
-
-    def update_stats(self, content: str) -> None:
-        pass
-
-    def update_exits(self, exits: list[object]) -> None:
-        pass
-
-    def update_player_name(self, name: str) -> None:
-        pass
-
-    def display_game_over(self) -> None:
-        pass
-
-    def save_current_game(self) -> None:
-        pass
-
     def _display_title_screen(self) -> None:
         self.output_log.append("[title screen]")
