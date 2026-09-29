@@ -469,6 +469,7 @@ class TextualGameUI(App):
         self._ui_call(
             self._echo_panel.show_hint,
             data.get("text", ""), data.get("step"), data.get("total", 0),
+            bool(self._settings_manager.settings.get("reduce_motion", False)),
         )
         if data.get("highlight"):
             self._ui_call(self._flash_section, data["highlight"])
