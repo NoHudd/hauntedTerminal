@@ -271,7 +271,8 @@ class CombatSystem:
 class CombatSession:
     """Manages an active combat session using event-driven approach."""
 
-    def __init__(self, player, enemies_queue, output, bus, on_start=None, on_end=None):
+    def __init__(self, player, enemies_queue, output, bus, on_start=None, on_end=None,
+                 on_kill=None):
         """
         Initialize combat session with enemy queue.
 
@@ -283,10 +284,13 @@ class CombatSession:
             on_start: called once the fight is announced (game enters combat)
             on_end: called with the outcome once the fight is over; the game's
                 reaction to a fight ending runs from here, not from COMBAT_ENDED
+            on_kill: called with the enemy id each time an enemy dies (loot,
+                removal from the room), not from ENEMY_DEFEATED
         """
         self.player = player
         self._on_start = on_start
         self._on_end = on_end
+        self._on_kill = on_kill
         self.enemies_queue = enemies_queue  # List of (enemy_id, enemy_data)
         self.current_enemy_index = 0
         self.output = output
@@ -676,7 +680,7 @@ class CombatSession:
             enemy_name = self.enemy_data.name
             self.output.write(f"\n[bold green]Victory! You defeated {enemy_name}![/bold green]")
 
-            # Emit enemy defeated event (for loot, achievements, etc)
+            # Tell observers (the UI drains the HP bar), then let the game react.
             self.bus.emit_event(
                 EventType.ENEMY_DEFEATED,
                 {
@@ -685,6 +689,8 @@ class CombatSession:
                 },
                 "CombatSession"
             )
+            if self._on_kill is not None:
+                self._on_kill(self.enemy_id)
 
             # Award harvesting cycles (XP) from the enemy's authored experience value.
             base_cycles = self.enemy_data.experience

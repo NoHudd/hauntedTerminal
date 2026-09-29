@@ -61,14 +61,10 @@ class CommandHandler:
         )
         self.loot = LootService(world, player, output, relist_room=self.relist_room)
 
-        # Subscribe to enemy defeated event to remove enemies from room
-        self.bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
-
         debug_log(f"Registered {len(self.command_registry)} commands")
 
     def _subscriptions(self):
         return [
-            (EventType.ALL_ENEMIES_DEFEATED, self._on_all_enemies_defeated),
             (EventType.ROOM_CHANGED, self._on_room_changed_for_npc),
             (EventType.COMBAT_ENDED, self.tutorial.on_combat_ended),
             (EventType.COMBAT_ACTION_RESULT, self.tutorial.on_combat_action_result),
@@ -83,9 +79,8 @@ class CommandHandler:
     def cleanup_event_subscriptions(self):
         """Clean up ALL event subscriptions for the command handler.
 
-        Must mirror every subscribe — including ENEMY_DEFEATED (subscribed in
-        __init__, not via _subscriptions). A missed unsubscribe leaves a stale
-        handler alive: ENEMY_DEFEATED then fires twice (double loot).
+        Must mirror every subscribe in _subscriptions(); a missed unsubscribe
+        leaves a dead run's tutorial reacting to the next run's fights.
 
         Also aborts any still-active combat session. A CombatSession only
         unsubscribes its own COMBAT_ACTION_SELECTED listener when it reaches a
@@ -95,7 +90,6 @@ class CommandHandler:
         """
         for event_type, callback in self._subscriptions():
             self.bus.unsubscribe(event_type, callback)
-        self.bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
         if self.current_combat_session is not None:
             self.current_combat_session.abort()
             self.current_combat_session = None
@@ -128,14 +122,6 @@ class CommandHandler:
         if room_id:
             self.world.respawn_fled_enemies(room_id)
             self.check_for_enemies()
-    
-    def _on_all_enemies_defeated(self, event):
-        """Handle all enemies defeated event to trigger NPC guidance."""
-        debug_log(f"_on_all_enemies_defeated event received: {event.data}")
-        room_id = event.data.get("room")
-        if room_id:
-            debug_log(f"All enemies defeated in {room_id}, checking for NPCs to provide guidance")
-            self._trigger_automatic_npc_dialogue(room_id, "post_combat")
     
     def _on_room_changed_for_npc(self, event):
         """Handle room change event to trigger initial NPC guidance."""
@@ -396,6 +382,7 @@ class CommandHandler:
         self.current_combat_session = CombatSession(
             self.player, enemies_queue, self.output, self.bus,
             on_start=self._on_combat_start, on_end=self.end_combat,
+            on_kill=self.on_kill,
         )
         self.current_combat_session.start()
 
@@ -458,19 +445,20 @@ class CommandHandler:
         if victory:
             self.flow.check_game_completion()
 
-    def _on_enemy_defeated(self, event):
-        """Award the enemy's loot into the current room, then remove it."""
-        enemy_id = event.data.get("enemy_id")
-        if not enemy_id:
-            debug_log("ERROR: No enemy_id in ENEMY_DEFEATED event")
-            return
+    def on_kill(self, enemy_id):
+        """An enemy died; the combat session calls this directly.
 
+        Awards its loot into the room, removes it, and once the room is clear
+        lets an NPC there speak up. This used to run from ENEMY_DEFEATED, and
+        the removal re-emitted that same event from inside its own handling.
+        """
         current_room = self.player.current_room
-        # Award once, before removal (remove_enemy_from_room re-emits this event).
         self.loot.award_once(enemy_id, current_room)
 
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)
+        if not self.world.get_enemies_in_room(current_room):
+            self._trigger_automatic_npc_dialogue(current_room, "post_combat")
 
     def _handle_combat_command(self, command):
         """Handle commands during combat."""

@@ -141,14 +141,9 @@ class EventType(Enum):
     # Data: {"room_id": str}
 
     ENEMY_DEFEATED = auto()
-    # Emitted by: combat.py
-    # Subscribed by: command_handler.py
-    # Data: {"enemy_id": str, "room": str, "player_name": str}
-
-    ALL_ENEMIES_DEFEATED = auto()
-    # Emitted by: game_world.py
-    # Subscribed by: command_handler.py
-    # Data: {"room": str}
+    # Emitted by: combat.py, before it calls CommandHandler.on_kill directly
+    # Subscribed by: textual_ui.py (observer; loot and removal run from on_kill)
+    # Data: {"enemy_id": str, "player_name": str}
 
     # ========================================
     # Combat Events

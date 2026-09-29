@@ -62,3 +62,16 @@ def test_dying_ends_the_run(session: GameSession) -> None:
     assert session.state == GameState.GAME_OVER
     assert session.engine.cmd_handler.flow.in_game_over_mode is True
     assert [d.get("reason") for d in seen] == ["defeat"]
+
+
+def test_a_kill_is_announced_once_and_removes_the_enemy(session: GameSession) -> None:
+    kills: list[dict] = []
+    session.bus.subscribe(EventType.ENEMY_DEFEATED, lambda e: kills.append(e.data))
+    _fight_in_root(session)
+    combat = session.engine.cmd_handler.current_combat_session
+    combat.enemy_health = 1
+    session.submit(next(iter(combat.available_attacks)))
+
+    assert [k["enemy_id"] for k in kills] == [TUTORIAL_ENEMY]
+    assert TUTORIAL_ENEMY not in session.world.get_enemies_in_room("root")
+    assert TUTORIAL_ENEMY in session.engine.cmd_handler.loot.awarded

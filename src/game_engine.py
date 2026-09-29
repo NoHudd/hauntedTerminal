@@ -166,7 +166,7 @@ class ImprovedGameEngine:
         """Load all game data and build a freshly-initialized world."""
         logger.info("Loading game data")
         rooms, items, enemies, npcs = self._load_content()
-        self.world = GameWorld(rooms, items, enemies, npcs, bus=self.bus)
+        self.world = GameWorld(rooms, items, enemies, npcs)
         logger.info(
             f"Loaded {len(rooms)} rooms, {len(items)} items, "
             f"{len(enemies)} enemies, {len(npcs)} NPCs"
@@ -176,7 +176,7 @@ class ImprovedGameEngine:
         """Load game data for a save game — world state comes from the save."""
         logger.info("Loading game data for save game")
         rooms, items, enemies, npcs = self._load_content()
-        self.world = GameWorld(rooms, items, enemies, npcs, initialize_state=False, bus=self.bus)
+        self.world = GameWorld(rooms, items, enemies, npcs, initialize_state=False)
         logger.info("Game data loaded successfully for save game")
 
     def _load_items(self) -> Dict[str, Any]:
