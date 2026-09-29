@@ -19,6 +19,7 @@ from rich.text import Text
 
 import config.dev_config as dev_cfg
 from src import room_paths
+from src.item_icons import item_icon
 from src.commands.base import Command
 from src.commands.hints import show_not_found
 from utils.debug_tools import debug_log
@@ -337,6 +338,7 @@ class LsCommand(Command):
                 output.append("  -rw-r--r--  ", style="dim")
             else:
                 output.append("  ")
+            output.append(f"{item_icon(item.type if item else None)} ")
             output.append(f"{item_id}", style=f"bold {item_color}")
             output.append(f" - {description}\n")
             if hints:

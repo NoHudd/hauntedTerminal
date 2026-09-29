@@ -7,6 +7,7 @@ from __future__ import annotations
 from textual.widgets import Static
 
 import logging
+from src.item_icons import item_icon
 from src.rarity import RaritySystem
 from engine.view_models import InventoryItemView, InventoryView
 
@@ -105,16 +106,4 @@ class InventoryPanel(Static):
         return f"{type_icon} {item_text}{count_text}{stat_info}{equipped_indicator}"
 
     def _get_item_type_icon(self, item_type: str) -> str:
-        """Get an appropriate icon for item type."""
-        # Plain glyphs (no U+FE0F variation selector, which jams against the
-        # following text in many terminals).
-        icons = {
-            "weapon": "🗡",
-            "consumable": "🧪",
-            "script": "📜",
-            "key": "🗝",
-            "armor": "🛡",
-            "tool": "🔧",
-            "misc": "📦",
-        }
-        return icons.get(item_type, "📄")
+        return item_icon(item_type)

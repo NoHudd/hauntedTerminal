@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from src.commands.base import Command
 from src.commands.hints import inventory_names, show_not_found, visible_room_items
 from src.item_effects import class_restriction_text
+from src.item_icons import item_icon
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -111,7 +112,7 @@ class TakeCommand(Command):
             formatted_name = RaritySystem.format_item_name_with_rarity(
                 item_name, rarity, show_emoji=False
             )
-            ctx.output.write(f"Added {formatted_name} to your inventory.")
+            ctx.output.write(f"Added {item_icon(item.type)} {formatted_name} to your inventory.")
 
             if item.on_take is not None:
                 debug_log(f"Executing on_take effect for {item_id}")
@@ -269,7 +270,7 @@ class ExamineCommand(Command):
             item_name, rarity, show_emoji=False
         )
 
-        title = f"Examining: {formatted_name}"
+        title = f"Examining: {item_icon(item.type)} {formatted_name}"
         description = item.description or "No detailed description available."
 
         details = []
@@ -277,12 +278,18 @@ class ExamineCommand(Command):
         details.append(f"[bold]Rarity:[/bold] [{color}]{rarity.title()}[/{color}]")
 
         item_type = item.type
-        details.append(f"[bold]Type:[/bold] {item_type.title()}")
+        details.append(f"[bold]Type:[/bold] {item_icon(item_type)} {item_type.title()}")
 
         if item_type == "weapon":
             damage = item.damage
             if damage > 0:
                 details.append(f"[bold]Damage:[/bold] {damage}")
+        elif item_type == "armor":
+            from src.player import armor_mitigation_pct
+            details.append(
+                f"[bold]Defense:[/bold] {item.defense} "
+                f"(damage taken -{armor_mitigation_pct(item.defense):g}%)"
+            )
         elif item_type == "consumable":
             healing = item.healing or 0
             if healing > 0:

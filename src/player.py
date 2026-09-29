@@ -9,6 +9,11 @@ ARMOR_DEFENSE_TO_PCT = 1.5      # each point of armor `defense` = this many % mi
                                 #  out-mitigate weaver/shaman def-15 instead of all capping equal)
 
 
+def armor_mitigation_pct(defense: float) -> float:
+    """% of incoming damage an armor piece with this `defense` stops (capped)."""
+    return min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT)
+
+
 class Player:
     """Class representing the player in the game."""
 
@@ -165,7 +170,7 @@ class Player:
             return False
         self.equipped_armor = item_id
         defense = self.inventory[item_id].defense
-        self.armor_mitigation = min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT) / 100.0
+        self.armor_mitigation = armor_mitigation_pct(defense) / 100.0
         debug_log(f"Equipped armor {item_id}, mitigation now {self.armor_mitigation:.0%}.")
         return True
         
