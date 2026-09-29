@@ -63,6 +63,12 @@ class Room(_Base):
     class_restriction: str = ""
     path: str = ""
     aliases: list[str] = Field(default_factory=list)
+    # Tier rooms roll `enemy_count` enemies from the `enemy_tier` pool at
+    # world-init (src/enemy_pools.py); rooms without a tier keep `enemies`.
+    enemy_tier: int | None = None
+    enemy_count: int | None = None
+    # A hidden room with this story flag set is revealed by `ls -a`.
+    discovery_requirement: str | None = None
 
     _coerce_locked = field_validator("locked", mode="before")(_falsey_to_bool)
     _coerce_hidden = field_validator("hidden", mode="before")(_falsey_to_bool)
@@ -181,6 +187,8 @@ class Ability(_Base):
     char_class: str = Field(default="all", alias="class")
     cooldown: int = 0
     bonus_damage: int = 0
+    healing: int = 0
+    enemy_damage_reduction: float = 0
 
 
 class Attack(_Base):
@@ -191,6 +199,8 @@ class Attack(_Base):
     cooldown: int = 0
     accuracy: int = 100
     type: str = "physical"
+    healing: int = 0
+    enemy_damage_reduction: float = 0
 
 
 class NPC(_Base):

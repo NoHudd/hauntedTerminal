@@ -4,9 +4,11 @@ from __future__ import annotations
 from .linker import (
     find_broken_references,
     find_dialogue_problems,
+    find_lock_problems,
     find_nav_problems,
     find_reference_warnings,
     find_tree_problems,
+    find_unread_fields,
     link,
 )
 from .loader import (
@@ -26,6 +28,8 @@ __all__ = [
     "link",
     "find_broken_references",
     "find_dialogue_problems",
+    "find_lock_problems",
+    "find_unread_fields",
     "find_reference_warnings",
     "find_nav_problems",
     "find_tree_problems",

@@ -15,9 +15,11 @@ from engine.content import (
     GameContent,
     find_broken_references,
     find_dialogue_problems,
+    find_lock_problems,
     find_nav_problems,
     find_reference_warnings,
     find_tree_problems,
+    find_unread_fields,
     load_all,
 )
 from engine.schema import ContentError, RoomId
@@ -57,6 +59,8 @@ def main(argv: list[str] | None = None) -> int:
         + find_nav_problems(content)
         + find_tree_problems(content)
         + find_dialogue_problems(content)
+        + find_lock_problems(content)
+        + find_unread_fields(content)
     )
     if problems:
         print(f"LINK FAILED — {len(problems)} content problem(s):", file=sys.stderr)

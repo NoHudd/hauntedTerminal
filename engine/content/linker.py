@@ -11,7 +11,12 @@ broken reference in one run rather than fixing them one crash at a time.
 """
 from __future__ import annotations
 
-from engine.schema import DanglingReferenceError
+from collections.abc import Mapping
+from typing import Any
+
+from pydantic import BaseModel
+
+from engine.schema import DanglingReferenceError, RoomId
 
 from .world import GameContent
 
@@ -153,6 +158,118 @@ def find_reference_warnings(content: GameContent) -> list[str]:
                 f"npc '{nid}' location: references unknown room '{npc.location}'"
             )
     return warnings
+
+
+def _room_lookup(content: GameContent) -> dict[str, str]:
+    """Every string a key may use for a room (id, path, alias) -> room id."""
+    table: dict[str, str] = {}
+    for rid, room in content.rooms.items():
+        table[str(rid).lower()] = str(rid)
+        if room.path:
+            table[room.path.lower()] = str(rid)
+        for alias in room.aliases:
+            table[alias.lower()] = str(rid)
+    return table
+
+
+def find_lock_problems(content: GameContent) -> list[str]:
+    """Keys and locks must agree (empty == clean).
+
+    A lock with no key can never open; a key whose ``unlocks`` misses the room
+    that asks for it opens nothing on ``use``; a key that claims a room guarded
+    by a different key is lying to the player. The reference checks above only
+    prove these ids exist, not that they point at each other.
+    """
+    problems: list[str] = []
+    lookup = _room_lookup(content)
+    for rid, room in content.rooms.items():
+        if room.locked and not room.key_required:
+            problems.append(f"room '{rid}': locked, but names no key_required")
+        if room.key_required and not room.locked:
+            problems.append(
+                f"room '{rid}': key_required '{room.key_required}', but it is not locked"
+            )
+        key = content.items.get(room.key_required) if room.key_required else None
+        if key is None:
+            continue  # a dangling key_required is find_broken_references' job
+        if key.type != "key":
+            problems.append(
+                f"room '{rid}': key_required '{room.key_required}' is a {key.type}, not a key"
+            )
+        opens = {lookup.get(str(target).lower(), str(target)) for target in key.unlocks}
+        if str(rid) not in opens:
+            problems.append(
+                f"room '{rid}': needs '{room.key_required}', but that key's unlocks "
+                "does not list it"
+            )
+    for iid, item in content.items.items():
+        for target in item.unlocks:
+            target_id = lookup.get(str(target).lower())
+            if target_id is None:
+                continue  # an unknown room is reported by find_reference_warnings
+            guard = content.rooms[RoomId(target_id)].key_required
+            if guard != iid:
+                problems.append(
+                    f"item '{iid}': unlocks '{target}', which "
+                    + (f"requires '{guard}' instead" if guard else "has no lock")
+                )
+    return problems
+
+
+# Content fields no code reads yet. The schema declares every field the game
+# reads, so an undeclared field is authored intent the game ignores — the
+# "phantom reward" bug class. These are known and accepted for now; anything
+# else undeclared fails validation, as does an entry here that no content uses.
+UNIMPLEMENTED_FIELDS: dict[str, frozenset[str]] = {
+    "room": frozenset({
+        "boss_room", "class_affinity", "easter_egg_trigger", "easter_egg_zone",
+        "final_confrontation", "gate_guardian", "level_requirement",
+        "special_event", "story_beats", "story_location", "visibility_requirement",
+    }),
+    "item": frozenset({
+        "auto_trigger", "consumed_on_take", "hidden", "max_uses_per_run",
+        "only_in_unlocked", "readable", "trigger_condition", "triggers_npc_spawn",
+    }),
+    "enemy": frozenset({
+        "level_requirement", "loot", "on_defeat", "resistances", "weaknesses",
+    }),
+    "npc": frozenset({
+        "awakening_guide", "detailed_description", "easter_egg_npc", "gate_guardian",
+        "grants_unique_item", "helpful_guide", "hostile", "interaction_hints",
+        "lore_guide", "merchant", "requires_key", "story_npc", "unlocks_room",
+    }),
+}
+
+
+def find_unread_fields(content: GameContent) -> list[str]:
+    """Undeclared content fields outside UNIMPLEMENTED_FIELDS (empty == clean)."""
+    sections: list[tuple[str, Mapping[Any, BaseModel]]] = [
+        ("room", content.rooms),
+        ("item", content.items),
+        ("enemy", content.enemies),
+        ("npc", content.npcs),
+        ("class", content.classes),
+        ("ability", content.abilities),
+        ("attack", content.attacks),
+    ]
+    problems: list[str] = []
+    for kind, entries in sections:
+        accepted = UNIMPLEMENTED_FIELDS.get(kind, frozenset())
+        used: set[str] = set()
+        for eid, model in entries.items():
+            for name in model.model_extra or {}:
+                used.add(name)
+                if name not in accepted:
+                    problems.append(
+                        f"{kind} '{eid}': field '{name}' is not in the schema, so no "
+                        "code reads it (declare it in engine/schema/models.py when "
+                        "the game uses it)"
+                    )
+        for stale in sorted(accepted - used):
+            problems.append(
+                f"UNIMPLEMENTED_FIELDS['{kind}'] lists '{stale}', but no {kind} uses it"
+            )
+    return problems
 
 
 def link(content: GameContent) -> GameContent:
