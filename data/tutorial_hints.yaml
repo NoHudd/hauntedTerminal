@@ -18,7 +18,7 @@
 #   completed    cheat sheet, sets tutorial_state["completed"]
 #   skip_summary shown instead of everything above if the player skips
 "skip_summary": |-
-  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use [item][/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
+  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use <item>[/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
 "step1": |-
   [bold green]ECHO>[/bold green] You're in /home — a stable part of the filesystem. The rest is corrupted and needs clearing. Let's start simple. Type: [bold]ls[/bold] and press Enter to see what's here.
 "step2": |-
@@ -30,9 +30,9 @@
 "step4_fled": |-
   [bold green]ECHO>[/bold green] You got away — [bold]0[/bold] (or [bold]flee[/bold]) escapes any fight. This process is still here, though, and it can't hurt you much. Type: [bold]attack[/bold] to face it again.
 "step5": |-
-  [bold green]ECHO>[/bold green] Nice hit. One more should finish it. Need to use an item or flee instead? Press [bold]TAB[/bold] to type [bold]use [item][/bold] or [bold]flee[/bold] — TAB again to get back to Selection Mode.
+  [bold green]ECHO>[/bold green] Nice hit. One more should finish it. Need to use an item or flee instead? Press [bold]TAB[/bold] to type [bold]use <item>[/bold] or [bold]flee[/bold] — TAB again to get back to Selection Mode.
 "step5_postcombat": |-
-  [bold green]ECHO>[/bold green] You won. [bold]use [item][/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] escapes a losing one. Corrupted processes like that one hide all over the system — type: [bold]ps[/bold] to list what's running here.
+  [bold green]ECHO>[/bold green] You won. [bold]use <item>[/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] escapes a losing one. Corrupted processes like that one hide all over the system — type: [bold]ps[/bold] to list what's running here.
 "step_ps": |-
   [bold green]ECHO>[/bold green] That's [bold]ps[/bold]: the processes running in this directory. Most belong to the system, but an odd one out can give away something hidden, so run it in new places. Now — do you know where you are? Type: [bold]pwd[/bold]
 "step_up": |-
@@ -52,7 +52,7 @@
     • [bold]take / equip[/bold] — grab and ready items
     • [bold]1-9[/bold] in combat — attack (Selection Mode, opens automatically)
     • [bold]0[/bold] in combat — flee
-    • [bold]TAB[/bold] in combat — type 'use [item]' instead
+    • [bold]TAB[/bold] in combat — type 'use <item>' instead
     • [bold]help[/bold] — if you get stuck
-    • [bold]man [command][/bold] — what a command really does, outside this place
+    • [bold]man <command>[/bold] — what a command really does, outside this place
   Good luck out there.

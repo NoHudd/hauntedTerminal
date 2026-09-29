@@ -360,7 +360,7 @@ class CommandHandler:
                 health = enemy.health
                 lines.append(f"  [red]{enemy_id}[/red] - {name} (HP: {health})")
 
-        lines.append("\nUse [cyan]attack [enemy][/cyan] to engage in combat.")
+        lines.append("\nUse [cyan]attack <enemy>[/cyan] to engage in combat.")
         return True, "\n".join(lines)
 
     def start_combat(self, enemies_queue):

@@ -23,7 +23,7 @@ class UseCommand(Command):
         item_id = args[0] if args else ""
         if not item_id:
             debug_log("use command called with no item specified")
-            ctx.output.error("[bold red]No item specified. Use 'use [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'use <item>'[/bold red]")
             return
 
         actual_item_id = ctx.resolver.resolve_shortcut(item_id, "inventory")

@@ -34,7 +34,7 @@ class TakeCommand(Command):
         item_id = _first(args)
         if not item_id:
             debug_log("take command called with no item specified")
-            ctx.output.error("[bold red]No item specified. Use 'take [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'take <item>'[/bold red]")
             return
 
         current_room = ctx.player.current_room
@@ -149,7 +149,7 @@ class CatCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         filename = _first(args)
         if not filename:
-            ctx.output.error("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
+            ctx.output.error("[bold red]No file specified. Use 'cat <filename>'[/bold red]")
             return
 
         current_room = ctx.player.current_room
@@ -205,7 +205,7 @@ class DropCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         item_id = _first(args)
         if not item_id:
-            ctx.output.error("[bold red]No item specified. Use 'drop [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'drop <item>'[/bold red]")
             return
 
         if not ctx.player.has_item(item_id):
@@ -247,7 +247,7 @@ class ExamineCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         item_id = _first(args)
         if not item_id:
-            ctx.output.error("[bold red]No item specified. Use 'examine [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'examine <item>'[/bold red]")
             return
 
         if ctx.player.has_item(item_id):
@@ -330,7 +330,7 @@ class TalkCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         npc_id = _first(args)
         if not npc_id:
-            ctx.output.error("[bold red]No NPC specified. Use 'talk [npc]'[/bold red]")
+            ctx.output.error("[bold red]No NPC specified. Use 'talk <npc>'[/bold red]")
             return
 
         current_room = ctx.player.current_room
@@ -399,7 +399,7 @@ class EquipCommand(Command):
         if not weapon_id:
             debug_log("equip command called with no weapon specified")
             ctx.output.write(
-                "[bold red]No weapon specified. Use 'equip [weapon]'[/bold red]"
+                "[bold red]No weapon specified. Use 'equip <weapon>'[/bold red]"
             )
             return
 

@@ -11,24 +11,24 @@ if TYPE_CHECKING:  # pragma: no cover
 
 _HELP_TEXT = """
         [bold]Real Unix commands[/bold] — these work the same way in any terminal.
-        Type [cyan]man [command][/cyan] to read what one actually does.
+        Type [cyan]man <command>[/cyan] to read what one actually does.
         - [cyan]ls[/cyan] / [cyan]ls -a[/cyan] / [cyan]ls -l[/cyan]: List this directory (-a shows hidden, -l shows permissions)
-        - [cyan]cd [path][/cyan]: Change directory. Try [yellow]cd /var[/yellow], [yellow]cd ..[/yellow], or [yellow]cd[/yellow] alone for home
+        - [cyan]cd <path>[/cyan]: Change directory. Try [yellow]cd /var[/yellow], [yellow]cd ..[/yellow], or [yellow]cd[/yellow] alone for home
         - [cyan]pwd[/cyan]: Print the directory you are in
-        - [cyan]cat [file][/cyan]: Read a file
+        - [cyan]cat <file>[/cyan]: Read a file
         - [cyan]tree[/cyan]: Show the filesystem you have discovered
-        - [cyan]find [path] -name [x][/cyan]: Search for a file
+        - [cyan]find <path> -name <x>[/cyan]: Search for a file
         - [cyan]ps[/cyan]: List running processes
         - [cyan]whoami[/cyan]: Who you currently are
-        - [cyan]echo [text][/cyan] · [cyan]clear[/cyan] · [cyan]man [command][/cyan]
+        - [cyan]echo <text>[/cyan] · [cyan]clear[/cyan] · [cyan]man <command>[/cyan]
 
         [bold]Commands of this world:[/bold]
-        - [cyan]take [item][/cyan] / [cyan]drop [item][/cyan]: Pick up or put down an item
-        - [cyan]use [item][/cyan]: Use a consumable
-        - [cyan]equip [weapon][/cyan]: Ready a weapon or armor
-        - [cyan]examine [item][/cyan]: Inspect something closely
-        - [cyan]talk [npc][/cyan]: Speak with a process
-        - [cyan]attack [enemy][/cyan]: Start a fight
+        - [cyan]take <item>[/cyan] / [cyan]drop <item>[/cyan]: Pick up or put down an item
+        - [cyan]use <item>[/cyan]: Use a consumable
+        - [cyan]equip <weapon>[/cyan]: Ready a weapon or armor
+        - [cyan]examine <item>[/cyan]: Inspect something closely
+        - [cyan]talk <npc>[/cyan]: Speak with a process
+        - [cyan]attack <enemy>[/cyan]: Start a fight
         - [cyan]inventory[/cyan] / [cyan]inv[/cyan]: What you are carrying
         - [cyan]journal[/cyan]: Story memories you have restored
         - [cyan]keys[/cyan]: Key progression
