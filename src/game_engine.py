@@ -756,7 +756,11 @@ But first, I must know what to call you. The old sysadmin records are fragmented
             logger.info(f"Special items initialized for class: {player_class}")
     
     def _update_ui_panels(self):
-        """Update all UI panels by emitting view-model events."""
+        """Send the player's stats and inventory to the UI.
+
+        Runs once after every command in play, so commands never send these
+        views themselves (they used to, and the UI got each one twice).
+        """
         if self.ui and self.player and self.world:
             try:
                 stats_view = ViewBuilder.build_stats_view(self.player)

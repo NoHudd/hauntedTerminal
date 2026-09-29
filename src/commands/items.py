@@ -13,9 +13,7 @@ from typing import TYPE_CHECKING
 
 from src.commands.base import Command
 from src.commands.hints import inventory_names, show_not_found
-from src.events import EventType
 from src.item_effects import class_restriction_text
-from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -114,13 +112,6 @@ class TakeCommand(Command):
                 item_name, rarity, show_emoji=False
             )
             ctx.output.write(f"Added {formatted_name} to your inventory.")
-
-            inventory_view = ViewBuilder.build_inventory_view(ctx.player)
-            ctx.bus.emit_event(
-                EventType.PLAYER_INVENTORY_CHANGED,
-                inventory_view.to_dict(),
-                "CommandHandler",
-            )
 
             if item.on_take is not None:
                 debug_log(f"Executing on_take effect for {item_id}")
@@ -446,10 +437,6 @@ class EquipCommand(Command):
                     f"You have equipped [green]{armor_name}[/green]. "
                     f"[cyan]🛡 Damage taken reduced by {pct}%.[/cyan]"
                 )
-                stats_view = ViewBuilder.build_stats_view(ctx.player)
-                ctx.bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
-                inv_view = ViewBuilder.build_inventory_view(ctx.player)
-                ctx.bus.emit_event(EventType.PLAYER_INVENTORY_CHANGED, inv_view.to_dict(), "CommandHandler")
             return
 
         is_weapon = (
@@ -489,13 +476,6 @@ class EquipCommand(Command):
                 # instead of being replaced by it.
                 ctx.check_for_enemies()
                 ctx.tutorial.show_hint("step4")
-
-            stats_view = ViewBuilder.build_stats_view(ctx.player)
-            ctx.bus.emit_event(
-                EventType.PLAYER_STATS_CHANGED,
-                stats_view.to_dict(),
-                "CommandHandler",
-            )
         else:
             debug_log(f"Failed to equip weapon {weapon_id}")
             ctx.output.write(f"[bold red]Failed to equip {weapon_id}.[/bold red]")

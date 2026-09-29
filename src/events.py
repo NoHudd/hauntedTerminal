@@ -80,12 +80,12 @@ class EventType(Enum):
     # Data: StatsView dict
 
     PLAYER_STATS_CHANGED = auto()
-    # Emitted by: game_engine.py, item_effects.py, commands/items.py
+    # Emitted by: game_engine.py (once after every command), combat.py (each turn)
     # Subscribed by: textual_ui.py
     # Data: StatsView dict
 
     PLAYER_INVENTORY_CHANGED = auto()
-    # Emitted by: game_engine.py, command_handler.py
+    # Emitted by: game_engine.py (once after every command)
     # Subscribed by: textual_ui.py
     # Data: InventoryView dict
 
