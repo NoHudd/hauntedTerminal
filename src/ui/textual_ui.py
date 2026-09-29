@@ -239,8 +239,12 @@ class TextualGameUI(App):
             self._inventory_view = InventoryView.from_dict(event.data['inventory'])
         self._stats_panel.update_stats(self._player_view)
 
-    def _reset_ui_state(self):
-        """Reset all UI state - called when game starts or restarts."""
+    def _reset_ui_state(self, leave_battle: bool = True):
+        """Reset all UI state - called when game starts or restarts.
+
+        leave_battle=False keeps the fight on the scene: after a death the
+        scene drains from the battle straight to black, never via the room.
+        """
         logger.debug("Resetting UI state")
 
         # Clear all view data
@@ -255,9 +259,9 @@ class TextualGameUI(App):
 
         self._echo_panel.clear()
 
-        # Remove combat UI styling and leave battle mode
         self.remove_class("combat-active")
-        self._scene_view.end_battle()
+        if leave_battle:
+            self._scene_view.end_battle()
 
         # Unbind any combat hotkeys
         self._unbind_combat_hotkeys()
@@ -268,9 +272,24 @@ class TextualGameUI(App):
         logger.debug("UI state reset complete")
 
     def _on_game_over(self, event):
-        """Handle game over event."""
-        # Reset UI state on game over/restart
-        self._reset_ui_state()
+        """A death drains the scene and shows the GAME OVER card; a restart
+        goes back to the title. Any other GAME_OVER is a post-win choice the
+        engine is already acting on, so the UI only resets."""
+        reason = event.data.get("reason")
+        player_view = self._player_view
+        self._reset_ui_state(leave_battle=reason != "defeat")
+
+        if reason == "restart":
+            self._display_title_screen()
+            return
+        if reason != "defeat":
+            return
+
+        # The card names the player; the reset above cleared the view it reads.
+        self._player_view = player_view
+        self._scene_view.play_death(
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
+        )
 
         # CommandHandler triggers the particle animation (2.5s).
         # Defer the static game-over screen so it doesn't get overwritten by animation frames.
@@ -525,7 +544,7 @@ class TextualGameUI(App):
 
         # Reset to exploring game state styling and hide combat UI
         self._apply_game_state_styling("exploring")
-        self._hide_combat_ui()
+        self._hide_combat_ui(leave_battle=not event.data.get("defeat", False))
 
         # Clear combat data immediately (state is managed by StateManager)
         logger.debug("Clearing combat data")
@@ -927,11 +946,6 @@ class TextualGameUI(App):
             return
 
         self.clear_console()
-        # Death beat: the scene drains to black instead of showing the cheery room.
-        self._scene_view.play_death(
-            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
-        )
-
         player_name = self._player_view.player_name if self._player_view else 'Unknown Sysadmin'
         self.update_output(game_over_text(player_name))
         self.query_one("#input-field").focus()
@@ -959,8 +973,13 @@ class TextualGameUI(App):
         input_field = self.query_one("#input-field")
         input_field.placeholder = "combat@system:~$ Enter command..."
 
-    def _hide_combat_ui(self):
+    def _hide_combat_ui(self, leave_battle: bool = True):
         """Deactivate combat UI mode.
+
+        leave_battle=False on a death: the game-over flow owns the scene
+        (play_death), and dropping out of battle mode would show the room
+        behind it. This comes from the COMBAT_ENDED payload, not the game
+        state: the UI hears COMBAT_ENDED before the engine sets GAME_OVER.
 
         Synchronous. This used to defer everything behind a 0.1s timer because
         the engine emitted ROOM_ENTERED *after* its panel refresh, so the fresh
@@ -973,9 +992,7 @@ class TextualGameUI(App):
         self._inv_panel.update_inventory(self._inventory_view)
         self._stats_panel.update_stats(self._player_view)
 
-        # On death the game-over flow owns the scene (play_death); dropping out
-        # of battle mode here would flash the room behind it.
-        if not self.state_manager.is_in_game_over():
+        if leave_battle:
             self._scene_view.end_battle()
 
     def _update_combat_panels(self):

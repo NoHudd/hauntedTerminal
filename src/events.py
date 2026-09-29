@@ -34,7 +34,9 @@ class EventType(Enum):
     GAME_OVER = auto()
     # Emitted by: game_engine.py, game_flow.py
     # Subscribed by: game_engine.py, textual_ui.py
-    # Data: {"message": str, "action": str (optional)}
+    # Data: {"reason": "defeat" | "restart" (engine), or "action": str (GameFlow,
+    #        a post-win choice the engine acts on), "message": str (optional)}
+    # The UI shows the GAME OVER card only for reason == "defeat".
 
     TUTORIAL_HINT = auto()
     # Emitted by: tutorial_coach.py (show_hint)

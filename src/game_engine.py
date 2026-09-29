@@ -148,7 +148,11 @@ class ImprovedGameEngine:
         self._initialize_game_components()
 
         # Emit event to UI to reset display
-        self.bus.emit_event(EventType.GAME_OVER, {"message": "Game restarted. Welcome back!"}, "GameEngine")
+        self.bus.emit_event(
+            EventType.GAME_OVER,
+            {"reason": "restart", "message": "Game restarted. Welcome back!"},
+            "GameEngine",
+        )
 
         logger.info("Game restart complete")
 
@@ -298,7 +302,10 @@ class ImprovedGameEngine:
             self.state_manager.set_state(GameState.GAME_OVER)
             self.bus.emit_event(
                 EventType.GAME_OVER,
-                {"message": "[bold red]GAME OVER[/bold red]\n\nYou have been defeated in combat.\n\nPress any key to continue..."},
+                {
+                    "reason": "defeat",
+                    "message": "[bold red]GAME OVER[/bold red]\n\nYou have been defeated in combat.\n\nPress any key to continue...",
+                },
                 "GameEngine"
             )
             return  # Don't continue with normal combat end processing
