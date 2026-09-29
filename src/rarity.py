@@ -5,6 +5,12 @@ Rarity System for HFSE Items
 Single source of truth for all rarity tiers. Each entry is (color, emoji, sort_order).
 Adding a new rarity only requires one line here.
 """
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from engine.schema import Item
 
 # (color, emoji, sort_order)
 RARITIES: dict[str, tuple[str, str, int]] = {
@@ -45,7 +51,7 @@ class RaritySystem:
         return f"[{color}]{item_name} ({str(rarity).title()})[/{color}]"
 
     @staticmethod
-    def format_inventory_item(item_id: str, item_data, is_equipped: bool = False) -> str:
+    def format_inventory_item(item_id: str, item_data: Item, is_equipped: bool = False) -> str:
         item_type = item_data.type
         rarity    = str(item_data.rarity)
         damage    = item_data.damage
@@ -66,7 +72,7 @@ class RaritySystem:
         return item_display
 
     @staticmethod
-    def get_all_rarities() -> list:
+    def get_all_rarities() -> list[str]:
         return sorted(RARITIES.keys(), key=lambda r: RARITIES[r][2])
 
     @staticmethod

@@ -16,6 +16,8 @@ of hopping between hand-drawn map edges.
 """
 from __future__ import annotations
 
+from typing import Any
+
 # id -> canonical display path. Populated from room data at load time.
 ROOM_ID_TO_PATH: dict[str, str] = {}
 # canonical path -> id. The inverse of the above; the tree lookups use it.
@@ -24,14 +26,14 @@ PATH_TO_ROOM_ID: dict[str, str] = {}
 ROOT_PATH = "/"
 
 
-def _room_field(room, key, default):
+def _room_field(room: Any, key: str, default: Any) -> Any:
     """Read a field from a room that may be a dict (tests) or a typed model."""
     if isinstance(room, dict):
         return room.get(key, default) or default
     return getattr(room, key, default) or default
 
 
-def build_nav_tables(rooms: dict) -> tuple[dict[str, str], dict[str, str]]:
+def build_nav_tables(rooms: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
     """From room data (id -> room dict or model) build (id_to_path, alias_to_id).
 
     - id_to_path: room id -> its ``path`` (display + tree position).
@@ -51,7 +53,7 @@ def build_nav_tables(rooms: dict) -> tuple[dict[str, str], dict[str, str]]:
     return id_to_path, alias_to_id
 
 
-def refresh_from_rooms(rooms: dict) -> dict[str, str]:
+def refresh_from_rooms(rooms: dict[str, Any]) -> dict[str, str]:
     """Rebuild the path tables in place; return the alias -> id table."""
     id_to_path, alias_to_id = build_nav_tables(rooms)
     ROOM_ID_TO_PATH.clear()

@@ -63,11 +63,13 @@ class GameSession:
     @property
     def bus(self) -> EventBus:
         """This session's own event bus — nothing outside the session hears it."""
-        return self.engine.bus
+        bus: EventBus = self.engine.bus
+        return bus
 
     @property
     def state(self) -> GameState:
-        return self.engine.state_manager.current_state
+        state: GameState = self.engine.state_manager.current_state
+        return state
 
     def close(self) -> None:
         self.engine._cleanup()

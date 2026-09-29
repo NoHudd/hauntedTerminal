@@ -180,7 +180,7 @@ class Event:
 class EventBus:
     """Central event bus for decoupled communication."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self._listeners: Dict[EventType, List[Callable[[Event], None]]] = {}
         self._event_history: List[Event] = []
         self._max_history = 100
@@ -243,7 +243,7 @@ class EventBus:
         if callback_errors:
             logger.warning(f"{event.type}: {callback_errors} callback error(s)")
     
-    def emit_event(self, event_type: EventType, data: Dict[str, Any] = None, source: str = "unknown") -> None:
+    def emit_event(self, event_type: EventType, data: Dict[str, Any] | None = None, source: str = "unknown") -> None:
         """Convenience method to emit an event."""
         event = Event(type=event_type, data=data or {}, source=source)
         logger.debug(f"Emitting event: {event_type} from {source} with data: {data}")

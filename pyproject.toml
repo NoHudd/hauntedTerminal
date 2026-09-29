@@ -13,10 +13,25 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.11"
-# Scope strict typing to the new engine; legacy src/ is untyped and out of scope.
-files = ["engine"]
+# Strict typing covers engine/ plus the src/ modules listed here. Grow the list
+# one module at a time as src/ gains annotations; everything else in src/ stays
+# unchecked (see the src.* override below).
+files = [
+    "engine",
+    "src/difficulty.py",
+    "src/events.py",
+    "src/game_output.py",
+    "src/game_states.py",
+    "src/rarity.py",
+    "src/rng.py",
+    "src/room_paths.py",
+    "src/state_manager.py",
+]
 strict = true
 plugins = ["pydantic.mypy"]
+# src/ has no __init__.py; name its files src.<module> (as the imports do)
+# rather than as top-level modules.
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = "yaml"
@@ -28,3 +43,23 @@ ignore_missing_imports = true
 module = "src.*"
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# The typed src/ modules (keep in step with `files` above) must see each
+# other's real types; a module-specific section wins over the src.* wildcard.
+[[tool.mypy.overrides]]
+module = [
+    "src.difficulty",
+    "src.events",
+    "src.game_output",
+    "src.game_states",
+    "src.rarity",
+    "src.rng",
+    "src.room_paths",
+    "src.state_manager",
+]
+follow_imports = "normal"
+
+# utils/ is untyped; read it for signatures but don't report errors inside it.
+[[tool.mypy.overrides]]
+module = "utils.*"
+follow_imports = "silent"

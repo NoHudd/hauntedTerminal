@@ -25,7 +25,7 @@ DEBUG_CATEGORIES = {
     "world": DEBUG_WORLD,
 }
 
-def debug_log(message, category="system"):
+def debug_log(message: object, category: str = "system") -> None:
     """
     Log a debug message to the debug log file and console if DEBUG_MODE is True.
     

@@ -8,10 +8,14 @@ GameWorld.get_enemy (enemy stats) and combat XP award.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import yaml
 
 from utils.debug_tools import debug_log
+
+if TYPE_CHECKING:
+    from engine.schema import Enemy
 
 MODES = ("easy", "medium", "hard")
 DEFAULT_MODE = "medium"
@@ -72,7 +76,7 @@ def all_multipliers() -> dict[str, dict[str, float]]:
     return {m: dict(_multipliers.get(m, _FALLBACK[m])) for m in MODES}
 
 
-def scale_enemy(enemy):
+def scale_enemy(enemy: Enemy) -> Enemy:
     """Return a copy of an Enemy with HP/damage scaled for the active mode."""
     m = _mult()
     scaled = enemy.model_copy()
