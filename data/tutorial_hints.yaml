@@ -10,7 +10,9 @@
 #   step4        combat opens
 #   step4_fled   fled the tutorial fight (it waits in the room for `attack`)
 #   step5        after the first landed hit
-#   step5_postcombat  after the fight: run ps
+#   step5_postcombat  after the fight: run ls -a
+#   step_hidden  ls -a revealed the hidden lore file: cat it
+#   step_cat     the cat fired a memory restore (checkpoint): run ps
 #   step_ps      after ps: run pwd
 #   step_up      after pwd, in a room with nothing below it: cd ..
 #   step6        after moving somewhere new: ls
@@ -18,7 +20,7 @@
 #   completed    cheat sheet, sets tutorial_state["completed"]
 #   skip_summary shown instead of everything above if the player skips
 "skip_summary": |-
-  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use <item>[/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
+  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use <item>[/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes, [bold]ls -a[/bold] reveals hidden files. [bold]cat[/bold] reads a file — restoring a memory saves a checkpoint you resume from if you fall. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
 "step1": |-
   [bold green]ECHO>[/bold green] You're in /home — a stable part of the filesystem. The rest is corrupted and needs clearing. Let's start simple. Type: [bold]ls[/bold] and press Enter to see what's here.
 "step2": |-
@@ -32,7 +34,11 @@
 "step5": |-
   [bold green]ECHO>[/bold green] Nice hit. One more should finish it. Need to use an item or flee instead? Press [bold]TAB[/bold] to type [bold]use <item>[/bold] or [bold]flee[/bold] — TAB again to get back to Selection Mode.
 "step5_postcombat": |-
-  [bold green]ECHO>[/bold green] You won. [bold]use <item>[/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] escapes a losing one. Corrupted processes like that one hide all over the system — type: [bold]ps[/bold] to list what's running here.
+  [bold green]ECHO>[/bold green] You won. [bold]use <item>[/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] escapes a losing one. Now — this directory holds more than plain [bold]ls[/bold] admits. Files whose names start with a dot stay hidden. Type: [bold]ls -a[/bold] to list everything.
+"step_hidden": |-
+  [bold green]ECHO>[/bold green] There — [bold]bash_profile[/bold], your own configuration file, hidden until now. [bold]ls -a[/bold] reveals hidden files anywhere, so try it in every new place. Read this one: type [bold]cat bash_profile[/bold]
+"step_cat": |-
+  [bold green]ECHO>[/bold green] Feel that? A memory restored — and the system saved your progress. Every memory you recover with [bold]cat[/bold] is a checkpoint: if you fall, you resume from the last one. Keep reading what you find. Corrupted processes hide all over the system too — type: [bold]ps[/bold] to list what's running here.
 "step_ps": |-
   [bold green]ECHO>[/bold green] That's [bold]ps[/bold]: the processes running in this directory. Most belong to the system, but an odd one out can give away something hidden, so run it in new places. Now — do you know where you are? Type: [bold]pwd[/bold]
 "step_up": |-
@@ -48,7 +54,8 @@
     • [bold]pwd[/bold] — where am I?
     • [bold]cd name[/bold] — move into a directory; [bold]cd ..[/bold] goes up
     • [bold]ps[/bold] — list running processes (odd ones hide secrets)
-    • [bold]cat[/bold] — read a file
+    • [bold]ls -a[/bold] — reveal hidden files and directories
+    • [bold]cat[/bold] — read a file; restoring a memory saves a checkpoint
     • [bold]take / equip[/bold] — grab and ready items
     • [bold]1-9[/bold] in combat — attack (Selection Mode, opens automatically)
     • [bold]0[/bold] in combat — flee

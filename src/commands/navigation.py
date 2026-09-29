@@ -208,6 +208,13 @@ class LsCommand(Command):
         has_content = has_content or bool(output)
 
         items = ctx.world.get_items_in_room(room_id) or []
+        if not show_all:
+            # Hidden files only list under -a, like real dotfiles. They stay
+            # addressable by name (cat/take) either way.
+            items = [
+                item_id for item_id in items
+                if not getattr(ctx.world.get_item(item_id), "hidden", False)
+            ]
         weapon_found, weapon_id = self._render_items(
             ctx, output, items, hints, long_format, has_content
         )
@@ -237,7 +244,10 @@ class LsCommand(Command):
                 "CommandHandler",
             )
 
-        ctx.tutorial.after_ls(weapon_found, weapon_id, has_directories=bool(directories))
+        ctx.tutorial.after_ls(
+            weapon_found, weapon_id,
+            has_directories=bool(directories), show_all=show_all,
+        )
 
     # -- sections -------------------------------------------------------------
 

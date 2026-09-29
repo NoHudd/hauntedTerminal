@@ -227,7 +227,7 @@ UNIMPLEMENTED_FIELDS: dict[str, frozenset[str]] = {
         "special_event", "story_beats", "story_location", "visibility_requirement",
     }),
     "item": frozenset({
-        "auto_trigger", "consumed_on_take", "hidden", "max_uses_per_run",
+        "auto_trigger", "consumed_on_take", "max_uses_per_run",
         "only_in_unlocked", "readable", "trigger_condition", "triggers_npc_spawn",
     }),
     "enemy": frozenset({

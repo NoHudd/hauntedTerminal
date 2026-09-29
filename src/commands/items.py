@@ -196,7 +196,9 @@ class CatCommand(Command):
         ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
         if item.on_read is not None:
             ctx.effects.execute_effect(item.on_read)
-        return ctx.effects.trigger_story_flag(item)
+        story_beat = ctx.effects.trigger_story_flag(item)
+        ctx.tutorial.after_lore_read(story_beat)
+        return story_beat
 
 
 class DropCommand(Command):
