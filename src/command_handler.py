@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import re
 from src import rng
 import logging
 from rich.text import Text
@@ -184,12 +183,6 @@ class CommandHandler:
 
         self.output.write(output)
         debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
-
-    def _show_error(self, message: str, log_message: str | None = None):
-        """Display error to UI and log it for debugging."""
-        self.output.write(message)
-        clean_message = re.sub(r'\[.*?\]', '', log_message or message)
-        logger.error(f"Command error: {clean_message}")
 
     def _get_room_status_indicator(self, room_id):
         """Get status indicator for a room in the map."""
@@ -533,7 +526,7 @@ class CommandHandler:
     def _handle_weapon_item(self, item_id, item):
         """Handle equipping a weapon"""
         if not self.player.can_use_item(item):
-            self._show_error(f"[bold red]You cannot equip {item_id}.[/bold red]")
+            self.output.error(f"[bold red]You cannot equip {item_id}.[/bold red]")
             return
 
         old_weapon_id = self.player.equipped_weapon
@@ -733,7 +726,7 @@ class CommandHandler:
                 self.player.add_status_effect(effect_id, effect_data, effect_duration)
                 self.output.write(f"[bold]── Status Effect ──[/bold]\n[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
         else:
-            self._show_error("[red]You don't have the ability to learn this spell.[/red]")
+            self.output.error("[red]You don't have the ability to learn this spell.[/red]")
             
     def start_combat(self, enemies_queue):
         """
@@ -1231,7 +1224,7 @@ Not because you fixed them. Because you forgave them.
             "The Helper Script would advise using standard commands instead."
         ]
         selected_response = rng.choice(responses)
-        self._show_error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
+        self.output.error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
 
         # If tutorial active, re-show the current step instead of the generic hint.
         ts = getattr(self.player, "tutorial_state", {}) or {}

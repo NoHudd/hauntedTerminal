@@ -16,8 +16,12 @@ State (rooms, stats, inventory) still flows through the event bus, unchanged.
 """
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Callable
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class GameOutput:
@@ -41,6 +45,12 @@ class GameOutput:
             self._forward(content)
         else:
             self.messages.append(str(content))
+
+    def error(self, message: str, log_message: str | None = None) -> None:
+        """Show a player-facing error and log it with markup stripped."""
+        self.write(message)
+        clean = re.sub(r"\[.*?\]", "", log_message or message)
+        logger.error(f"Command error: {clean}")
 
     def drain(self) -> list[str]:
         """Return accumulated output (forward-unset mode), then clear."""

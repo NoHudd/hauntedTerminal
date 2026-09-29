@@ -4,7 +4,7 @@
 Each takes a single identifier token (item/npc id). To preserve the original
 behaviour these read args[0]; item ids are single tokens, so nothing is lost.
 Bodies moved verbatim from CommandHandler (self -> ctx); shared helpers
-(_show_error, execute_effect, _get_class_restriction_text, _show_damage_change,
+(execute_effect, _get_class_restriction_text, _show_damage_change,
 show_tutorial_hint, check_for_enemies) remain on the handler.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ class TakeCommand(Command):
         item_id = _first(args)
         if not item_id:
             debug_log("take command called with no item specified")
-            ctx._show_error("[bold red]No item specified. Use 'take [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'take [item]'[/bold red]")
             return
 
         current_room = ctx.player.current_room
@@ -74,14 +74,14 @@ class TakeCommand(Command):
         item = ctx.world.get_item(actual_item_id)
         if not item:
             debug_log(f"Error: Item data not found for {actual_item_id}")
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]Error: Item data not found for {item_id}[/bold red]"
             )
             return
 
         if not item.get("takeable", True):
             debug_log(f"Item {actual_item_id} is not takeable")
-            ctx._show_error(f"[bold red]You cannot take {item_id}.[/bold red]")
+            ctx.output.error(f"[bold red]You cannot take {item_id}.[/bold red]")
             return
 
         if not ctx.player.can_use_item(item):
@@ -90,7 +90,7 @@ class TakeCommand(Command):
                 f"Item {actual_item_id} is class-restricted, player class "
                 f"{ctx.player.player_class} not allowed"
             )
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]Only {class_restriction} spirits can wield {item_id}. "
                 "Your essence is incompatible.[/bold red]"
             )
@@ -137,7 +137,7 @@ class TakeCommand(Command):
             ctx.relist_room()
         else:
             debug_log(f"Failed to add {actual_item_id} to inventory")
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]Could not add {item_id} to inventory.[/bold red]"
             )
 
@@ -148,7 +148,7 @@ class CatCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         filename = _first(args)
         if not filename:
-            ctx._show_error("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
+            ctx.output.error("[bold red]No file specified. Use 'cat [filename]'[/bold red]")
             return
 
         current_room = ctx.player.current_room
@@ -164,14 +164,14 @@ class CatCommand(Command):
                 # here and the exits, and appending the full listing under the
                 # file text read as a glitchy wall. `ls` re-lists on demand.
             else:
-                ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
+                ctx.output.error(f"[bold red]Error: Could not read {filename}[/bold red]")
         elif ctx.player.has_item(filename) or ctx._find_item_in_inventory_by_name(filename):
             item_id_inv = ctx._find_item_in_inventory_by_name(filename) or filename
             item = ctx.player.get_item_from_inventory(item_id_inv)
             if item:
                 self._render(ctx, item, item_id_inv)
             else:
-                ctx._show_error(f"[bold red]Error: Could not read {filename}[/bold red]")
+                ctx.output.error(f"[bold red]Error: Could not read {filename}[/bold red]")
         else:
             show_not_found(
                 ctx,
@@ -203,7 +203,7 @@ class DropCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         item_id = _first(args)
         if not item_id:
-            ctx._show_error("[bold red]No item specified. Use 'drop [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'drop [item]'[/bold red]")
             return
 
         if not ctx.player.has_item(item_id):
@@ -219,7 +219,7 @@ class DropCommand(Command):
         item = ctx.player.get_item_from_inventory(item_id)
 
         if item.get("droppable", True) == False:  # noqa: E712 (preserve original)
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]You cannot drop {item_id}. It's too important.[/bold red]"
             )
             return
@@ -236,7 +236,7 @@ class DropCommand(Command):
             # Reprint room contents so the dropped item shows up without `ls`.
             ctx.relist_room()
         else:
-            ctx._show_error(f"[bold red]Could not drop {item_id}.[/bold red]")
+            ctx.output.error(f"[bold red]Could not drop {item_id}.[/bold red]")
 
 
 class ExamineCommand(Command):
@@ -245,7 +245,7 @@ class ExamineCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         item_id = _first(args)
         if not item_id:
-            ctx._show_error("[bold red]No item specified. Use 'examine [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'examine [item]'[/bold red]")
             return
 
         if ctx.player.has_item(item_id):
@@ -333,7 +333,7 @@ class TalkCommand(Command):
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         npc_id = _first(args)
         if not npc_id:
-            ctx._show_error("[bold red]No NPC specified. Use 'talk [npc]'[/bold red]")
+            ctx.output.error("[bold red]No NPC specified. Use 'talk [npc]'[/bold red]")
             return
 
         current_room = ctx.player.current_room
@@ -351,7 +351,7 @@ class TalkCommand(Command):
 
         npc = ctx.world.get_npc(npc_id)
         if not npc:
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]Error: NPC data not found for {npc_id}[/bold red]"
             )
             return

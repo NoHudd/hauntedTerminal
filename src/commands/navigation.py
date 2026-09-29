@@ -151,7 +151,7 @@ class CdCommand(Command):
     def _deny(ctx: "CommandHandler", typed: str, denial: dict | None) -> None:
         """Report a refused cd the way a shell would, then say what would help."""
         if not denial:
-            ctx._show_error(f"[bold red]cd: {typed}: Permission denied[/bold red]")
+            ctx.output.error(f"[bold red]cd: {typed}: Permission denied[/bold red]")
             return
 
         path = denial["path"]
@@ -159,20 +159,20 @@ class CdCommand(Command):
         if denial["reason"] == "missing":
             # An undiscovered directory is indistinguishable from one that isn't
             # there — which is exactly what makes `ls -a` worth learning.
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]cd: {typed}: No such file or directory[/bold red]"
             )
             return
 
         if denial["reason"] == "class":
-            ctx._show_error(f"[bold red]cd: {path}: Permission denied[/bold red]")
+            ctx.output.error(f"[bold red]cd: {path}: Permission denied[/bold red]")
             ctx.output.write(
                 f"[cyan]⚔ Only {denial['class_restriction']} spirits may enter "
                 f"{path}.[/cyan]"
             )
             return
 
-        ctx._show_error(f"[bold red]cd: {path}: Permission denied[/bold red]")
+        ctx.output.error(f"[bold red]cd: {path}: Permission denied[/bold red]")
         key_required = denial["key_required"]
         blocked_ancestor = room_paths.normalize(typed) != path and not typed.startswith("-")
         if key_required:

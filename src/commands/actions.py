@@ -22,13 +22,13 @@ class UseCommand(Command):
         item_id = args[0] if args else ""
         if not item_id:
             debug_log("use command called with no item specified")
-            ctx._show_error("[bold red]No item specified. Use 'use [item]'[/bold red]")
+            ctx.output.error("[bold red]No item specified. Use 'use [item]'[/bold red]")
             return
 
         actual_item_id = ctx._resolve_item_shortcut(item_id, "inventory")
         if not actual_item_id:
             debug_log(f"Item {item_id} not found in inventory after shortcut resolution")
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]You don't have {item_id} in your inventory.[/bold red]"
             )
             return
@@ -37,7 +37,7 @@ class UseCommand(Command):
 
         if not ctx.player.has_item(actual_item_id):
             debug_log(f"Player doesn't have item {actual_item_id} in inventory")
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]You don't have {item_id} in your inventory.[/bold red]"
             )
             return
@@ -59,7 +59,7 @@ class UseCommand(Command):
 
         if not item.get("usable", False):
             debug_log(f"Item {actual_item_id} is not usable")
-            ctx._show_error(f"[bold red]You cannot use {item_id}.[/bold red]")
+            ctx.output.error(f"[bold red]You cannot use {item_id}.[/bold red]")
             return
 
         if not ctx.player.can_use_item(item):
@@ -68,7 +68,7 @@ class UseCommand(Command):
                 f"Item {actual_item_id} has class restriction: {class_restriction}, "
                 f"player is: {ctx.player.player_class}"
             )
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]This item can only be used by {class_restriction} "
                 "class.[/bold red]"
             )
@@ -117,19 +117,19 @@ class AttackCommand(Command):
 
         if not enemy_id:
             if not enemies_in_room:
-                ctx._show_error("[bold red]Nothing to attack here.[/bold red]")
+                ctx.output.error("[bold red]Nothing to attack here.[/bold red]")
                 return
             enemy_id = enemies_in_room[0]
 
         if enemy_id not in enemies_in_room:
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]Cannot find {enemy_id} in this directory.[/bold red]"
             )
             return
 
         enemy = ctx.world.get_enemy(enemy_id, ctx.player.player_class)
         if not enemy:
-            ctx._show_error(
+            ctx.output.error(
                 f"[bold red]Error: Enemy data not found for {enemy_id}[/bold red]"
             )
             return

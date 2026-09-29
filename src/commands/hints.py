@@ -45,7 +45,7 @@ def show_not_found(
     label: str,
 ) -> None:
     """Write the error the command already produces, then the hint line."""
-    ctx._show_error(message)
+    ctx.output.error(message)
     hint = not_found_hint(typed, candidates, label=label)
     if hint:
         ctx.output.write(hint)
