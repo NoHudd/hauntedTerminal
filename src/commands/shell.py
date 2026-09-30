@@ -223,6 +223,9 @@ class TreeCommand(Command):
         if not allowed and denial:
             if denial["reason"] == "class":
                 marks.append("⚔")
+            elif denial["reason"] == "flags" and denial["room_id"] == room_id:
+                need = denial["flags_required"]
+                marks.append(f"🔒 {need} flags ({denial['flags_have']}/{need})")
             elif denial["room_id"] == room_id:
                 key = ctx.world.get_room_state(room_id).get("key_required")
                 marks.append(f"🔒 {key}" if key else "🔒")

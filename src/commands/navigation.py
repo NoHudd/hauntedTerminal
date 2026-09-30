@@ -161,6 +161,15 @@ class CdCommand(Command):
             )
             return
 
+        if denial["reason"] == "flags":
+            ctx.output.error(f"[bold red]cd: {path}: Permission denied[/bold red]")
+            ctx.output.write(
+                f"[yellow]💡 {path} opens once you hold {denial['flags_required']} "
+                f"flags. You have {denial['flags_have']} — [bold]tree[/bold] shows "
+                "which directories still hide one.[/yellow]"
+            )
+            return
+
         ctx.output.error(f"[bold red]cd: {path}: Permission denied[/bold red]")
         key_required = denial["key_required"]
         blocked_ancestor = room_paths.normalize(typed) != path and not typed.startswith("-")
