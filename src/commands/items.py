@@ -124,10 +124,6 @@ class TakeCommand(Command):
             take_flag = item.story_flag
             if take_flag:
                 ctx.player.set_story_flag(take_flag)
-            if str(item.type).lower() == "key":
-                revealed = ctx.world.reveal_doors(actual_item_id)
-                if revealed:
-                    ctx.flags.announce_key(actual_item_id, revealed)
 
             from src.rarity import RaritySystem
 
@@ -137,6 +133,14 @@ class TakeCommand(Command):
                 item_name, rarity, show_emoji=False
             )
             ctx.output.write(f"Added {item_icon(item.type)} {formatted_name} to your inventory.")
+            # Say what it is, so a new player needn't know `examine` exists.
+            if item.description:
+                ctx.output.write(f"  [dim italic]{escape(item.description)}[/dim italic]")
+
+            if str(item.type).lower() == "key":
+                revealed = ctx.world.reveal_doors(actual_item_id)
+                if revealed:
+                    ctx.flags.announce_key(actual_item_id, revealed)
 
             if item.on_take is not None:
                 debug_log(f"Executing on_take effect for {item_id}")
