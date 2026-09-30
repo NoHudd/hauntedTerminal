@@ -28,6 +28,7 @@ from config.dev_config import SKIP_INTRO
 from src.ui.panels.echo_panel import EchoPanel
 from src.ui.panels.inventory_panel import InventoryPanel
 from src.ui.panels.stats_panel import StatsPanel
+from src.ui.panels.character_panel import CharacterPanel
 from src.ui.panels.scene_view import SceneView
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
@@ -146,6 +147,7 @@ class TextualGameUI(App):
             with Container(id="sidebar"):
                 yield InventoryPanel(id="inventory-panel")
                 yield StatsPanel(id="stats-panel")
+                yield CharacterPanel(id="character-panel")
         yield EchoPanel(id="echo-panel")
         yield Footer()
         yield CommandInput(placeholder="Enter command...", id="input-field")
@@ -156,6 +158,7 @@ class TextualGameUI(App):
             # Store panel references
             self._inv_panel = self.query_one("#inventory-panel", InventoryPanel)
             self._stats_panel = self.query_one("#stats-panel", StatsPanel)
+            self._character_panel = self.query_one("#character-panel", CharacterPanel)
             self._scene_view = self.query_one("#scene-view", SceneView)
             self._echo_panel = self.query_one("#echo-panel", EchoPanel)
 
@@ -238,6 +241,7 @@ class TextualGameUI(App):
         if 'inventory' in event.data:
             self._inventory_view = InventoryView.from_dict(event.data['inventory'])
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
 
     def _reset_ui_state(self, leave_battle: bool = True):
         """Reset all UI state - called when game starts or restarts.
@@ -300,15 +304,25 @@ class TextualGameUI(App):
         else:
             self.display_game_over()
 
+    def _refresh_character(self):
+        """Redraw the Character panel from the latest stats and inventory."""
+        self._character_panel.update_character(
+            self._player_view,
+            self._inventory_view,
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False)),
+        )
+
     def _on_player_created(self, event):
         """Handle player created event."""
         self._player_view = StatsView.from_dict(event.data)
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
 
     def _on_player_stats_changed(self, event):
         """Handle player stats changed event."""
         self._player_view = StatsView.from_dict(event.data)
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
         if self.state_manager.is_in_combat():
             self._update_combat_panels()
 
@@ -316,6 +330,7 @@ class TextualGameUI(App):
         """Handle player inventory changed event."""
         self._inventory_view = InventoryView.from_dict(event.data)
         self._inv_panel.update_inventory(self._inventory_view)
+        self._refresh_character()
 
     def _on_room_entered(self, event):
         """Handle room entered event with enhanced theming."""
@@ -912,6 +927,7 @@ class TextualGameUI(App):
         self.query_one("#input-field").placeholder = "Enter command..."
         self._inv_panel.update_inventory(self._inventory_view)
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
 
         if leave_battle:
             self._scene_view.end_battle()
@@ -925,6 +941,7 @@ class TextualGameUI(App):
         self._update_combat_main_output()
         self._stats_panel.refresh_combat(self._player_view, self._combat_view)
         self._inv_panel.update_inventory(self._inventory_view)
+        self._refresh_character()
 
     def _update_combat_main_output(self):
         """Update main output panel with combat log and actions."""

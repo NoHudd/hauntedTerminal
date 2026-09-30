@@ -15,8 +15,8 @@
 }
 
 #sidebar {
-    /* Vertical flow: inventory sizes to its contents (scrolls past 60%),
-       stats sits right below it and grows with its own content. */
+    /* Vertical flow: inventory fills the top and scrolls; Stats and
+       Character sit below it, each sized to its own content. */
     layout: vertical;
     height: 100%;
     width: 1fr;
@@ -87,10 +87,10 @@
 #inventory-panel {
     border: round $warning;
     padding: 1 2;
-    /* Grows with its contents; caps at 65% of the sidebar and scrolls past
-       that so the stats panel always stays on screen below it. */
-    height: auto;
-    max-height: 65%;
+    /* Takes whatever Stats and Character leave, and scrolls past that, so
+       the two panels below always stay whole on screen. */
+    height: 1fr;
+    min-height: 6;
     overflow-y: auto;
     scrollbar-size-vertical: 1;
 }
@@ -99,6 +99,13 @@
     border: round $success;
     padding: 1 2;
     /* Flows directly below the inventory, sized to its own content. */
+    height: auto;
+}
+
+#character-panel {
+    border: round $accent;
+    padding: 0 1;
+    /* Below Stats: the player's model and gear. Sized to its content. */
     height: auto;
 }
 

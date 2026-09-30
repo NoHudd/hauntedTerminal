@@ -40,6 +40,8 @@ new game.
   input. Reading a memory file restores a memory and saves a checkpoint.
 - NPC dialogue changes with what you have done.
 - Picking up an item shows what it is, right under "Added … to your inventory".
+- A Character panel under Stats shows your class's model and the weapon and
+  armor you have on, with their numbers; an empty slot says how to fill it.
 - The class cards list each class's three moves, and the fight menu says which
   moves heal you or weaken the enemy. When your HP runs low (and in-game hints
   are on), the fight tells you which key heals.
