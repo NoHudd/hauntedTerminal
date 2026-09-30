@@ -90,6 +90,7 @@ class ViewBuilder:
 
             items = []
             for item_id, item_data in inventory.items():
+                healing, heal_turns = ViewBuilder._heal_info(item_data)
                 items.append(InventoryItemView(
                     id=item_id,
                     name=item_data.name,
@@ -97,7 +98,8 @@ class ViewBuilder:
                     rarity=item_data.rarity,
                     is_equipped=(item_id in (equipped_weapon, equipped_armor)),
                     damage=item_data.damage or None,
-                    healing=item_data.healing
+                    healing=healing,
+                    healTurns=heal_turns,
                 ))
 
             return InventoryView(items=items)
@@ -106,6 +108,21 @@ class ViewBuilder:
                 raise
             logger.error(f"Error building inventory view: {e}", exc_info=True)
             return InventoryView(items=[])
+
+    @staticmethod
+    def _heal_info(item) -> tuple[int | None, int]:
+        """(HP restored, turns it takes) as `use` actually applies it — read in
+        the same order as combat: combat_effects, then `healing`, then on_use.
+        Heal-over-time rounds per turn like the status effect does."""
+        effects = item.combat_effects or {}
+        instant = effects.get("player_heal") or item.healing or (item.on_use or {}).get("heal")
+        if instant:
+            return int(instant), 0
+        if "player_heal_over_time" in effects:
+            turns = int(effects.get("duration_turns", 3))
+            per_turn = max(1, int(effects["player_heal_over_time"]) // turns)
+            return per_turn * turns, turns
+        return None, 0
 
     @staticmethod
     def build_room_view(world, room_id: str) -> RoomView:
@@ -283,6 +300,7 @@ class ViewBuilder:
                     accuracy=attack.get('accuracy', 100),
                     healing=attack.get('healing', 0),
                     weaken=attack.get('enemy_damage_reduction', 0.0),
+                    kind=attack.get('type', ''),
                 )
                 attack_views.append(attack_view)
             return attack_views

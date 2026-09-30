@@ -45,7 +45,8 @@ class InventoryItemView:
     rarity: str = "common"
     is_equipped: bool = False
     damage: int | None = None
-    healing: int | None = None
+    healing: int | None = None   # total HP the item restores
+    healTurns: int = 0           # >0: restored over this many turns, not at once
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""
@@ -112,6 +113,7 @@ class AttackView:
     accuracy: int = 100
     healing: int = 0        # HP the player regains on a hit
     weaken: float = 0.0     # fraction cut from the enemy's next hit
+    kind: str = ""          # physical / magical / nature: picks the menu icon
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""

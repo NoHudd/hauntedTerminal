@@ -99,6 +99,9 @@ class InventoryPanel(Static):
 
         if item_type == "weapon":
             stat_info = f" [cyan]+{item_data.damage} DMG[/cyan]"
+        elif item_data.healing:
+            over = f" over {item_data.healTurns} turns" if item_data.healTurns else ""
+            stat_info = f" [green]+{item_data.healing} HP{over}[/green]"
 
         equipped_indicator = " [green bold]⚡EQUIPPED[/green bold]" if is_equipped else ""
         type_icon = self._get_item_type_icon(item_type)

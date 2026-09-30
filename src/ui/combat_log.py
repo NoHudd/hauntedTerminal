@@ -10,6 +10,9 @@ from src.move_info import effect_tags
 # At or below this share of max HP the panel points at the heal move.
 LOW_HP_FRACTION = 0.3
 
+# One icon per attack type (attacks.yml `type`); unknown types keep a bullet.
+_KIND_ICONS = {"physical": "⚔", "magical": "✨", "nature": "🌿"}
+
 _ACTOR_FORMAT = {
     "player": ("green",  "👤"),
     "enemy":  ("red",    "👹"),
@@ -91,8 +94,7 @@ def hotkey_display(player_view: StatsView | None, attacks: list[AttackView]) -> 
         total_damage = base_damage + attack_data.bonus_damage
         accuracy = attack_data.accuracy
         cooldown = attack_data.cooldown
-        # AttackView carries no attack type, so every row gets the plain bullet.
-        type_icon = "•"
+        type_icon = _KIND_ICONS.get(attack_data.kind, "•")
         cd_label = f"CD {cooldown}t" if cooldown > 0 else "no CD"
         # Healing and weakening are invisible in the damage number: name them.
         effects = "".join(

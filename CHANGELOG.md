@@ -48,6 +48,8 @@ new game.
 - Forgiving item names, Tab completion, and "Did you mean…" on typos.
 - Combat opens in Selection Mode: number keys attack, `0` flees.
 - Esc cancels a half-typed line instead of quitting.
+- Tab after `cd` completes the directories you can see (it completed nothing
+  before), and never a hidden or still-locked one.
 
 ### Balance
 - Difficulty re-tuned against a simulator of full runs. Target win rates are
@@ -56,7 +58,11 @@ new game.
 ### Fixes
 - The Inventory panel now updates during a fight (used items used to stay
   listed until the fight ended).
-- The Legacy Backup really revives you, once.
+- The Legacy Backup really revives you, once, then tells you it's spent and how
+  many are left. Trying to `use` one in a fight explains that it works on its own.
+- The Inventory panel shows how much each healing item heals, and every attack
+  in the fight menu has an icon for its type (⚔ physical, ✨ magical, 🌿 nature).
+- `find /dev -name null` no longer names `/dev` before its door is revealed.
 - The Shaman's class card showed 100 HP and 8 damage; it really has 120 and 10.
   Card numbers now come from the real stats.
 - The game-over screen no longer scrolls or shows stray markup, and r/n/q work.
