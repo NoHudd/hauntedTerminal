@@ -52,10 +52,31 @@ new game.
 - Esc cancels a half-typed line instead of quitting.
 - Tab after `cd` completes the directories you can see (it completed nothing
   before), and never a hidden or still-locked one.
+- Typing `equip`, `take`, `cd` and other exploring commands in a fight says
+  they work once the fight is over, instead of "command not found".
+
+### Look and feel
+- The version is on the title screen and on the first line of `debug.log`.
+- Seven rooms have their own backdrop art: the Archive, the Deprecated
+  Directory, `/root`, `/opt`, `/proc`, `/srv` and `/usr`.
+- One icon per item type in `ls`, `take`, `examine` and the inventory.
+- Cleared rooms get a ✓ in `ls`, the exits list and `tree` (`map` still works).
+- NPC sprites fill their box like everyone else's instead of shrinking.
+- F12 opens the logs; debug logging stays out of the terminal, and each launch
+  starts a fresh log.
+
+### Loot and saves
+- Gear can't drop as a second copy of something you already took.
+- Epic and legendary gear starts locked away instead of lying in `/`.
+- Loading an old save removes a stray copy of a key a flag now hands out.
+- The autosave pool is capped, so the saves folder no longer grows forever.
 
 ### Balance
-- Difficulty re-tuned against a simulator of full runs. Target win rates are
-  about 95% easy, 83% medium and 68% hard. The Weaver is still the weakest class.
+- Capturing a flag restores you to full HP. Most deaths came from wear across
+  several fights, so runs are now much easier: the run simulator wins nearly
+  every run in every mode, and the earlier targets (about 95% easy, 83% medium,
+  68% hard) no longer apply. Harder modes still mean tougher, longer fights.
+- The Weaver is still the weakest class.
 
 ### Fixes
 - The Inventory panel now updates during a fight (used items used to stay
@@ -67,11 +88,17 @@ new game.
 - `find /dev -name null` no longer names `/dev` before its door is revealed.
 - The Shaman's class card showed 100 HP and 8 damage; it really has 120 and 10.
   Card numbers now come from the real stats.
-- The game-over screen no longer scrolls or shows stray markup, and r/n/q work.
-- Saves keep your armor, status effects and difficulty.
+- The game-over screen no longer scrolls or shows stray markup, r/n/q work, and
+  it appears only when you actually die.
+- Saves keep your armor, status effects and difficulty, and defeated bosses no
+  longer come back to life (with fresh drops) when you load.
 - Hidden files show their leading dot, and Tab completes them.
+- The tutorial fight no longer ambushes players who skipped the tutorial, and
+  fleeing it no longer breaks the tutorial.
+- `talk` no longer crashes, and stray markup no longer shows up as text.
+- New installs start in player mode (some testers got the developer settings).
 - The Windows launcher is more robust, and players no longer install developer
-  tools.
+  tools or packages that fail to build on new Python versions.
 
 ## v0.1-playtest — 2026-07-10
 
