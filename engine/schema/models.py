@@ -45,6 +45,17 @@ def _falsey_to_bool(v: object) -> bool:
     return bool(v)
 
 
+class RoomFlag(_Base):
+    """A room's capture-the-flag: the file whose reading captures it, the
+    FLAG{...} text shown on capture, and beginner guidance (a nudge, the exact
+    command, and an optional first-visit lesson Echo gives)."""
+    file: ItemId
+    text: str
+    nudge: str
+    command: str
+    teach: str = ""
+
+
 class Room(_Base):
     id: RoomId = Field(default=RoomId(""))
     name: str
@@ -69,6 +80,10 @@ class Room(_Base):
     enemy_count: int | None = None
     # A hidden room with this story flag set is revealed by `ls -a`.
     discovery_requirement: str | None = None
+    # Capture-the-flag for this room (docs/ROOM_FLAGS_SPEC.md).
+    flag: RoomFlag | None = None
+    # An optional trial room open to every class; this class gets a bonus there.
+    trial_class: str = ""
 
     _coerce_locked = field_validator("locked", mode="before")(_falsey_to_bool)
     _coerce_hidden = field_validator("hidden", mode="before")(_falsey_to_bool)

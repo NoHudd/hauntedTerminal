@@ -176,3 +176,42 @@ readme_txt_corrupt:
     010101010101010101010101010101
 
     [FILE CORRUPTED - UNABLE TO READ FURTHER]
+
+motd:
+  name: "motd"
+  short_description: "Message of the day — the first thing a system says"
+  description: "The message of the day. Every login used to print it."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "flag"]
+  allowed_zones: []  # Placed in / by its room file
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  content: |
+    *** MESSAGE OF THE DAY ***
+    Welcome back, operator. The filesystem is corrupted.
+    Each directory still guards one flag. Find them all.
+
+    FLAG{cat_reads_files}
+
+flag:
+  name: ".flag"
+  short_description: "A flag root left for whoever looked hard enough"
+  description: "Root's own flag, hidden in root's home."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: rare
+  tags: ["lore", "flag"]
+  allowed_zones: []  # Placed in /root by its room file
+  persistence: "persistent"
+  hidden: true
+  usable: false
+  readable: true
+  takeable: false
+  content: |
+    root was here.
+
+    FLAG{root_sees_all}

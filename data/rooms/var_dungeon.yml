@@ -37,3 +37,9 @@ story_beats:
 # Navigation: canonical path + everything a player may type to get here.
 path: "/var"
 aliases: ["/var", "/var/log", "/var/dungeon", "var", "dungeon"]
+
+flag:
+  file: system_err_log
+  text: "FLAG{logs_remember_everything}"
+  nudge: "The system keeps a hidden error log here."
+  command: "ls -a, then cat .system_err_log"

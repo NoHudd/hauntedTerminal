@@ -20,7 +20,8 @@ exits:
   - home_grove
   - archive
   - deprecated_dir
-items: []
+items:
+  - motd
 npcs:
   - helper_script.bin
 enemies: []
@@ -32,3 +33,10 @@ requires_sudo: false  # Will be true after story progression
 # Navigation: canonical path + everything a player may type to get here.
 path: "/"
 aliases: ["/", "root"]
+
+flag:
+  file: motd
+  text: "FLAG{cat_reads_files}"
+  nudge: "There's a file here. cat prints a file's contents."
+  command: "cat motd"
+  teach: "Every directory hides a flag. This one's easy: a file called [bold]motd[/bold] (message of the day). Type [bold]cat motd[/bold] to read it."

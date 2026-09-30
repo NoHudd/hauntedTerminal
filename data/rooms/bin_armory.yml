@@ -38,3 +38,9 @@ story_location: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/bin"
 aliases: ["/bin", "bin", "armory"]
+
+flag:
+  file: ancient_manual_man
+  text: "FLAG{man_pages_hold_answers}"
+  nudge: "An old manual is hidden in here. Remember how you found your .bash_profile?"
+  command: "ls -a, then cat .ancient_manual_man"

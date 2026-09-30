@@ -6,7 +6,8 @@ detailed_description: This hidden directory is a repository of ancient system kn
   from the chaos that affected the rest of the system.
 exits:
 - root
-items: []
+items:
+  - flag
 npcs:
 - guardian.bin
 enemies: []
@@ -17,3 +18,9 @@ hidden: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/root"
 aliases: ["/root", "/ghost", "ghost"]
+
+flag:
+  file: flag
+  text: "FLAG{root_sees_all}"
+  nudge: "root keeps its flag hidden, like any dotfile."
+  command: "ls -a, then cat .flag"

@@ -37,3 +37,10 @@ story_beats:
 # Navigation: canonical path + everything a player may type to get here.
 path: "/home"
 aliases: ["/home", "/home/lost+found", "/home/grove", "home", "grove"]
+
+flag:
+  file: bash_profile
+  text: "FLAG{hidden_files_start_with_a_dot}"
+  nudge: "Something here is hidden. Files whose names start with a dot only show up with ls -a."
+  command: "ls -a, then cat .bash_profile"
+  teach: "Hidden files start with a dot. Type [bold]ls -a[/bold] to see them, then [bold]cat .bash_profile[/bold] to read yours."

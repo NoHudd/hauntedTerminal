@@ -242,6 +242,28 @@ UNIMPLEMENTED_FIELDS: dict[str, frozenset[str]] = {
 }
 
 
+def find_flag_problems(content: GameContent) -> list[str]:
+    """Room flags must be findable (empty == clean): the flag file must be an
+    item placed in that room, the text must carry FLAG{...}, and a beginner
+    must be told what to type."""
+    problems: list[str] = []
+    for rid, room in content.rooms.items():
+        flag = room.flag
+        if flag is None:
+            continue
+        if flag.file not in content.items:
+            problems.append(f"room '{rid}': flag file '{flag.file}' is not an item")
+        elif flag.file not in room.items:
+            problems.append(
+                f"room '{rid}': flag file '{flag.file}' is not in this room's items"
+            )
+        if "FLAG{" not in flag.text:
+            problems.append(f"room '{rid}': flag text has no FLAG{{...}}")
+        if not flag.nudge.strip() or not flag.command.strip():
+            problems.append(f"room '{rid}': flag needs both a nudge and a command")
+    return problems
+
+
 def find_unread_fields(content: GameContent) -> list[str]:
     """Undeclared content fields outside UNIMPLEMENTED_FIELDS (empty == clean)."""
     sections: list[tuple[str, Mapping[Any, BaseModel]]] = [
