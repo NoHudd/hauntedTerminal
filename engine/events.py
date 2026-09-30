@@ -55,12 +55,12 @@ class EventType(Enum):
     # Data: {}
 
     QUIT_CONFIRM_REQUESTED = auto()
-    # Emitted by: commands/system.py (quit, when there is progress to lose)
+    # Emitted by: game_flow.py (request_leave: quit / menu with progress, or quit mid-fight)
     # Subscribed by: textual_ui.py (shows the chooser modal)
-    # Data: {}
+    # Data: {"inCombat": bool}
     #
-    # The domain still accepts typed y/n/c, so a frontend that ignores this
-    # event (the headless driver) keeps working exactly as before.
+    # The domain still accepts the typed letters (m/y/n/c, or c/x/n mid-fight),
+    # so a frontend that ignores this event (the headless driver) keeps working.
 
     SAVE_PICKER_REQUESTED = auto()
     # Emitted by: game_engine.py (LOAD GAME; NEW GAME when every slot is taken)

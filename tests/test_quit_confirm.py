@@ -11,7 +11,9 @@ import pytest
 
 from engine.api import GameSession
 from engine.events import EventType
-from src.ui.screens.quit_confirm import CHOICES, QuitConfirmScreen
+from src.game_states import GameState
+from src.save import save_manager
+from src.ui.screens.quit_confirm import LEAVE_CHOICES, MID_FIGHT_CHOICES, QuitConfirmScreen
 
 
 @pytest.fixture
@@ -75,22 +77,94 @@ def test_quit_requests_the_chooser(session: GameSession) -> None:
         session.bus.unsubscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
 
 
+def _start_fight(s: GameSession):
+    s.player.tutorial_state["completed"] = True
+    handler = s.engine.cmd_handler
+    s.world.enemy_locations["corrupt_process.bin"] = s.player.current_room
+    handler.check_for_enemies()
+    assert s.state == GameState.IN_COMBAT
+    return handler.current_combat_session
+
+
+def test_save_and_main_menu(session: GameSession) -> None:
+    session.submit("quit")
+    session.submit("m")
+    assert session.state == GameState.MENU
+    assert session.ui.quit_requested is False
+    assert len(save_manager.list_runs()) == 1
+
+
+def test_menu_command_with_progress_asks_first(session: GameSession) -> None:
+    out = _text(session.submit("menu"))
+    assert "unsaved progress" in out
+    assert session.state == GameState.PLAYING
+
+
+def test_menu_command_without_progress_goes_straight_to_the_menu() -> None:
+    s = GameSession()
+    try:
+        s.new_game("Fresh", "guardian")
+        s.player.inventory.clear()   # a new run starts with an item: that counts as progress
+        s.submit("menu")
+        assert s.state == GameState.MENU
+    finally:
+        s.close()
+
+
+def test_quit_mid_fight_opens_the_fight_chooser(session: GameSession) -> None:
+    _start_fight(session)
+    seen: list[object] = []
+    session.bus.subscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
+    out = _text(session.submit("quit"))
+    assert "command not found" not in out
+    assert "Leave mid-fight" in out
+    assert seen[-1].data == {"inCombat": True}
+
+
+def test_keep_fighting_resumes_the_fight(session: GameSession) -> None:
+    combat = _start_fight(session)
+    session.submit("quit")
+    assert "Back to the fight" in _text(session.submit("c"))
+    assert session.state == GameState.IN_COMBAT
+    out = _text(session.submit(next(iter(combat.available_attacks))))
+    assert "command not found" not in out and "Invalid option" not in out
+
+
+def test_main_menu_mid_fight_leaves_without_saving(session: GameSession) -> None:
+    _start_fight(session)
+    before = [(run.run_id, run.saved_at) for run in save_manager.list_runs()]
+    session.submit("quit")
+    session.submit("x")
+    assert session.state == GameState.MENU
+    assert [(run.run_id, run.saved_at) for run in save_manager.list_runs()] == before
+
+
+def test_save_letters_are_refused_mid_fight(session: GameSession) -> None:
+    _start_fight(session)
+    session.submit("quit")
+    out = _text(session.submit("y"))
+    assert "Invalid option" in out
+    assert session.state == GameState.IN_COMBAT
+    assert session.ui.quit_requested is False
+
+
 # --- the chooser itself ------------------------------------------------------
 
 def test_choices_map_onto_the_letters_the_domain_expects() -> None:
-    assert [letter for letter, *_ in CHOICES] == ["y", "n", "c"]
+    assert [letter for letter, *_ in LEAVE_CHOICES] == ["m", "y", "n", "c"]
+    assert [letter for letter, *_ in MID_FIGHT_CHOICES] == ["c", "x", "n"]
 
 
 def test_arrow_keys_move_and_enter_confirms() -> None:
     picked: list[str] = []
     screen = QuitConfirmScreen(picked.append)
 
-    screen.action_move_down()          # y -> n
+    screen.action_move_down()          # m -> y
     assert screen._index == 1
-    screen.action_move_up()            # back to y
+    screen.action_move_up()            # back to m
     assert screen._index == 0
     screen.action_move_up()            # wraps to c
-    assert screen._index == len(CHOICES) - 1
+    assert screen._index == len(LEAVE_CHOICES) - 1
 
 
 def test_escape_keeps_playing() -> None:
@@ -109,6 +183,18 @@ def test_a_second_key_press_cannot_answer_twice() -> None:
     screen = QuitConfirmScreen(picked.append)
     screen.dismiss = lambda *a, **k: None
 
-    screen.action_pick_quit()
-    screen.action_pick_save()
+    screen.action_pick("n")
+    screen.action_pick("y")
     assert picked == ["n"]
+
+
+def test_the_mid_fight_chooser_refuses_save_letters() -> None:
+    picked: list[str] = []
+    screen = QuitConfirmScreen(picked.append, MID_FIGHT_CHOICES, "Leave mid-fight?")
+    screen.dismiss = lambda *a, **k: None
+
+    assert MID_FIGHT_CHOICES[screen._index][0] == "c"   # keep fighting is the default
+    screen.action_pick("y")
+    assert picked == []
+    screen.action_pick("x")
+    assert picked == ["x"]

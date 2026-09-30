@@ -1,6 +1,8 @@
 """End-of-run flow: game over, victory, and the quit confirmation."""
 import threading
 
+from rich.markup import escape
+
 from engine.events import EventType
 from utils.debug_tools import debug_log
 from utils.particle_animation import GameOverAnimation
@@ -98,6 +100,7 @@ class GameFlow:
         self.in_game_over_mode = False  # Track if we're in game over screen mode
         self.game_won = False  # Set once the Daemon Overlord is beaten in /core
         self.in_quit_confirmation = False  # Track if we're confirming quit
+        self.leaving_mid_fight = False  # Which leave chooser is up
 
     def go_to_menu(self):
         """Leave this run for the title menu."""
@@ -259,30 +262,64 @@ class GameFlow:
 
     # --- quit ---------------------------------------------------------------
 
-    def handle_quit_confirmation(self, choice):
-        """Handle player's choice in quit confirmation."""
-        choice = choice.lower().strip()
+    def request_leave(self, in_combat: bool):
+        """Ask how to leave the run: printed letters, plus a chooser event for
+        a frontend that can show one (the headless driver reads the letters)."""
+        self.in_quit_confirmation = True
+        self.leaving_mid_fight = in_combat
+        if in_combat:
+            self.output.write(
+                "[bold yellow]Leave mid-fight?[/bold yellow] "
+                "Your last autosave is kept; this fight is lost."
+            )
+        else:
+            self.output.write("[bold yellow]You have unsaved progress![/bold yellow]")
+        self._write_leave_options()
+        self.bus.emit_event(
+            EventType.QUIT_CONFIRM_REQUESTED, {"inCombat": in_combat}, "GameFlow",
+        )
 
-        if choice == 'y':
-            # Save and quit
+    def _write_leave_options(self):
+        if self.leaving_mid_fight:
+            self.output.write(
+                "[bold white]Options:[/bold white] [green]c[/green] (keep fighting), "
+                "[cyan]x[/cyan] (main menu), [red]n[/red] (quit)"
+            )
+        else:
+            self.output.write(
+                "[bold white]Options:[/bold white] [cyan]m[/cyan] (save & main menu), "
+                "[green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), "
+                "[red]c[/red] (cancel)"
+            )
+
+    def handle_quit_confirmation(self, choice):
+        """Handle the player's answer to request_leave."""
+        choice = choice.lower().strip()
+        allowed = ("c", "x", "n") if self.leaving_mid_fight else ("m", "y", "n", "c")
+        if choice not in allowed:
+            self.output.write(f"[bold red]Invalid option: '{escape(choice)}'[/bold red]")
+            self._write_leave_options()
+            return
+
+        self.in_quit_confirmation = False
+        if choice == 'c':
+            if self.leaving_mid_fight:
+                self.output.write("[green]Back to the fight![/green]")
+            else:
+                self.output.write("[green]Quit cancelled. Continue your adventure![/green]")
+        elif choice == 'm':
+            self.output.write("[cyan]Saving game...[/cyan]")
+            self._save()
+            self.go_to_menu()
+        elif choice == 'y':
             self.output.write("[cyan]Saving game...[/cyan]")
             self._save()
             self.perform_quit()
-
+        elif choice == 'x':
+            self.go_to_menu()
         elif choice == 'n':
-            # Quit without saving
             self.output.write("[yellow]Quitting without saving...[/yellow]")
             self.perform_quit()
-
-        elif choice == 'c':
-            # Cancel quit
-            self.output.write("[green]Quit cancelled. Continue your adventure![/green]")
-            self.in_quit_confirmation = False
-
-        else:
-            # Invalid choice
-            self.output.write(f"[bold red]Invalid option: '{choice}'[/bold red]")
-            self.output.write("[bold white]Please choose:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
 
     def perform_quit(self):
         """Actually quit the game.

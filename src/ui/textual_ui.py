@@ -32,7 +32,7 @@ from src.ui.panels.character_panel import CharacterPanel
 from src.ui.panels.scene_view import SceneView
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
-from src.ui.screens.quit_confirm import QuitConfirmScreen
+from src.ui.screens.quit_confirm import MID_FIGHT_CHOICES, QuitConfirmScreen
 from src.ui.screens.selection_screen import SelectionCard, SelectionScreen
 from src.ui.screens.settings_screen import SettingsScreen
 from src.ui.combat_log import render_combat_output
@@ -662,9 +662,13 @@ class TextualGameUI(App):
                 "QuitConfirmScreen",
             )
 
+        if (event.data or {}).get("inCombat"):
+            screen = QuitConfirmScreen(answer, MID_FIGHT_CHOICES, "Leave mid-fight?")
+        else:
+            screen = QuitConfirmScreen(answer)
         # Deferred so the Enter/ESC that asked to quit cannot fall through onto
         # the new screen's own bindings and answer it instantly.
-        self.call_after_refresh(self.push_screen, QuitConfirmScreen(answer))
+        self.call_after_refresh(self.push_screen, screen)
 
     def _on_game_quit(self, event) -> None:
         """The domain confirmed the quit: stop the app so Textual restores the

@@ -3,7 +3,7 @@ QuitConfirmScreen — the "you have unsaved progress" prompt, as a real chooser.
 
 This used to be three typed letters (y/n/c) buried in a paragraph of output, so
 the most consequential decision in the game was also the least legible one. The
-modal presents the three outcomes as a highlighted list: arrow keys to move,
+modal presents each outcome as a highlighted list: arrow keys to move,
 Enter to confirm, ESC to back out. The letters still work for anyone who learned
 them.
 
@@ -19,30 +19,44 @@ from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
-# (letter the domain expects, label, help line, accent)
-CHOICES: list[tuple[str, str, str, str]] = [
+Choice = tuple[str, str, str, str]  # (letter the domain expects, label, help line, accent)
+
+LEAVE_CHOICES: list[Choice] = [
+    ("m", "Save and main menu", "Write a save file, then go to the title menu.", "cyan"),
     ("y", "Save and quit", "Write a save file, then leave.", "green"),
     ("n", "Quit without saving", "Lose everything since your last save.", "red"),
-    ("c", "Keep playing", "Go back to where you were.", "cyan"),
+    ("c", "Keep playing", "Go back to where you were.", "yellow"),
+]
+
+MID_FIGHT_CHOICES: list[Choice] = [
+    ("c", "Keep fighting", "Back to the fight.", "green"),
+    ("x", "Main menu", "Your last autosave is kept; this fight is lost.", "cyan"),
+    ("n", "Quit", "Your last autosave is kept; this fight is lost.", "red"),
 ]
 
 
 class QuitConfirmScreen(ModalScreen):
-    """Arrow-key confirmation for quitting with unsaved progress."""
+    """Arrow-key chooser for leaving a run (or a fight)."""
 
     BINDINGS = [
         Binding("up", "move_up", "Up", show=False),
         Binding("down", "move_down", "Down", show=False),
         Binding("enter", "confirm", "Choose", show=False),
-        Binding("escape", "cancel", "Keep playing", show=False),
-        Binding("y", "pick_save", "Save and quit", show=False),
-        Binding("n", "pick_quit", "Quit", show=False),
-        Binding("c", "cancel", "Keep playing", show=False),
+        Binding("escape", "cancel", "Back", show=False),
+        Binding("m", "pick('m')", show=False),
+        Binding("y", "pick('y')", show=False),
+        Binding("n", "pick('n')", show=False),
+        Binding("x", "pick('x')", show=False),
+        Binding("c", "cancel", show=False),
     ]
 
-    def __init__(self, on_choice: Callable[[str], None]):
+    def __init__(self, on_choice: Callable[[str], None],
+                 choices: list[Choice] = LEAVE_CHOICES,
+                 heading: str = "Quit — you have unsaved progress"):
         super().__init__()
         self._on_choice = on_choice
+        self._choices = choices
+        self._heading = heading
         self._index = 0
         self._answered = False
 
@@ -56,11 +70,8 @@ class QuitConfirmScreen(ModalScreen):
     # -- rendering ------------------------------------------------------------
 
     def _draw(self) -> None:
-        lines = [
-            "[bold yellow]Quit — you have unsaved progress[/bold yellow]",
-            "",
-        ]
-        for i, (letter, label, blurb, accent) in enumerate(CHOICES):
+        lines = [f"[bold yellow]{self._heading}[/bold yellow]", ""]
+        for i, (letter, label, blurb, accent) in enumerate(self._choices):
             if i == self._index:
                 lines.append(
                     f"[reverse bold {accent}]  ▶  {letter}  {label}  "
@@ -69,10 +80,8 @@ class QuitConfirmScreen(ModalScreen):
                 lines.append(f"        [dim]{blurb}[/dim]")
             else:
                 lines.append(f"[dim]     {letter}  {label}[/dim]")
-        lines += [
-            "",
-            "[dim]↑/↓ choose · ↵ confirm · esc keep playing[/dim]",
-        ]
+        back = next(label for letter, label, *_ in self._choices if letter == "c")
+        lines += ["", f"[dim]↑/↓ choose · ↵ confirm · esc {back.lower()}[/dim]"]
         try:
             self.query_one("#quit-confirm-body", Static).update("\n".join(lines))
         except NoMatches:
@@ -82,21 +91,19 @@ class QuitConfirmScreen(ModalScreen):
     # -- actions --------------------------------------------------------------
 
     def action_move_up(self) -> None:
-        self._index = (self._index - 1) % len(CHOICES)
+        self._index = (self._index - 1) % len(self._choices)
         self._draw()
 
     def action_move_down(self) -> None:
-        self._index = (self._index + 1) % len(CHOICES)
+        self._index = (self._index + 1) % len(self._choices)
         self._draw()
 
     def action_confirm(self) -> None:
-        self._choose(CHOICES[self._index][0])
+        self._choose(self._choices[self._index][0])
 
-    def action_pick_save(self) -> None:
-        self._choose("y")
-
-    def action_pick_quit(self) -> None:
-        self._choose("n")
+    def action_pick(self, letter: str) -> None:
+        if any(choice[0] == letter for choice in self._choices):
+            self._choose(letter)
 
     def action_cancel(self) -> None:
         self._choose("c")

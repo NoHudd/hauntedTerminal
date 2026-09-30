@@ -178,6 +178,13 @@ class CommandHandler:
             self.flow.handle_quit_confirmation(command.strip())
             return
         
+        # Leaving mid-fight: quit / exit / menu (Ctrl+Q, Ctrl+C and Esc send
+        # "quit") open the mid-fight chooser. Combat used to swallow them as
+        # "command not found".
+        if self.current_combat_session and cmd_parts[0].lower() in ("quit", "exit", "menu"):
+            self.flow.request_leave(in_combat=True)
+            return
+
         # Handle combat commands specially
         if self.current_combat_session and self.current_combat_session.awaiting_action:
             self._handle_combat_command(command.strip())

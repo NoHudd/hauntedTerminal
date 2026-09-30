@@ -36,7 +36,7 @@ from src.commands.shell import (
 from src.commands.grep import GrepCommand
 from src.commands.hint import HintCommand
 from src.commands.kill import KillCommand
-from src.commands.system import QuitCommand, SaveCommand
+from src.commands.system import MenuCommand, QuitCommand, SaveCommand
 
 #: Command classes that have been migrated off CommandHandler. Add to this list
 #: as each verb is extracted.
@@ -56,6 +56,7 @@ MIGRATED: tuple[type[Command], ...] = (
     PsCommand,
     SaveCommand,
     QuitCommand,
+    MenuCommand,
     DropCommand,
     EquipCommand,
     ExamineCommand,

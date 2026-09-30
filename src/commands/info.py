@@ -36,7 +36,7 @@ _HELP_TEXT = """
         - [cyan]hint[/cyan]: Help finding this directory's flag (ask twice for the exact command)
         - [cyan]keys[/cyan]: Key progression
         - [cyan]shortcuts[/cyan]: Item shortcuts and typing tips
-        - [cyan]save[/cyan] · [cyan]quit[/cyan] / [cyan]exit[/cyan]
+        - [cyan]save[/cyan] · [cyan]menu[/cyan] · [cyan]quit[/cyan] / [cyan]exit[/cyan]
 
         [bold]Navigation:[/bold]
         - Directories are real paths: [yellow]/home[/yellow], [yellow]/var[/yellow], [yellow]/var/tmp[/yellow]
