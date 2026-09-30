@@ -44,6 +44,10 @@ def test_hint_escalates_from_nudge_to_exact_command(s: GameSession) -> None:
 
 
 def test_hint_where_there_is_nothing_to_find(s: GameSession) -> None:
+    # Every shipped room has a flag now; strip one to reach the no-flag reply.
+    s.world.rooms["proc_secrets"] = s.world.rooms["proc_secrets"].model_copy(
+        update={"flag": None}
+    )
     s.player.current_room = "proc_secrets"
     assert "No flag" in _out(s, "hint")
     s.player.current_room = "root"
