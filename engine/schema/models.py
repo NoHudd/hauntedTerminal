@@ -93,6 +93,8 @@ class Room(_Base):
     flag: RoomFlag | None = None
     # An optional trial room open to every class; this class gets a bonus there.
     trial_class: str = ""
+    # Entry needs this many main-room flags captured elsewhere (the finale gate).
+    flags_required: int = 0
 
     _coerce_locked = field_validator("locked", mode="before")(_falsey_to_bool)
     _coerce_hidden = field_validator("hidden", mode="before")(_falsey_to_bool)

@@ -39,13 +39,13 @@ def test_shipped_content_is_clean(content: GameContent) -> None:
 
 def test_a_lock_without_a_key_is_caught(content: GameContent) -> None:
     c = _copy(content)
-    c.rooms[RoomId("core")].key_required = None
+    c.rooms[RoomId("usr_lib_arcane")].key_required = None
     assert any("locked, but names no key_required" in p for p in find_lock_problems(c))
 
 
 def test_a_key_that_misses_its_own_door_is_caught(content: GameContent) -> None:
     c = _copy(content)
-    c.items[ItemId("master_key")].unlocks = []
+    c.items[ItemId("lib_key")].unlocks = []
     assert any("does not list it" in p for p in find_lock_problems(c))
 
 

@@ -36,17 +36,7 @@ class FlagService:
         return getattr(room, "flag", None) if room else None
 
     def counts(self) -> tuple[int, int, int, int]:
-        main_got = main_total = secret_got = secret_total = 0
-        for rid, room in self.world.rooms.items():
-            if getattr(room, "flag", None) is None:
-                continue
-            got = int(self.world.flag_captured(rid))
-            if room.hidden:
-                secret_total += 1
-                secret_got += got
-            else:
-                main_total += 1
-                main_got += got
+        main_got, main_total, secret_got, secret_total = self.world.flag_counts()
         return main_got, main_total, secret_got, secret_total
 
     def summary(self) -> str:

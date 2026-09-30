@@ -229,7 +229,7 @@ UNIMPLEMENTED_FIELDS: dict[str, frozenset[str]] = {
     }),
     "item": frozenset({
         "auto_trigger", "consumed_on_take", "max_uses_per_run",
-        "only_in_unlocked", "readable", "trigger_condition", "triggers_npc_spawn",
+        "readable", "trigger_condition", "triggers_npc_spawn",
     }),
     "enemy": frozenset({
         "level_requirement", "loot", "on_defeat", "resistances", "weaknesses",
@@ -291,6 +291,18 @@ def find_flag_problems(content: GameContent) -> list[str]:
             elif flag.text not in item.log.flag_line:
                 problems.append(
                     f"room '{rid}': flag text is not in '{flag.file}''s log flag_line"
+                )
+    main_flags = [
+        rid for rid, room in content.rooms.items()
+        if room.flag is not None and not room.hidden
+    ]
+    for rid, room in content.rooms.items():
+        if room.flags_required:
+            available = len([r for r in main_flags if r != rid])
+            if room.flags_required > available:
+                problems.append(
+                    f"room '{rid}': needs {room.flags_required} flags but only "
+                    f"{available} main flags exist outside it"
                 )
     return problems
 

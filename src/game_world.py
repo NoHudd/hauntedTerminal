@@ -252,6 +252,22 @@ class GameWorld:
     def flag_taught(self, room_id) -> bool:
         return bool(self.room_states.get(room_id, {}).get("flagTaught", False))
 
+    def flag_counts(self, exclude=None):
+        """(main got, main total, secret got, secret total) over rooms with a
+        flag. Hidden rooms are secrets. `exclude` leaves one room out."""
+        main_got = main_total = secret_got = secret_total = 0
+        for rid, room in self.rooms.items():
+            if rid == exclude or getattr(room, "flag", None) is None:
+                continue
+            got = int(self.flag_captured(rid))
+            if room.hidden:
+                secret_total += 1
+                secret_got += got
+            else:
+                main_total += 1
+                main_got += got
+        return main_got, main_total, secret_got, secret_total
+
     def set_room_visited(self, room_id):
         """Mark a room as visited"""
         if room_id in self.room_states:
@@ -483,7 +499,8 @@ class GameWorld:
         the destination. So /usr being sealed also seals /usr/games beneath it.
 
         A denial is a dict: {"path", "room_id", "reason", "key_required",
-        "class_restriction"}, where reason is "missing" | "locked" | "class".
+        "class_restriction"}, where reason is "missing" | "locked" | "class" |
+        "flags" (a "flags" denial adds "flags_required" and "flags_have").
         """
         from src.room_paths import ancestors, room_at, room_path
 
@@ -516,6 +533,16 @@ class GameWorld:
                     "key_required": state.get("key_required"),
                     "class_restriction": None,
                 }
+
+            required = getattr(room, "flags_required", 0) if room else 0
+            if required:
+                have = self.flag_counts(exclude=rid)[0]
+                if have < required:
+                    return False, {
+                        "path": path, "room_id": rid, "reason": "flags",
+                        "key_required": None, "class_restriction": None,
+                        "flags_required": required, "flags_have": have,
+                    }
 
         debug_log(f"Access granted to {room_id} ({target_path})")
         return True, None
