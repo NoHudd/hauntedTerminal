@@ -776,6 +776,15 @@ class CombatSession:
             stats_view.to_dict(),
             "CombatSession"
         )
+
+        # And the inventory: a Health Packet or Legacy Backup used mid-fight
+        # must leave the panel now, not when the fight ends.
+        inventory_view = ViewBuilder.build_inventory_view(self.player)
+        self.bus.emit_event(
+            EventType.PLAYER_INVENTORY_CHANGED,
+            inventory_view.to_dict(),
+            "CombatSession"
+        )
     
     def _end_combat(self, victory=False, defeat=False, fled=False):
         """End the combat session."""
