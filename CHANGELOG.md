@@ -2,10 +2,11 @@
 
 Versions follow `0.MINOR.PATCH` while the game is in playtesting: a new MINOR
 for each release to `main`, a PATCH for a fix-only release. The version shows on
-the title screen and on the first line of `debug.log`, with the git commit next
-to it, so a screenshot or log names the build it came from.
+the title screen and on the first line of `debug.log` (with the git commit next
+to it when run from a git checkout), so a screenshot or log names the build it
+came from.
 
-## v0.2.0 — unreleased
+## v0.2.0 — 2026-09-30
 
 ### ⚠ Saves
 Saves from v0.1 do not load. The flag hunt changed what a save holds; start a

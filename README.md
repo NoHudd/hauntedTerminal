@@ -55,20 +55,21 @@ _Exploring the Graveyard — pixel scene view, live panels, ECHO's quick referen
 
 ## Getting Started
 
-### Step 0 — get the game and go INTO its folder
+### Step 0 — download the game and go INTO its folder
 
-All commands below must be run **from inside the repo folder**:
+Download **`haunted-terminal-v0.2.0.zip`** from the
+[Releases page](https://github.com/NoHudd/hauntedTerminal/releases/latest),
+unzip it, then open a terminal in that folder:
 
 ```bash
-git clone https://github.com/NoHudd/hauntedTerminal.git
-cd hauntedTerminal
+cd haunted-terminal
 ```
 
-(Downloaded a ZIP instead? Unzip it, then `cd` into the unzipped folder.)
+All commands below must be run **from inside the game folder**.
 
 ### Quick Start (Recommended)
 
-From inside the repo folder, run the start script for your system:
+From inside the game folder, run the start script for your system:
 
 **On Mac/Linux:**
 
@@ -99,7 +100,7 @@ python main.py
 
 ---
 
-Full command list, classes, mechanics, tips, and project structure live in
+Full command list, classes, mechanics and tips live in
 **[REFERENCE.md](./REFERENCE.md)** — the game teaches all of it as you play,
 so treat that as a lookup, not required reading.
 
