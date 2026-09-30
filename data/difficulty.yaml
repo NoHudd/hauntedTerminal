@@ -1,30 +1,34 @@
 # Live difficulty multipliers.
 #
-# Re-tuned 2026-09-06, after the sim gauntlet began including key-locked rooms.
-# Locks now carry the difficulty ramp, so excluding them measured a run nobody
-# plays: /etc is the only route to the boss and /boot is the boss, and both were
-# missing from the measurement. The gauntlet went from 6 enemies to 9, ending on
-# the Daemon Overlord.
+# Re-tuned 2026-09-29 for room flags. Runs now include the three rogue-process
+# fights (/proc, /var/tmp, /etc — their flags help open /boot) and up to 12
+# flags' worth of XP (15 cycles each). The XP outweighed the extra fights, so
+# every mode had become near-certain; only enemy_damage moved.
 #
-# Sim @50 runs/class (python -m sim.playtest measure --mode all --class all):
-#   easy   98.0% avg   (band 90-98)
-#   medium 84.7% avg   (band 75-85)
-#   hard   54.7% avg   (band 50-70)
+# Sim @80 runs/class (python -m sim.tune --mode all --runs 80), avg win rate:
+#            before (dmg 0.90/0.95/0.85)   after (dmg 1.0/1.1/1.0)   band
+#   easy     98.8%                         95.8%                     90-98
+#   medium   97.1%                         81.7%                     75-85
+#   hard     98.3%                         65.4%                     50-70
+#
+# Per-class spread is wide after this tune (medium: G 91 / W 59 / S 95;
+# hard: G 81 / W 66 / S 49). The tuner balances averages only; evening the
+# classes out is kit work, not a global multiplier.
 #
 # Hard is harder than medium through enemy_hp 1.15 (longer fights), not per-hit
 # damage. xp_gain is high across the board because enemies award their real
 # `experience` value, which is far below the flat 50 the game once assumed.
 #
-# Calibrated by: python -m sim.tune --mode all --runs 50
+# Calibrated by: python -m sim.tune --mode all --runs 80
 easy:
   enemy_hp: 0.85
-  enemy_damage: 0.9
+  enemy_damage: 1.0
   xp_gain: 2.4
 medium:
   enemy_hp: 0.95
-  enemy_damage: 0.95
+  enemy_damage: 1.1
   xp_gain: 2.0
 hard:
   enemy_hp: 1.15
-  enemy_damage: 0.85
+  enemy_damage: 1.0
   xp_gain: 1.8
