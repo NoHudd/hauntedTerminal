@@ -202,7 +202,9 @@ class LsCommand(Command):
         has_content = has_content or bool(output)
 
         items = ctx.world.get_items_in_room(room_id) or []
-        if not show_all:
+        if show_all:
+            ctx.world.mark_hidden_files_listed(room_id)
+        else:
             # Hidden files only list under -a, like real dotfiles. They stay
             # addressable by name (cat/take) either way.
             items = [

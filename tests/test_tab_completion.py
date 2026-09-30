@@ -93,13 +93,16 @@ def test_f12_opens_the_logs_mid_typing() -> None:
     asyncio.run(scenario())
 
 
-def _suggest(typed: str) -> str | None:
+def _suggest(typed: str, after: tuple[str, ...] = ()) -> str | None:
     from engine.api import GameSession
     from src.ui.command_suggester import CommandSuggester
 
     s = GameSession()
     s.new_game("t", "guardian")
+    s.player.tutorial_state["completed"] = True
     try:
+        for cmd in after:
+            s.submit(cmd)
         suggester = CommandSuggester(
             get_player=lambda: s.player, get_world=lambda: s.world, get_aliases=dict
         )
@@ -113,9 +116,14 @@ def test_completion_does_not_reveal_hidden_files() -> None:
     assert "bash_profile" not in (_suggest("cat b") or "")
 
 
-def test_a_leading_dot_completes_hidden_files() -> None:
-    """...until you type the dot, as in a real shell."""
-    assert _suggest("cat .") == "cat .bash_profile"
+def test_a_leading_dot_does_not_reveal_hidden_files_before_ls_a() -> None:
+    """`cat .` + Tab must not be a way round `ls -a`."""
+    assert "bash_profile" not in (_suggest("cat .") or "")
+
+
+def test_after_ls_a_a_leading_dot_completes_hidden_files() -> None:
+    """Once listed, a dotfile completes from its dot, as in a real shell."""
+    assert _suggest("cat .", after=("ls -a",)) == "cat .bash_profile"
 
 
 def test_cat_reads_the_dotted_name() -> None:

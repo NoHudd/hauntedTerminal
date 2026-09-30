@@ -227,6 +227,16 @@ class GameWorld:
             debug_log(f"WARNING: Requested state for unknown room {room_id}, returning default state")
         return state
     
+    def mark_hidden_files_listed(self, room_id):
+        """`ls -a` ran here: this room's dotfiles are now known to the player,
+        so Tab may offer them."""
+        self.room_states.setdefault(room_id, {"visited": False, "locked": False})[
+            "hidden_listed"
+        ] = True
+
+    def hidden_files_listed(self, room_id) -> bool:
+        return bool(self.room_states.get(room_id, {}).get("hidden_listed", False))
+
     def set_room_visited(self, room_id):
         """Mark a room as visited"""
         if room_id in self.room_states:
@@ -415,7 +425,8 @@ class GameWorld:
             self.fled_enemies[room_id] = []
 
     def is_room_cleared(self, room_id):
-        """Whether a room's enemies are genuinely dealt with — not merely
+        """Whether a room is done: visited if it never had enemies, otherwise
+        its enemies genuinely dealt with — not merely
         absent right now. A fled enemy is removed from enemy_locations too,
         but respawn_fled_enemies puts it right back on the player's next
         ROOM_ENTERED for this room, so "currently no enemies present" alone
@@ -424,7 +435,8 @@ class GameWorld:
         ever_had_enemies = bool(getattr(room, "enemies", None)) or \
             getattr(room, "enemy_tier", None) is not None
         if not ever_had_enemies:
-            return False
+            # Nothing to fight: visiting is what clears it.
+            return bool(self.room_states.get(room_id, {}).get("visited", False))
         still_present = bool(self.get_enemies_in_room(room_id))
         still_fled_pending = bool(self.fled_enemies.get(room_id))
         return not still_present and not still_fled_pending

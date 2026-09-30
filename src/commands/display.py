@@ -33,8 +33,9 @@ class JournalCommand(Command):
 
         if not discovered:
             output.append(
-                "\n[italic]No memories restored yet. Explore the filesystem and "
-                "`cat` any lore files you find.[/italic]"
+                "\nNo memories restored yet. Explore the filesystem and "
+                "`cat` any lore files you find.",
+                style="italic",
             )
             ctx.output.write(output)
             return
@@ -48,7 +49,7 @@ class JournalCommand(Command):
 
         total = len(STORY_FLAG_TITLES)
         output.append(
-            f"\n[dim]Progress: {len(discovered)}/{total} memories restored.[/dim]"
+            f"\nProgress: {len(discovered)}/{total} memories restored.", style="dim"
         )
         ctx.output.write(output)
 

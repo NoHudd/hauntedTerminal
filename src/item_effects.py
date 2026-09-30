@@ -252,7 +252,7 @@ class ItemEffects:
             return
 
         if "message" in effect:
-            self.output.write(f"[italic cyan]{effect['message']}[/italic]")
+            self.output.write(f"[italic cyan]{effect['message']}[/italic cyan]")
 
         if "story_flag" in effect:
             # Learning something can open a path: a hidden room may declare a

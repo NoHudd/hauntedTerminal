@@ -187,7 +187,7 @@ class TreeCommand(Command):
             out.append("\nKeys you carry: ", style="bold blue")
             out.append(", ".join(keys) + "\n", style="blue")
         out.append(
-            "\n[dim]🔒 sealed · ⚔ another class · ✓ cleared · ← you are here[/dim]"
+            "\n🔒 sealed · ⚔ another class · ✓ cleared · ← you are here", style="dim"
         )
         ctx.output.write(out)
 

@@ -65,10 +65,21 @@ class HeadlessUI:
 
     # --- output capture -----------------------------------------------------
 
+    @staticmethod
+    def _check_markup(content: object) -> None:
+        """Parse string output as Rich markup, as the real TUI does, so broken
+        markup (e.g. `[italic cyan]...[/italic]`) fails a test instead of
+        crashing the player's command."""
+        if isinstance(content, str):
+            from rich.markup import render
+            render(content)
+
     def update_output(self, content: str) -> None:
+        self._check_markup(content)
         self.output_log.append(str(content))
 
     def append_output(self, content: str) -> None:
+        self._check_markup(content)
         self.output_log.append(str(content))
 
     def update_output_renderable(self, renderable: object) -> None:

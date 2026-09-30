@@ -118,13 +118,17 @@ class CommandSuggester(Suggester):
 
     @staticmethod
     def _room_item_candidates(player, world) -> List[str]:
-        # Hidden files are offered as dotfiles, so — as in a real shell — they
-        # only complete once the player types the leading dot, and never leak
-        # into a plain completion.
+        # Hidden files are offered as dotfiles — completing only from the
+        # leading dot, as in a real shell — and only once `ls -a` has listed
+        # them here, so Tab is never a way round `ls -a`.
+        room = player.current_room
+        listed = world.hidden_files_listed(room)
         candidates: List[str] = []
-        for item_id in world.get_items_in_room(player.current_room):
-            hidden = getattr(world.get_item(item_id), "hidden", False)
-            candidates.append(f".{item_id}" if hidden else item_id)
+        for item_id in world.get_items_in_room(room):
+            if not getattr(world.get_item(item_id), "hidden", False):
+                candidates.append(item_id)
+            elif listed:
+                candidates.append(f".{item_id}")
         return candidates
 
     def _inventory_candidates(self, player) -> List[str]:

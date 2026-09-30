@@ -1,17 +1,37 @@
 """GameWorld.is_room_cleared: derived from existing state, nothing new
-persisted. A room only reads as cleared once every enemy it ever had is
+persisted. A room with no enemies reads as cleared once visited; otherwise it
+only reads as cleared once every enemy it ever had is
 genuinely defeated — not just currently absent (a fled enemy is absent from
 enemy_locations too, but respawns on the next ROOM_ENTERED, so it must not
 read as cleared)."""
 from engine.api import GameSession
 
 
-def test_room_with_no_enemies_never_shown_as_cleared():
+def test_room_with_no_enemies_is_cleared_once_visited():
+    """Nothing to fight, so visiting is what clears it: /proc read as never
+    done even after the player had been there."""
     s = GameSession()
     try:
         s.new_game("t", "guardian")
-        # home_grove has no enemies declared at all (tutorial safe room).
-        assert s.world.is_room_cleared("home_grove") is False
+        assert s.world.is_room_cleared("proc_secrets") is False
+        s.world.set_room_visited("proc_secrets")
+        assert s.world.is_room_cleared("proc_secrets") is True
+    finally:
+        s.close()
+
+
+def test_walking_into_proc_marks_it_in_the_tree():
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        s.player.tutorial_state["completed"] = True
+        s.submit("cd /proc")
+        s.submit("cd /")
+        proc_line = next(
+            line for line in "\n".join(str(x) for x in s.submit("tree")).splitlines()
+            if "proc/" in line
+        )
+        assert "✓" in proc_line
     finally:
         s.close()
 
