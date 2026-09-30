@@ -160,9 +160,15 @@ class CommandHandler:
 
         # Check if player is dead and trigger game over if not already handled
         if self.player and not self.player.is_alive() and not self.flow.in_game_over_mode:
-            debug_log("Player is dead but not in game over mode - triggering game over screen")
-            self.flow.show_game_over_screen()
-            return
+            revived_by = self.player.revive_from_backup()
+            if revived_by is None:
+                debug_log("Player is dead but not in game over mode - triggering game over screen")
+                self.flow.show_game_over_screen()
+                return
+            self.output.write(
+                f"[bold green]✚ {revived_by} restores you from a snapshot — "
+                f"back at {self.player.health} HP![/bold green]"
+            )
 
         # Handle quit confirmation mode specially
         if self.flow.in_quit_confirmation:

@@ -274,7 +274,14 @@ class ItemEffects:
             self.player.take_damage(amount)
             self.output.write(f"[red]You took {amount} damage![/red]")
             if not self.player.is_alive():
-                self.flow.game_over()
+                revived_by = self.player.revive_from_backup()
+                if revived_by is None:
+                    self.flow.game_over()
+                else:
+                    self.output.write(
+                        f"[bold green]✚ {revived_by} restores you from a snapshot — "
+                        f"back at {self.player.health} HP![/bold green]"
+                    )
 
         if "add_status_effect" in effect:
             status_data = effect["add_status_effect"]

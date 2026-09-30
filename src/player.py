@@ -340,6 +340,27 @@ class Player:
     def is_alive(self):
         """Check if the player is alive."""
         return self.health > 0
+
+    def revive_from_backup(self):
+        """If dead and carrying an auto-revive item (Legacy Backup), spend it
+        and come back at its share of max HP. Returns the item's name, or None
+        when there is nothing to revive with."""
+        if self.is_alive():
+            return None
+        for key, item in list(self.inventory.items()):
+            revive = next(
+                (e for e in (item.special_effects if item else [])
+                 if e.get("type") == "auto_revive"),
+                None,
+            )
+            if revive is None:
+                continue
+            percent = int(str(revive.get("revive_hp_percent", 50)))
+            self.remove_from_inventory(key)
+            self.health = max(1, self.max_health * percent // 100)
+            debug_log(f"Revived by {key} at {self.health}/{self.max_health} HP")
+            return item.name
+        return None
         
     def calculate_damage(self):
         """Calculate the player's total damage including weapon and status effects."""

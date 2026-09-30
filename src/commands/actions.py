@@ -58,6 +58,13 @@ class UseCommand(Command):
             )
             return
 
+        if any(e.get("type") == "auto_revive" for e in item.special_effects):
+            ctx.output.write(
+                f"[cyan]{item.name} works automatically: keep it in your "
+                "inventory and it revives you the moment you fall.[/cyan]"
+            )
+            return
+
         if not item.usable:
             debug_log(f"Item {actual_item_id} is not usable")
             ctx.output.error(f"[bold red]You cannot use {item_id}.[/bold red]")

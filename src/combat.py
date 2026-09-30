@@ -707,8 +707,14 @@ class CombatSession:
         
         # Check if player is defeated
         if not self.player.is_alive():
-            self._end_combat(defeat=True)
-            return
+            revived_by = self.player.revive_from_backup()
+            if revived_by is None:
+                self._end_combat(defeat=True)
+                return
+            self.output.write(
+                f"[bold green]✚ {revived_by} restores you from a snapshot — "
+                f"back at {self.player.health} HP![/bold green]"
+            )
         
         # Continue combat
         combat_system.update_cooldowns(self.player)

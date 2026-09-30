@@ -52,7 +52,12 @@ def _fired_after_pressing(key: str) -> list[str]:
                 },
                 "Test",
             )
-            await pilot.pause()
+            # The bus hands COMBAT_STARTED to the UI thread; wait for the keys
+            # to be bound rather than racing it.
+            for _ in range(50):
+                if key in app._bound_combat_keys:
+                    break
+                await pilot.pause(0.02)
             await pilot.press(key)
             await pilot.pause()
 
