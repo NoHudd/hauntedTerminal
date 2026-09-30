@@ -11,14 +11,15 @@ piece together what happened — using real Unix commands (`ls`, `cd`, `cat`,
 `pwd`) as your only tools.
 
 The directories are real ones. `cd ..` walks up the tree, `ls -a` shows what is
-hidden, and a sealed directory stays sealed until you have permission to enter
-it — including permission on every directory above it. Type `man cd` and the
-game tells you what `cd` does in an actual shell, not just in here.
+hidden, and a locked directory doesn't even show up until you hold its key. Type
+`man cd` and the game tells you what `cd` does in an actual shell, not just in
+here.
 
 Every directory hides a flag. Some you just read with `cat`; some are buried in
 huge logs you'll need `grep` to search; some are rogue processes you find with
-`ps` and end with `kill`. Hold 11 of them and `/boot` — where the Daemon Overlord
-waits — opens. Stuck? Type `hint`.
+`ps` and end with `kill`. Some flags hand you a key, and a new directory
+appears. Hold 11 flags and `/boot` — where the Daemon Overlord waits — opens.
+Stuck? Type `hint`.
 
 No prior command-line experience needed; the game teaches you as you go.
 

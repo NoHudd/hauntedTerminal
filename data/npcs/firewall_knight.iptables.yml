@@ -11,7 +11,7 @@ detailed_description: |
   that still functions as intended. The Firewall Knight does not serve the Daemon Overlord.
   It serves the system's original purpose: to protect the Core from unauthorized access.
 
-  You will not pass without the chmod Key. Not through force. Not through trickery.
+  You will not pass to the Core without proof: eleven flags. Not through force. Not through trickery.
   The rules are absolute.
 location: etc_hidden_configs
 hostile: false
@@ -28,7 +28,7 @@ dialogue:
 
   without_key:
     - "Permission Denied — by the kernel, not by me. Count your flags: tree shows them."
-    - "The rules are clear: No key, no access. This is not negotiable."
+    - "The rules are clear: no flags, no access. This is not negotiable."
     - "Many have tried to bypass me with exploits and buffer overflows. All have failed."
 
   with_key:

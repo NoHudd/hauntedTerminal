@@ -11,7 +11,7 @@ detailed_description: |
   sword forged from DROP commands.
 
   "This directory is Read-Only," the Knight intones, its voice echoing with administrative authority.
-  "Unless you carry the chmod Key, you shall pass no further into the Kernel."
+  "Only proof opens the way to the Kernel. Eleven flags, and not one fewer."
 
   The Knight's eyes glow with the light of port 443. It has been here since the Before Times, fulfilling
   its purpose even as the world burned. It cannot be reasoned with. It cannot be bribed. It can only
@@ -20,10 +20,10 @@ detailed_description: |
   Beyond the gate, you can see the path to the Core - the beating heart of the system, where the
   Daemon Overlord waits.
 
-  The Knight will not move. Not without the Key.
+  The Knight will not move. Not until you hold eleven flags.
 exits:
   - usr_lib_arcane
-  - core  # Only accessible with chmod_key
+  - core  # /boot opens with 11 flags
 items: []
 enemies: []
 npcs:

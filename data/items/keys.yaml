@@ -36,8 +36,8 @@ system_badge:
     
 opt_key:
   name: "Optional Access Key"
-  description: "A powerful key that unlocks access to class-restricted areas like the mage tower and warrior tomb."
-  short_description: A key for accessing optional class-specific areas
+  description: "A heavy key handed out by the Arcane Library's flag. It opens /srv, the Warrior Tomb, and a secret directory not yet found."
+  short_description: Opens /srv, the Warrior Tomb
   type: "key"
   takeable: true
   usable: true
@@ -55,8 +55,8 @@ opt_key:
 # Great Kernel Panic Story Keys
 chmod_key:
   name: "chmod Key"
-  description: "A crystallized permission modifier. The Firewall Knight will recognize this as proof of your authority."
-  short_description: A key that grants permission to pass the Firewall Knight
+  description: "A crystallized permission modifier handed out by the Memory Banks' flag. It opens /etc, where the Firewall Knight guards the way to /boot."
+  short_description: Opens /etc, the Kernel Gate
   type: "key"
   takeable: true
   usable: true

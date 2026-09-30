@@ -18,6 +18,8 @@ one does in an actual terminal.
   `cd ..` for the parent, `cd` alone for home
 - `pwd` — print the directory you are in
 - `cat [file]` — read a file
+- `grep [word] [file]` — print only the lines of a file that contain a word
+- `kill [PID]` — end a process (find its PID with `ps`)
 - `tree` — show the filesystem you have discovered so far
 - `find [path] -name [pattern]` — search for a file
 - `ps` — list running processes
@@ -34,7 +36,8 @@ one does in an actual terminal.
 - `attack [enemy]` — start a fight
 - `inventory` / `inv` — view your items
 - `journal` — story memories you have restored
-- `keys` — key progression
+- `keys` — the keys you hold and the directories they open
+- `hint` — a nudge toward this room's flag; ask again for the exact command
 - `shortcuts` — item shortcuts and typing tips
 - `save` — save your progress
 - `quit` / `exit` — exit the game (offers to save). Ctrl+Q, Ctrl+C and ESC do
@@ -50,21 +53,21 @@ Selection Mode.
 
 The rooms form a real directory tree. You may `cd` to any path you have
 permission to reach — you are not limited to neighbours. Permission is needed on
-every directory along the way, so a sealed `/usr` also seals `/usr/games`.
+every directory along the way, so a locked `/usr` also hides `/usr/games`.
 
 ```
 /                       Root
 ├── bin/                The Armory — sacred command icons (cp, mv, rm)
-├── boot/               The Core — the Daemon Overlord waits here   [master_key]
+├── boot/               The Core — the Daemon Overlord waits here   [11 flags]
 ├── dev/                The Void — where deleted data accumulates   [sudo badge]
 ├── etc/                The Kernel Gate — the Firewall Knight        [chmod_key]
 ├── home/               The Graveyard — where you wake up
 ├── mnt/                Mount Forest — mounted drives
-├── opt/                Mage Tower               [opt_key, Weaver only, hidden]
+├── opt/                Mage Tower — the Weaver's trial     [opt_key, hidden]
 ├── proc/               Process Secrets
 │   └── self/           The Mirror Sector — the Sudo Trial            [hidden]
 ├── root/               Hidden Directory — ancient knowledge      [system_badge]
-├── srv/                Warrior Tomb           [opt_key, Guardian only]
+├── srv/                Warrior Tomb — the Guardian's trial           [opt_key]
 ├── usr/                The Arcane Library                            [lib_key]
 │   └── games/          The Game Gallery
 │       └── cowsay/     The Bovine Sanctuary — easter egg             [hidden]
@@ -74,7 +77,8 @@ every directory along the way, so a sealed `/usr` also seals `/usr/games`.
 ```
 
 Hidden directories do not appear until you find them. `ls -a` in the parent is
-the usual way; `find /dev -name null` and `ps` also reveal one each.
+the usual way; `find /dev -name null` and `ps` also reveal one each. A locked
+directory does not appear at all until you hold its key.
 
 ## Character Classes
 
@@ -109,14 +113,25 @@ an accuracy roll, so a miss is possible.
 - Each level costs 1.5x the previous one (100, 150, 225, …). There is no cap
 - Your difficulty setting scales the award
 
-### Permissions and keys
-- A sealed directory names the key it needs. Carrying that key opens it
-  automatically when you walk in
-- `lib_key` opens `/usr`, `chmod_key` opens `/etc`, `master_key` opens `/boot`,
-  `opt_key` opens the two class areas, `system_badge` opens `/root`
+### Flags
+- Every directory hides a flag (`FLAG{...}`): 13 in the main tree, 5 more in
+  secret directories
+- Capture one by reading its file with `cat`, searching a long file with
+  `grep FLAG [file]`, or ending a rogue process with `kill [PID]`
+- `tree` marks the rooms whose flag you hold with ⚑; `journal` counts them
+- Hold 11 main flags and `/boot` opens. Capturing a flag saves a checkpoint
+- Stuck in a room? `hint` nudges you, and asking again gives the exact command
+
+### Keys
+- Keys are earned, never found lying around: the `/mnt` flag hands you
+  `lib_key` (opens `/usr`), the `/var` flag `chmod_key` (opens `/etc`), and the
+  `/usr` flag `opt_key` (opens `/srv` and a secret)
 - The `sudo_privileges_badge`, earned by beating your Shadow Process in
-  `/proc/self`, opens `/dev`
-- Keys are placed so that a run is always completable
+  `/proc/self`, opens `/dev`; the `system_badge` from the Daemon Overlord opens
+  `/root`
+- A locked directory stays hidden until you hold its key; walk in with the key
+  and it opens
+- The chain always reaches 11 flags, so every run can be won
 
 ### Item Persistence
 - **Persistent items** survive death (weapons, armor, keys)

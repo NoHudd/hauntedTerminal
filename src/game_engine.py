@@ -669,6 +669,8 @@ You have chosen to manifest as a [bold]{selected_class_name}[/bold] — {selecte
 
 The corruption spreads deeper each nanosecond. The Daemon Overlord's influence grows stronger.
 
+Every directory in this filesystem hides a [bold]flag[/bold] — a scrap of the system's lost memory. Capture them. Some flags hand you a [bold]key[/bold], and a directory you couldn't see before appears. Hold [bold]11[/bold] flags and [bold]/boot[/bold] opens, where the Overlord waits. That is how we end this.
+
 But first, I must know what to call you. The old sysadmin records are fragmented, and I need a name to anchor your essence to this haunted filesystem.[/italic]
 
 [bold yellow]What is your name, spirit?[/bold yellow]
