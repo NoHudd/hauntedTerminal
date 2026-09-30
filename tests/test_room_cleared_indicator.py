@@ -13,6 +13,10 @@ def test_room_with_no_enemies_is_cleared_once_visited():
     s = GameSession()
     try:
         s.new_game("t", "guardian")
+        # Every shipped room has a flag now; strip one to keep the visit rule.
+        s.world.rooms["proc_secrets"] = s.world.rooms["proc_secrets"].model_copy(
+            update={"flag": None}
+        )
         assert s.world.is_room_cleared("proc_secrets") is False
         s.world.set_room_visited("proc_secrets")
         assert s.world.is_room_cleared("proc_secrets") is True
@@ -20,12 +24,13 @@ def test_room_with_no_enemies_is_cleared_once_visited():
         s.close()
 
 
-def test_walking_into_proc_marks_it_in_the_tree():
+def test_proc_is_marked_in_the_tree_once_its_flag_is_taken():
     s = GameSession()
     try:
         s.new_game("t", "guardian")
         s.player.tutorial_state["completed"] = True
         s.submit("cd /proc")
+        s.world.mark_flag_captured("proc_secrets")
         s.submit("cd /")
         proc_line = next(
             line for line in "\n".join(str(x) for x in s.submit("tree")).splitlines()
