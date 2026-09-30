@@ -151,21 +151,17 @@ class GameFlow:
 
             # Try to load the most recent save
             try:
-                from src.save import load_most_recent_save
-                save_data = load_most_recent_save()
+                from src.save import save_manager
+                run_id = save_manager.active_run_id
+                save_data = save_manager.load_run(run_id) if run_id else None
                 if save_data:
                     self.output.write("[green]Backup found! Restoring system state...[/green]")
                     self.in_game_over_mode = False
                     # Signal to restart with save data
                     self.output.write("[bold green]System restored from backup![/bold green]\n")
                     return "restart_from_save"
-                else:
-                    from src.save import save_manager, skipped_saves_notice
-                    if save_manager.last_skipped:
-                        self.output.write(skipped_saves_notice(save_manager.last_skipped))
-                    else:
-                        self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
-                    return self._handle_game_over_choice('n')
+                self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
+                return self._handle_game_over_choice('n')
             except Exception as e:
                 debug_log(f"Failed to load save: {e}")
                 self.output.write("[bold red]Backup corrupted. Starting new game instead...[/bold red]")

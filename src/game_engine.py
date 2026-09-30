@@ -315,32 +315,31 @@ class ImprovedGameEngine:
         self.restart_game()
 
     def _restart_from_save(self):
-        """Restart the game from the most recent save."""
+        """Game-over / post-win "r": reload the run being played from its last save."""
         try:
-            logger.info("Restarting from most recent save")
+            logger.info("Restoring this run from its last save")
             # Game over only leads to the menu; a run restarts from there.
             if self.state_manager.current_state == GameState.GAME_OVER:
                 self.state_manager.set_state(GameState.MENU, emit_event=False)
-            
-            from src.save import load_most_recent_save
-            save_data = load_most_recent_save()
-            
+
+            run_id = save_manager.active_run_id
+            save_data = save_manager.load_run(run_id) if run_id else None
+
             if not save_data:
                 logger.warning("No save data found, starting new game instead")
                 self.state_manager.set_state(GameState.MENU, emit_event=False)
                 self._start_new_game()
                 return
-            
-            self._enter_loaded_run(save_data)
 
+            self._enter_loaded_run(save_data)
             logger.info("Save game restart completed successfully")
-            
+
         except Exception as e:
             logger.error(f"Failed to restart from save: {e}")
             self.ui.display_message(f"[bold red]Failed to load save: {e}. Starting new game instead...[/bold red]")
             self.state_manager.set_state(GameState.MENU, emit_event=False)
             self._start_new_game()
-    
+
     def _enter_loaded_run(self, save_data, welcome=False):
         """Rebuild the run from a save and start playing it.
 
@@ -430,41 +429,27 @@ class ImprovedGameEngine:
         self._show_difficulty_selection()
         
     def _load_game(self):
-        """Load an existing game."""
+        """Load the most recently played run (the picker arrives in a later change)."""
         try:
-            logger.debug("Starting load game process")
-            # List available save files
-            save_files = save_manager.get_save_files()
-            logger.debug(f"Found {len(save_files)} save files")
-            if not save_files:
-                from src.save import skipped_saves_notice
-                if save_manager.last_skipped:
-                    self.ui.update_output(skipped_saves_notice(save_manager.last_skipped) + "\n")
-                else:
-                    self.ui.update_output("[bold yellow]No save files found. Starting new game instead...[/bold yellow]\n")
+            runs = save_manager.list_runs()
+            if not runs:
+                self.ui.update_output("[bold yellow]No save files found. Starting new game instead...[/bold yellow]\n")
                 self._start_new_game()
                 return
-            
-            # For now, load the most recent save file
-            # TODO: Add UI for save file selection
-            latest_save_info = save_files[0]  # get_save_files returns sorted by date
-            latest_save_filename = latest_save_info["filename"]
-            self.ui.update_output(f"Loading game from {latest_save_filename} (Player: {latest_save_info['player_name']})...")
-            
-            # Load the save data
-            save_data = save_manager.load_game(latest_save_filename)
+            latest = runs[0]
+            self.ui.update_output(f"Loading {escape(latest.player_name)}'s run...")
+            save_data = save_manager.load_run(latest.run_id)
             if not save_data:
                 self.ui.update_output("Failed to load save file. Starting new game instead...")
                 self._start_new_game()
                 return
-            
+            save_manager.resume_run(latest.run_id)
             self._enter_loaded_run(save_data, welcome=True)
-
         except Exception as e:
             logger.error(f"Error loading game: {e}")
             self.ui.update_output(f"Error loading game: {e}. Starting new game instead...")
             self._start_new_game()
-    
+
     @staticmethod
     def _reserved_name(name: str) -> bool:
         """A command word typed at the name prompt is a player who thinks they

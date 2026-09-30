@@ -63,10 +63,10 @@ def test_entering_a_room_with_an_enemy_starts_a_fight_after_restore(
 def test_a_failed_restore_falls_back_to_a_new_game(
     restored: GameSession, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def broken() -> dict:
+    def broken(run_id: str) -> dict:
         raise OSError("disk gone")
 
-    monkeypatch.setattr(save_mod, "load_most_recent_save", broken)
+    monkeypatch.setattr(save_mod.save_manager, "load_run", broken)
     # The engine's own restore (GameFlow's "r" catches load errors itself first).
     restored.engine._restart_from_save()
     out = "\n".join(restored.ui.drain())

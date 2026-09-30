@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -30,8 +31,8 @@ def test_save_round_trip(session: GameSession, tmp_path) -> None:
     mgr = SaveManager(save_dir=str(tmp_path))
     session.submit("cd root")  # make some state
 
-    mgr.save_game(session.player, session.world.get_state(), "s1.json")
-    loaded = mgr.load_game("s1.json")
+    mgr.save_game(session.player, session.world.get_state())
+    loaded = mgr.load_run(mgr.active_run_id)
 
     assert loaded["version"] == SAVE_VERSION
     restored = Player.from_dict(loaded["player"])
@@ -43,8 +44,8 @@ def test_save_round_trip(session: GameSession, tmp_path) -> None:
 
 def test_envelope_is_versioned_and_camelcase(session: GameSession, tmp_path) -> None:
     mgr = SaveManager(save_dir=str(tmp_path))
-    mgr.save_game(session.player, session.world.get_state(), "s.json")
-    raw = json.loads((tmp_path / "s.json").read_text())
+    path = mgr.save_game(session.player, session.world.get_state())
+    raw = json.loads(Path(path).read_text())
     assert raw["version"] == SAVE_VERSION
     assert "savedAt" in raw and "saveDate" in raw
     assert "timestamp" not in raw and "save_date" not in raw
@@ -67,20 +68,19 @@ def _legacy_save(version: int | None) -> dict:
 def test_pre_tree_saves_are_refused(version, tmp_path) -> None:
     """v2 and older persist room_states from before /boot was locked. Loading one
     would reopen the boss room, so it is refused rather than half-migrated."""
-    (tmp_path / "old.json").write_text(json.dumps(_legacy_save(version)))
+    (tmp_path / "run_old00000.json").write_text(json.dumps(_legacy_save(version)))
     mgr = SaveManager(save_dir=str(tmp_path))
 
     with pytest.raises(IncompatibleSaveError):
-        mgr.load_game("old.json")
+        mgr.load_run("old00000")
 
 
 def test_incompatible_saves_are_not_offered(tmp_path) -> None:
     """The load menu must not list a save that would then fail to load."""
-    (tmp_path / "old.json").write_text(json.dumps(_legacy_save(2)))
+    (tmp_path / "run_old00000.json").write_text(json.dumps(_legacy_save(2)))
     mgr = SaveManager(save_dir=str(tmp_path))
 
-    assert mgr.get_save_files() == []
-    assert mgr.load_most_recent_save() is None
+    assert mgr.list_runs() == []
 
 
 def test_from_dict_tolerates_partial_save() -> None:
@@ -92,21 +92,12 @@ def test_from_dict_tolerates_partial_save() -> None:
     assert player.max_health > 0
 
 
-def test_get_save_files_reads_v2(session: GameSession, tmp_path) -> None:
-    mgr = SaveManager(save_dir=str(tmp_path))
-    mgr.save_game(session.player, session.world.get_state(), "s.json")
-    files = mgr.get_save_files()
-    assert len(files) == 1
-    assert files[0]["player_name"] == "Saver"
-    assert files[0]["date"] != "Unknown date"
-
-
 @pytest.mark.parametrize("version", [3, 4])
 def test_v4_saves_are_refused_and_hidden(version, tmp_path) -> None:
     """Saves from before room flags have no flag state; /boot's gate would
     strand them, so they are refused and not offered."""
-    (tmp_path / "old.json").write_text(json.dumps(_legacy_save(version)))
+    (tmp_path / "run_old00000.json").write_text(json.dumps(_legacy_save(version)))
     mgr = SaveManager(save_dir=str(tmp_path))
     with pytest.raises(IncompatibleSaveError, match="flag"):
-        mgr.load_game("old.json")
-    assert mgr.get_save_files() == []
+        mgr.load_run("old00000")
+    assert mgr.list_runs() == []

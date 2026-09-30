@@ -74,7 +74,7 @@ def test_story_flag_is_in_the_checkpoint_on_disk_and_not_recaptured(s: GameSessi
     cycles = s.player.harvesting_cycles
     level = s.player.level
 
-    saved = save_manager.load_most_recent_save()
+    saved = save_manager.load_run(save_manager.active_run_id)
     assert saved["world"]["room_states"]["home_grove"].get("flagCaptured") is True
     assert (saved["player"]["level"], saved["player"]["harvesting_cycles"]) == (level, cycles)
 

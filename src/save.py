@@ -1,34 +1,42 @@
 #!/usr/bin/env python3
-import os
+"""Run save slots.
+
+Every run (one new game) owns one file, saves/run_<runId>.json, which each
+autosave, checkpoint and `save` overwrites. The player picks a run from the
+title menu's LOAD GAME; at most MAX_RUNS exist at once.
+"""
+from __future__ import annotations
+
 import json
-import time
 import logging
+import os
+import time
+import uuid
+from dataclasses import dataclass
+from typing import Any
 
 from src import difficulty
 
 logger = logging.getLogger(__name__)
 
-# Current on-disk save format version. v5 added room flags (room_states
-# flagCaptured / flagTaught / hiddenListed) and the /boot flag gate.
-SAVE_VERSION = 5
+# Current on-disk save format version. v5 added room flags; v6 made saves one
+# file per run (runId, createdAt, cleared).
+SAVE_VERSION = 6
 
 # Saves older than this cannot be loaded: v2 and earlier predate the filesystem
 # tree; v3-v4 predate room flags, so /boot's flag gate would strand them.
 MIN_SUPPORTED_VERSION = 5
 
-# Autosaves fire on each story beat (a lore file read), plus every manual save.
-# Without a cap the pool grows unbounded and every save/list operation slows
-# with directory size (observed: 16k files).
-MAX_SAVE_FILES = 20
+# Run slots on disk at once. NEW GAME with every slot taken asks which run to
+# replace.
+MAX_RUNS = 9
+
+RUN_PREFIX = "run_"
 
 
-def skipped_saves_notice(count: int) -> str:
-    """What to tell a player whose only saves are too old to load."""
-    noun = "save is" if count == 1 else "saves are"
-    return (
-        f"[bold yellow]{count} {noun} from before room flags and can't be "
-        "loaded. Starting a new game instead...[/bold yellow]"
-    )
+def _now() -> float:
+    """Wall-clock seconds; one seam for tests to control save order."""
+    return time.time()
 
 
 class IncompatibleSaveError(Exception):
@@ -48,16 +56,10 @@ def save_version(save_data) -> int:
 def _migrate_save(save_data):
     """Normalize a save envelope to the current version, or refuse it.
 
-    v1 (no "version" field) used snake_case envelope keys; v2 added "version"
-    and camelCase fields ("savedAt", "saveDate").
-
-    v3 is where migration stops being possible. A save persists room_states —
-    including which rooms are locked — and v2 saves were written when /usr, /var
-    and /boot had no locks at all. Restoring one would reopen the boss room and
-    hand back a world whose room paths no longer describe the tree the game now
-    navigates. There is no honest way to reconstruct the intended run from that,
-    so v2 and older are refused with a message rather than half-migrated into
-    something subtly broken.
+    v2 and older persist room_states from before /usr, /var and /boot were
+    locked; v3-v4 predate room flags. Neither can be honestly reconstructed,
+    so both are refused with a message rather than half-migrated. v5 saves
+    load as they are (the v6 fields have defaults).
     """
     if not isinstance(save_data, dict):
         return save_data
@@ -75,203 +77,185 @@ def _migrate_save(save_data):
         )
     return save_data
 
-class SaveManager:
-    """Handles saving and loading game data."""
-    
-    def __init__(self, save_dir="saves"):
-        """Initialize the save manager with the save directory."""
-        self.save_dir = save_dir
-        # How many saves the last get_save_files() refused as too old.
-        self.last_skipped = 0
-        # Ensure the save directory exists
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-    
-    def save_game(self, player, world_state, save_name=None):
-        """
-        Save the current game state to a JSON file.
-        
-        Args:
-            player: Player object with game state
-            world_state: Dictionary with world state information
-            save_name: Optional name for the save file, defaults to timestamp
-        
-        Returns:
-            str: Path to the saved file
-        """
-        if not save_name:
-            # Generate a filename based on timestamp
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            save_name = f"save_{timestamp}.json"
-        
-        # Create the full file path
-        save_path = os.path.join(self.save_dir, save_name)
-        
-        # Create save data structure (versioned envelope, camelCase fields).
-        save_data = {
-            "version": SAVE_VERSION,
-            "player": player.to_dict(),
-            "world": world_state,
-            "difficulty": difficulty.current_mode(),
-            "savedAt": time.time(),
-            "saveDate": time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        try:
-            # Write to file
-            with open(save_path, 'w') as file:
-                json.dump(save_data, file, indent=2)
-            
-            logger.info(f"Game saved successfully to {save_path}")
-            self._prune_old_saves()
 
-            return save_path
-            
+@dataclass(frozen=True)
+class RunInfo:
+    """One run slot, as the save picker shows it."""
+    run_id: str
+    player_name: str
+    player_class: str
+    difficulty: str
+    level: int
+    room_id: str
+    health: int
+    max_health: int
+    saved_at: float
+    cleared: bool
+
+
+class SaveManager:
+    """Owns the run slots on disk and which run is being played."""
+
+    def __init__(self, save_dir="saves"):
+        self.save_dir = save_dir
+        # The run being played, and a run the player chose to replace (deleted
+        # by the new run's first save, so backing out of setup loses nothing).
+        self.active_run_id: str | None = None
+        self.pending_replace: str | None = None
+        os.makedirs(self.save_dir, exist_ok=True)
+
+    # -- files ------------------------------------------------------------
+
+    def _run_path(self, run_id: str) -> str:
+        return os.path.join(self.save_dir, f"{RUN_PREFIX}{run_id}.json")
+
+    def _run_files(self) -> list[str]:
+        try:
+            names = os.listdir(self.save_dir)
+        except FileNotFoundError:
+            return []
+        return [n for n in names if n.startswith(RUN_PREFIX) and n.endswith(".json")]
+
+    @staticmethod
+    def _read(path: str) -> dict[str, Any] | None:
+        try:
+            with open(path) as file:
+                data = json.load(file)
+        except (OSError, json.JSONDecodeError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _write(self, path: str, data: dict[str, Any]) -> None:
+        """Write via a temp file + rename, so a crash mid-save never leaves a
+        half-written slot."""
+        os.makedirs(self.save_dir, exist_ok=True)
+        tmp = path + ".tmp"
+        try:
+            with open(tmp, "w") as file:
+                json.dump(data, file, indent=2)
+            os.replace(tmp, path)
         except Exception as e:
             logger.error(f"Failed to save game: {e}")
             raise
-    
-    def _prune_old_saves(self):
-        """Keep only the newest MAX_SAVE_FILES saves; delete the rest."""
-        try:
-            files = [
-                os.path.join(self.save_dir, f)
-                for f in os.listdir(self.save_dir)
-                if f.endswith(".json")
-            ]
-            if len(files) <= MAX_SAVE_FILES:
-                return
-            files.sort(key=lambda p: (os.path.getmtime(p), p))
-            for path in files[: len(files) - MAX_SAVE_FILES]:
-                os.remove(path)
-            logger.info(f"Pruned {len(files) - MAX_SAVE_FILES} old saves (cap {MAX_SAVE_FILES})")
-        except Exception as e:
-            # Pruning must never break saving itself.
-            logger.warning(f"Save pruning failed: {e}")
 
-    def load_game(self, filename):
-        """
-        Load a game from a save file.
-        
-        Args:
-            filename: Name of the save file to load
-        
-        Returns:
-            dict: The loaded save data or None if file not found
-        """
-        file_path = os.path.join(self.save_dir, filename)
-        
-        try:
-            with open(file_path, 'r') as file:
-                save_data = json.load(file)
+    # -- the run being played ---------------------------------------------
 
-            save_data = _migrate_save(save_data)
-            logger.info(f"Game loaded successfully from {filename}")
-            return save_data
+    def begin_run(self, replace: str | None = None) -> str:
+        """Start a new run. Nothing is written until its first save."""
+        self.active_run_id = uuid.uuid4().hex[:8]
+        self.pending_replace = replace
+        return self.active_run_id
 
-        except IncompatibleSaveError as e:
-            logger.warning(f"Refusing incompatible save {filename}: {e}")
-            raise
-        except FileNotFoundError:
-            logger.warning(f"Save file not found: {filename}")
+    def resume_run(self, run_id: str) -> None:
+        """Continue a run picked from LOAD GAME."""
+        self.active_run_id = run_id
+        self.pending_replace = None
+
+    def end_run(self) -> None:
+        """Back at the title: no run is being played."""
+        self.active_run_id = None
+        self.pending_replace = None
+
+    def save_game(self, player, world_state) -> str:
+        """Overwrite the active run's slot (starting a run if none is active —
+        the headless GameSession creates players without the menu). Returns the
+        file path."""
+        if self.active_run_id is None:
+            self.begin_run()
+        run_id = self.active_run_id
+        assert run_id is not None
+        path = self._run_path(run_id)
+        previous = self._read(path) or {}
+        now = _now()
+        self._write(path, {
+            "version": SAVE_VERSION,
+            "runId": run_id,
+            "createdAt": previous.get("createdAt", now),
+            "cleared": bool(previous.get("cleared", False)),
+            "player": player.to_dict(),
+            "world": world_state,
+            "difficulty": difficulty.current_mode(),
+            "savedAt": now,
+            "saveDate": time.strftime("%Y-%m-%d %H:%M:%S"),
+        })
+        logger.info(f"Game saved to {path}")
+
+        if self.pending_replace:
+            replaced, self.pending_replace = self.pending_replace, None
+            if replaced != run_id:
+                self.delete_run(replaced)
+                logger.info(f"Run {replaced} replaced by {run_id}")
+        return path
+
+    def mark_cleared(self) -> None:
+        """Mark the active run as beaten. Its last save stays as it is."""
+        if self.active_run_id is None:
+            return
+        path = self._run_path(self.active_run_id)
+        data = self._read(path)
+        if data is None:
+            return
+        data["cleared"] = True
+        self._write(path, data)
+
+    # -- every run --------------------------------------------------------
+
+    def load_run(self, run_id: str) -> dict[str, Any] | None:
+        """The run's save, or None if it is missing or unreadable. Raises
+        IncompatibleSaveError for a format that cannot load."""
+        path = self._run_path(run_id)
+        if not os.path.exists(path):
+            logger.warning(f"No save for run {run_id}")
             return None
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse save file {filename}: {e}")
+        data = self._read(path)
+        if data is None:
+            logger.error(f"Could not read the save for run {run_id}")
             return None
-        except Exception as e:
-            logger.error(f"Failed to load game from {filename}: {e}")
-            return None
-    
-    def get_save_files(self):
-        """
-        Get a list of available save files.
-        
-        Returns:
-            list: List of dictionaries with save file info (filename, date, player name)
-        """
-        save_files = []
-        skipped = 0
+        return _migrate_save(data)
 
-        for filename in os.listdir(self.save_dir):
-            if filename.endswith('.json'):
-                file_path = os.path.join(self.save_dir, filename)
-                try:
-                    with open(file_path, 'r') as file:
-                        save_data = json.load(file)
+    def list_runs(self) -> list[RunInfo]:
+        """Every loadable run, most recently saved first."""
+        runs: list[RunInfo] = []
+        for name in self._run_files():
+            data = self._read(os.path.join(self.save_dir, name))
+            if data is None:
+                logger.warning(f"Skipping unreadable save {name}")
+                continue
+            try:
+                data = _migrate_save(data)
+            except IncompatibleSaveError as e:
+                logger.warning(f"Skipping {name}: {e}")
+                continue
+            runs.append(self._run_info(name, data))
+        runs.sort(key=lambda run: run.saved_at, reverse=True)
+        return runs
 
-                    # Saves the current build cannot load are not offered at all,
-                    # so the load menu never presents a choice that then fails.
-                    save_data = _migrate_save(save_data)
-                    save_info = {
-                        "filename": filename,
-                        "date": save_data.get("saveDate", "Unknown date"),
-                        "player_name": save_data.get("player", {}).get("name", "Unknown"),
-                        "player_class": save_data.get("player", {}).get("player_class", "Unknown"),
-                        "location": save_data.get("player", {}).get("current_room", "Unknown")
-                    }
-                    
-                    save_files.append(save_info)
-                except IncompatibleSaveError:
-                    skipped += 1
-                    continue
-                except (json.JSONDecodeError, KeyError, OSError):
-                    # Skip corrupt save files
-                    continue
+    @staticmethod
+    def _run_info(filename: str, data: dict[str, Any]) -> RunInfo:
+        player = data.get("player") or {}
+        return RunInfo(
+            run_id=filename[len(RUN_PREFIX):-len(".json")],
+            player_name=str(player.get("name", "?")),
+            player_class=str(player.get("player_class", "guardian")),
+            difficulty=str(data.get("difficulty", difficulty.DEFAULT_MODE)),
+            level=int(player.get("level", 1)),
+            room_id=str(player.get("current_room", "home_grove")),
+            health=int(player.get("health", 0)),
+            max_health=int(player.get("max_health", 0)),
+            saved_at=float(data.get("savedAt", 0.0)),
+            cleared=bool(data.get("cleared", False)),
+        )
 
-        self.last_skipped = skipped
-        if skipped:
-            logger.info(
-                f"Ignored {skipped} save(s) from an older, incompatible format"
-            )
+    def runs_full(self) -> bool:
+        return len(self.list_runs()) >= MAX_RUNS
 
-        # Sort by date (newest first)
-        save_files.sort(key=lambda x: x["date"], reverse=True)
-        return save_files
-    
-    def delete_save(self, filename):
-        """
-        Delete a save file.
-        
-        Args:
-            filename: Name of the save file to delete
-            
-        Returns:
-            bool: True if deletion was successful, False otherwise
-        """
-        file_path = os.path.join(self.save_dir, filename)
-        
+    def delete_run(self, run_id: str) -> bool:
         try:
-            os.remove(file_path)
+            os.remove(self._run_path(run_id))
             return True
         except FileNotFoundError:
             return False
 
-    def get_most_recent_save(self):
-        """
-        Get the most recent save file.
-        
-        Returns:
-            dict: Save info for the most recent save, or None if no saves exist
-        """
-        save_files = self.get_save_files()
-        return save_files[0] if save_files else None
-    
-    def load_most_recent_save(self):
-        """
-        Load the most recent save file.
-        
-        Returns:
-            dict: The loaded save data or None if no saves exist
-        """
-        most_recent = self.get_most_recent_save()
-        if most_recent:
-            return self.load_game(most_recent["filename"])
-        return None
 
 # Create a singleton instance
 save_manager = SaveManager()
-
-# Convenience functions for easy access
-def load_most_recent_save():
-    """Load the most recent save file."""
-    return save_manager.load_most_recent_save() 

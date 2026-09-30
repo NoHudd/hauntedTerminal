@@ -40,3 +40,17 @@ def _fail_loudly(
     yield
     if request.node.get_closest_marker("rejects_transition") is None:
         assert rejected == [], f"state transitions the game should never make: {rejected}"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_saves(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Every test saves into its own scratch dir with no run in progress. With
+    one file per run (and no pool cap) test saves would otherwise pile up in
+    the real saves/."""
+    from src.save import save_manager
+
+    monkeypatch.setattr(save_manager, "save_dir", str(tmp_path_factory.mktemp("saves")))
+    monkeypatch.setattr(save_manager, "active_run_id", None)
+    monkeypatch.setattr(save_manager, "pending_replace", None)

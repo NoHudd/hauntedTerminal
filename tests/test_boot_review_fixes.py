@@ -20,27 +20,6 @@ def _old_save() -> dict:
     }
 
 
-def test_load_game_says_old_saves_are_from_before_flags(tmp_path, monkeypatch) -> None:
-    (tmp_path / "old.json").write_text(json.dumps(_old_save()))
-    monkeypatch.setattr(save_manager, "save_dir", str(tmp_path))
-    s = GameSession()
-    try:
-        s.ui.clear_console()
-        s.engine._load_game()
-        out = "\n".join(str(x) for x in s.ui.drain())
-    finally:
-        s.close()
-    assert "before room flags" in out
-    assert "No save files found" not in out
-
-
-def test_skipped_count_is_exposed(tmp_path) -> None:
-    (tmp_path / "old.json").write_text(json.dumps(_old_save()))
-    mgr = SaveManager(save_dir=str(tmp_path))
-    assert mgr.get_save_files() == []
-    assert mgr.last_skipped == 1
-
-
 def test_npcs_describe_the_flag_gate() -> None:
     knight = yaml.safe_load(open("data/npcs/firewall_knight.iptables.yml"))
     echo = yaml.safe_load(open("data/npcs/echo.usr.yml"))
