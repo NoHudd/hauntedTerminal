@@ -77,7 +77,7 @@ every directory along the way, so a locked `/usr` also hides `/usr/games`.
 ```
 
 Hidden directories do not appear until you find them. `ls -a` in the parent is
-the usual way; `find /dev -name null` and `ps` also reveal one each. A locked
+the usual way; `ps` in Mount Forest also reveals one. A locked
 directory does not appear at all until you hold its key.
 
 ## Character Classes

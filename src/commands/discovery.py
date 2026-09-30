@@ -27,24 +27,16 @@ class FindCommand(Command):
             path = args[0]
             pattern = args[2]
 
-            if path == "/dev" and pattern == "null":
-                if ctx.player.current_room == "bin_armory":
-                    if ctx.world.discover_room("dev_null_void"):
-                        ctx.output.write("[bold green]Found: /dev/null_void[/bold green]")
-                        ctx.output.write(
-                            "A mysterious void where deleted data accumulates..."
-                        )
-                        ctx.output.write(
-                            "[yellow]You can now access it with: cd dev_null_void[/yellow]"
-                        )
-                    else:
-                        ctx.output.write(
-                            "[dim]Found: /dev/null_void (already discovered)[/dim]"
-                        )
-                else:
-                    ctx.output.write(
-                        "[red]find: '/dev': No such file or directory[/red]"
-                    )
+            # /dev exists for find only once the player can see its door: a
+            # locked /dev stays hidden until the Sudo Privileges Badge reveals it.
+            dev_visible = (
+                ctx.world.is_discovered("dev_null_void")
+                and ctx.world.door_visible("dev_null_void")
+            )
+            if path == "/dev" and pattern == "null" and dev_visible:
+                ctx.output.write("[bold green]Found: /dev/null[/bold green]")
+                ctx.output.write("A mysterious void where deleted data accumulates...")
+                ctx.output.write("[yellow]Go there with: [bold]cd /dev[/bold][/yellow]")
             else:
                 ctx.output.write(f"[red]find: '{path}': No such file or directory[/red]")
         else:
