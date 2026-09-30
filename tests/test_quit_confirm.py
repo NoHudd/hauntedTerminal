@@ -77,12 +77,14 @@ def test_quit_requests_the_chooser(session: GameSession) -> None:
         session.bus.unsubscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
 
 
-def _start_fight(s: GameSession):
-    s.player.tutorial_state["completed"] = True
-    handler = s.engine.cmd_handler
-    s.world.enemy_locations["corrupt_process.bin"] = s.player.current_room
+@pytest.fixture
+def combat(session: GameSession):
+    """The session, mid-fight; yields the combat session."""
+    session.player.tutorial_state["completed"] = True
+    handler = session.engine.cmd_handler
+    session.world.enemy_locations["corrupt_process.bin"] = session.player.current_room
     handler.check_for_enemies()
-    assert s.state == GameState.IN_COMBAT
+    assert session.state == GameState.IN_COMBAT
     return handler.current_combat_session
 
 
@@ -111,8 +113,7 @@ def test_menu_command_without_progress_goes_straight_to_the_menu() -> None:
         s.close()
 
 
-def test_quit_mid_fight_opens_the_fight_chooser(session: GameSession) -> None:
-    _start_fight(session)
+def test_quit_mid_fight_opens_the_fight_chooser(session: GameSession, combat) -> None:
     seen: list[object] = []
     session.bus.subscribe(EventType.QUIT_CONFIRM_REQUESTED, seen.append)
     out = _text(session.submit("quit"))
@@ -121,8 +122,7 @@ def test_quit_mid_fight_opens_the_fight_chooser(session: GameSession) -> None:
     assert seen[-1].data == {"inCombat": True}
 
 
-def test_keep_fighting_resumes_the_fight(session: GameSession) -> None:
-    combat = _start_fight(session)
+def test_keep_fighting_resumes_the_fight(session: GameSession, combat) -> None:
     session.submit("quit")
     assert "Back to the fight" in _text(session.submit("c"))
     assert session.state == GameState.IN_COMBAT
@@ -130,8 +130,7 @@ def test_keep_fighting_resumes_the_fight(session: GameSession) -> None:
     assert "command not found" not in out and "Invalid option" not in out
 
 
-def test_main_menu_mid_fight_leaves_without_saving(session: GameSession) -> None:
-    _start_fight(session)
+def test_main_menu_mid_fight_leaves_without_saving(session: GameSession, combat) -> None:
     before = [(run.run_id, run.saved_at) for run in save_manager.list_runs()]
     session.submit("quit")
     session.submit("x")
@@ -139,8 +138,7 @@ def test_main_menu_mid_fight_leaves_without_saving(session: GameSession) -> None
     assert [(run.run_id, run.saved_at) for run in save_manager.list_runs()] == before
 
 
-def test_save_letters_are_refused_mid_fight(session: GameSession) -> None:
-    _start_fight(session)
+def test_save_letters_are_refused_mid_fight(session: GameSession, combat) -> None:
     session.submit("quit")
     out = _text(session.submit("y"))
     assert "Invalid option" in out

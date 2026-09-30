@@ -8,6 +8,8 @@ Assertion is object-identity based (is the OLD handler still subscribed?)
 because the module-singleton bus can carry handlers leaked by other tests.
 """
 from engine.api import GameSession
+from src.game_states import GameState
+from src.save import save_manager
 
 
 def test_load_game_unsubscribes_old_handler():
@@ -17,7 +19,6 @@ def test_load_game_unsubscribes_old_handler():
         old_handler = s.engine.cmd_handler
         assert old_handler is not None
 
-        from src.save import save_manager
         save_manager.save_game(s.player, s.world.get_state())
         run_id = save_manager.active_run_id
 
@@ -25,7 +26,6 @@ def test_load_game_unsubscribes_old_handler():
         # other tests can't distort the result).
         # LOAD GAME is reached from the menu. Set the mode directly: restart_game
         # would unsubscribe the old handler itself and hide the leak under test.
-        from src.game_states import GameState
         s.engine.state_manager.set_state(GameState.MENU, emit_event=False)
         s.engine._load_game()
         s.engine._handle_save_picker_input(f"pick {run_id}")

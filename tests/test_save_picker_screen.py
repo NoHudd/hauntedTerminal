@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from pathlib import Path
 
 import pytest
+from rich.text import Text
 
-import src.save as save_mod
 from engine.events import EventType
 from src.game_engine import ImprovedGameEngine
 from src.game_states import GameState
@@ -113,18 +112,15 @@ def test_saved_ago() -> None:
 
 # --- the real app -------------------------------------------------------------
 
-@pytest.fixture
-def mgr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SaveManager:
-    m = SaveManager(save_dir=str(tmp_path))
-    monkeypatch.setattr(save_mod, "save_manager", m)
-    monkeypatch.setattr("src.game_engine.save_manager", m)
+@pytest.fixture(autouse=True)
+def _no_intro(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("src.ui.textual_ui.SKIP_INTRO", True)
-    return m
 
 
 def test_load_game_opens_the_picker_and_enter_continues_the_run(
     mgr: SaveManager, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(SavePickerScreen, "_CONFIRM_GRACE_SECONDS", 0)  # grace has its own test
     app = TextualGameUI()
 
     async def scenario() -> None:
@@ -143,7 +139,6 @@ def test_load_game_opens_the_picker_and_enter_continues_the_run(
             await pilot.pause()
             assert isinstance(app.screen, SavePickerScreen)
 
-            await asyncio.sleep(0.3)  # past the confirm grace
             await pilot.press("enter")
             await pilot.pause()
             assert engine.state_manager.current_state == GameState.PLAYING
@@ -183,7 +178,6 @@ def test_empty_picker_escape_returns_to_the_title_without_quitting(
 
 
 def test_markup_in_saved_fields_renders_as_text() -> None:
-    from rich.text import Text
     run = dict(RUNS[0], playerClass="[bold", difficulty="[/x]", roomPath="[red]")
     screen, _ = _screen(runs=[run])
     Text.from_markup(screen.list_text())

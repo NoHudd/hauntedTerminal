@@ -8,6 +8,7 @@ import pytest
 from engine.api import GameSession
 from engine.events import EventType
 from src.game_states import GameState
+from src.save import save_manager
 
 
 @pytest.fixture
@@ -43,6 +44,7 @@ def test_main_menu_choice_returns_to_the_title(session: GameSession) -> None:
     session.submit("m")
     assert session.state == GameState.MENU
     assert [data["reason"] for data in seen] == ["menu"]  # the UI shows the title
+    assert save_manager.active_run_id is None  # the run is over
 
 
 def test_quit_choice_asks_the_frontend_to_stop(session: GameSession) -> None:

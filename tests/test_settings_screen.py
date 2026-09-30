@@ -39,16 +39,12 @@ def test_rows_are_the_four_settings() -> None:
     ]
 
 
-def test_right_applies_the_next_palette(manager: SettingsManager) -> None:
-    screen = _screen(manager)
-    screen.action_change(1)
-    assert manager.settings["theme"] == "neon"
-
-
-def test_left_on_the_first_palette_wraps_to_the_last(manager: SettingsManager) -> None:
-    screen = _screen(manager)
-    screen.action_change(-1)
-    assert manager.settings["theme"] == "yonce"
+@pytest.mark.parametrize(("delta", "theme"), [(1, "neon"), (-1, "yonce")])
+def test_left_right_cycle_the_palette_with_wraparound(
+    manager: SettingsManager, delta: int, theme: str,
+) -> None:
+    _screen(manager).action_change(delta)
+    assert manager.settings["theme"] == theme
 
 
 def test_down_down_right_turns_reduce_motion_on(manager: SettingsManager) -> None:

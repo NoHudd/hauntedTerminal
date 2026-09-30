@@ -10,8 +10,7 @@ import pytest
 
 import src.save as save_mod
 from engine.api import GameSession
-from src.player import Player
-from src.save import MAX_RUNS, SAVE_VERSION, SaveManager
+from src.save import MAX_RUNS, SaveManager
 
 
 @pytest.fixture
@@ -24,29 +23,17 @@ def session() -> Iterator[GameSession]:
         s.close()
 
 
-@pytest.fixture
-def mgr(tmp_path: Path) -> SaveManager:
-    return SaveManager(save_dir=str(tmp_path))
-
-
-@pytest.fixture
-def clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every save gets a later timestamp, so newest-first order is exact."""
-    ticks = iter(range(1000, 100000, 10))
-    monkeypatch.setattr(save_mod, "_now", lambda: float(next(ticks)))
-
-
 def _save(mgr: SaveManager, s: GameSession) -> str:
     return mgr.save_game(s.player, s.world.get_state())
 
 
-def test_saves_in_one_run_overwrite_one_file(mgr, session, tmp_path, clock) -> None:
+def test_saves_in_one_run_overwrite_one_file(mgr, session, clock) -> None:
     mgr.begin_run()
     first = json.loads(Path(_save(mgr, session)).read_text())
     session.submit("cd root")
     _save(mgr, session)
 
-    files = list(tmp_path.glob("run_*.json"))
+    files = list(Path(mgr.save_dir).glob("run_*.json"))
     assert len(files) == 1
     data = json.loads(files[0].read_text())
     assert data["runId"] == mgr.active_run_id
@@ -68,14 +55,6 @@ def test_saving_with_no_run_in_progress_starts_one(mgr, session) -> None:
     _save(mgr, session)
     assert mgr.active_run_id is not None
     assert [r.run_id for r in mgr.list_runs()] == [mgr.active_run_id]
-
-
-def test_envelope_is_v6_and_camelcase(mgr, session) -> None:
-    raw = json.loads(Path(_save(mgr, session)).read_text())
-    assert raw["version"] == SAVE_VERSION == 6
-    for key in ("runId", "createdAt", "cleared", "savedAt", "saveDate", "difficulty"):
-        assert key in raw
-    assert raw["cleared"] is False
 
 
 def test_list_runs_is_newest_first_with_what_the_picker_shows(mgr, session, clock) -> None:
@@ -156,23 +135,17 @@ def test_delete_run(mgr, session) -> None:
     assert mgr.delete_run(run_id) is False
 
 
-def test_unreadable_run_file_is_skipped(mgr, session, tmp_path) -> None:
+def test_unreadable_run_file_is_skipped(mgr, session) -> None:
     _save(mgr, session)
-    (tmp_path / "run_deadbeef.json").write_text("{not json")
+    (Path(mgr.save_dir) / "run_deadbeef.json").write_text("{not json")
     assert len(mgr.list_runs()) == 1
     assert mgr.load_run("deadbeef") is None
 
 
-def test_atomic_write_leaves_no_temp_file(mgr, session, tmp_path) -> None:
+def test_atomic_write_leaves_no_temp_file(mgr, session) -> None:
     _save(mgr, session)
-    assert list(tmp_path.glob("*.tmp")) == []
+    assert list(Path(mgr.save_dir).glob("*.tmp")) == []
 
-
-def test_load_run_round_trip(mgr, session) -> None:
-    _save(mgr, session)
-    loaded = mgr.load_run(mgr.active_run_id)
-    assert loaded is not None
-    assert Player.from_dict(loaded["player"]).name == "Slotty"
 
 
 @pytest.mark.parametrize("bad", [
@@ -180,18 +153,19 @@ def test_load_run_round_trip(mgr, session) -> None:
     {"version": 6, "player": [1, 2]},
     {"version": 6, "player": {"health": "lots"}},
 ])
-def test_a_malformed_run_file_is_skipped_not_fatal(mgr, session, tmp_path, bad) -> None:
+def test_a_malformed_run_file_is_skipped_not_fatal(mgr, session, bad) -> None:
     _save(mgr, session)
-    (tmp_path / "run_badbad00.json").write_text(json.dumps(bad))
+    (Path(mgr.save_dir) / "run_badbad00.json").write_text(json.dumps(bad))
     assert [r.run_id for r in mgr.list_runs()] == [mgr.active_run_id]
     assert not mgr.runs_full()
 
 
 def test_a_failed_migration_does_not_block_the_run_list(
-    mgr, session, tmp_path, monkeypatch,
+    mgr, session, monkeypatch,
 ) -> None:
     _save(mgr, session)
-    (tmp_path / "save_1.json").write_text(json.dumps({"version": 5, "player": {"name": "Old"}}))
+    old_save = {"version": 5, "player": {"name": "Old"}}
+    (Path(mgr.save_dir) / "save_1.json").write_text(json.dumps(old_save))
 
     def broken_replace(src, dst):
         raise OSError("read-only disk")

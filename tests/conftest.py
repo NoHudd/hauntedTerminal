@@ -11,6 +11,7 @@ from collections.abc import Iterator
 
 import pytest
 
+import src.save as save_mod
 from engine.events import EventBus
 from src.game_states import GameState
 from src.state_manager import InvalidTransitionError, StateManager
@@ -49,8 +50,21 @@ def _isolated_saves(
     """Every test saves into its own scratch dir with no run in progress. With
     one file per run (and no pool cap) test saves would otherwise pile up in
     the real saves/."""
-    from src.save import save_manager
+    manager = save_mod.save_manager
+    monkeypatch.setattr(manager, "save_dir", str(tmp_path_factory.mktemp("saves")))
+    monkeypatch.setattr(manager, "active_run_id", None)
+    monkeypatch.setattr(manager, "pending_replace", None)
 
-    monkeypatch.setattr(save_manager, "save_dir", str(tmp_path_factory.mktemp("saves")))
-    monkeypatch.setattr(save_manager, "active_run_id", None)
-    monkeypatch.setattr(save_manager, "pending_replace", None)
+
+@pytest.fixture
+def mgr() -> save_mod.SaveManager:
+    """The game's own save manager, already pointed at this test's scratch dir
+    (so the engine, commands and autosaves all write where the test reads)."""
+    return save_mod.save_manager
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every save gets a later timestamp, so newest-first order is exact."""
+    ticks = iter(range(1000, 100000, 10))
+    monkeypatch.setattr(save_mod, "_now", lambda: float(next(ticks)))

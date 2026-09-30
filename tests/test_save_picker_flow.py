@@ -2,7 +2,8 @@
 same commands the picker screen sends: pick <id>, delete <id>, back."""
 from __future__ import annotations
 
-from collections.abc import Iterator
+import json
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -15,14 +16,9 @@ from src.game_states import GameState
 from src.save import SaveManager
 
 
-@pytest.fixture
-def mgr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SaveManager:
-    m = SaveManager(save_dir=str(tmp_path))
-    monkeypatch.setattr(save_mod, "save_manager", m)
-    monkeypatch.setattr("src.game_engine.save_manager", m)
-    ticks = iter(range(1000, 100000, 10))
-    monkeypatch.setattr(save_mod, "_now", lambda: float(next(ticks)))
-    return m
+@pytest.fixture(autouse=True)
+def _ordered_saves(clock: None) -> None:
+    """Runs made one after another list newest first."""
 
 
 @pytest.fixture
@@ -44,6 +40,13 @@ def _make_run(mgr: SaveManager, name: str, cls: str) -> str:
     finally:
         s.close()
         mgr.end_run()
+
+
+def _corrupt(mgr: SaveManager, run_id: str, change: Callable[[dict], None]) -> None:
+    path = Path(mgr.save_dir) / f"run_{run_id}.json"
+    data = json.loads(path.read_text())
+    change(data)
+    path.write_text(json.dumps(data))
 
 
 def _picker_events(s: GameSession) -> list[dict[str, Any]]:
@@ -147,13 +150,9 @@ def test_the_replace_picker_has_no_delete(mgr, fresh, monkeypatch: pytest.Monkey
     assert [r.run_id for r in mgr.list_runs()] == [ada]
 
 
-def test_a_run_that_fails_to_load_reopens_the_picker(mgr, fresh, tmp_path) -> None:
-    import json
+def test_a_run_that_fails_to_load_reopens_the_picker(mgr, fresh) -> None:
     ada = _make_run(mgr, "Ada", "guardian")
-    path = tmp_path / f"run_{ada}.json"
-    data = json.loads(path.read_text())
-    data["world"] = "garbage"
-    path.write_text(json.dumps(data))
+    _corrupt(mgr, ada, lambda data: data.update(world="garbage"))
     seen = _picker_events(fresh)
 
     fresh.submit("2")
@@ -165,16 +164,14 @@ def test_a_run_that_fails_to_load_reopens_the_picker(mgr, fresh, tmp_path) -> No
     assert mgr.active_run_id is None
 
 
-def test_markup_in_a_saved_class_or_difficulty_does_not_break_the_list(
-    mgr, fresh, tmp_path,
-) -> None:
-    import json
+def test_markup_in_a_saved_class_or_difficulty_does_not_break_the_list(mgr, fresh) -> None:
     ada = _make_run(mgr, "Ada", "guardian")
-    path = tmp_path / f"run_{ada}.json"
-    data = json.loads(path.read_text())
-    data["player"]["player_class"] = "[bold"
-    data["difficulty"] = "[/x]"
-    path.write_text(json.dumps(data))
+
+    def add_markup(data: dict) -> None:
+        data["player"]["player_class"] = "[bold"
+        data["difficulty"] = "[/x]"
+
+    _corrupt(mgr, ada, add_markup)
 
     out = _text(fresh.submit("2"))
     assert fresh.state == GameState.WAITING_FOR_SAVE

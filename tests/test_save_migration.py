@@ -38,6 +38,8 @@ def test_old_saves_become_one_slot_per_hero(tmp_path: Path) -> None:
     assert raw["version"] == SAVE_VERSION
     assert raw["createdAt"] == 100  # the group's oldest save
     assert raw["cleared"] is False
+    loaded = SaveManager(save_dir=str(tmp_path)).load_run(runs[0].run_id)
+    assert loaded is not None and loaded["player"]["name"] == "Ada"
 
 
 def test_every_old_file_moves_to_legacy_and_none_is_deleted(tmp_path: Path) -> None:
@@ -61,22 +63,6 @@ def test_migration_fills_only_free_slots(tmp_path: Path) -> None:
     runs = SaveManager(save_dir=str(tmp_path)).list_runs()
     assert len(runs) == MAX_RUNS
     assert runs[-1].player_name == "Hero2"  # the two oldest heroes stay in legacy/ only
-
-
-def test_migration_runs_once(tmp_path: Path) -> None:
-    _put(tmp_path, "save_1.json", _v5("Ada", "guardian", "easy", 1))
-    mgr = SaveManager(save_dir=str(tmp_path))
-    mgr.list_runs()
-    mgr.list_runs()
-    assert len(mgr.list_runs()) == 1
-
-
-def test_a_migrated_slot_loads(tmp_path: Path) -> None:
-    _put(tmp_path, "save_1.json", _v5("Ada", "guardian", "easy", 1))
-    mgr = SaveManager(save_dir=str(tmp_path))
-    run = mgr.list_runs()[0]
-    loaded = mgr.load_run(run.run_id)
-    assert loaded is not None and loaded["player"]["name"] == "Ada"
 
 
 def test_no_legacy_folder_means_zero(tmp_path: Path) -> None:

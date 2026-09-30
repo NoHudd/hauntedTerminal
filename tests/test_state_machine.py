@@ -12,7 +12,7 @@ import src.save as save_mod
 from engine.api import GameSession
 from engine.events import EventBus, EventType
 from src.game_states import GameState
-from src.save import SaveManager
+from src.save import SaveManager, save_manager
 from src.state_manager import InvalidTransitionError, StateManager
 
 
@@ -82,7 +82,6 @@ def test_load_from_the_menu(
 
 
 def test_f5_ends_the_run(fresh: GameSession) -> None:
-    from src.save import save_manager
     fresh.new_game("Tess", "guardian")
     fresh.submit("save")
     assert save_manager.active_run_id is not None

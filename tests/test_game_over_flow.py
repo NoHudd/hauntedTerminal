@@ -95,12 +95,6 @@ def test_r_after_a_combat_death_restores_the_last_checkpoint(dead: GameSession) 
     assert dead.player.is_alive()
 
 
-def test_m_after_a_combat_death_returns_to_the_main_menu(dead: GameSession) -> None:
-    dead.submit("m")
-    assert dead.engine.state_manager.current_state == GameState.MENU
-    assert save_manager.active_run_id is None
-
-
 def test_n_is_no_longer_a_game_over_choice(dead: GameSession) -> None:
     out = "\n".join(str(x) for x in dead.submit("n"))
     assert dead.engine.state_manager.current_state == GameState.GAME_OVER

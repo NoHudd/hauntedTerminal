@@ -46,8 +46,10 @@ def test_envelope_is_versioned_and_camelcase(session: GameSession, tmp_path) -> 
     mgr = SaveManager(save_dir=str(tmp_path))
     path = mgr.save_game(session.player, session.world.get_state())
     raw = json.loads(Path(path).read_text())
-    assert raw["version"] == SAVE_VERSION
-    assert "savedAt" in raw and "saveDate" in raw
+    assert raw["version"] == SAVE_VERSION == 6
+    for key in ("runId", "createdAt", "cleared", "savedAt", "saveDate", "difficulty"):
+        assert key in raw
+    assert raw["cleared"] is False
     assert "timestamp" not in raw and "save_date" not in raw
 
 
