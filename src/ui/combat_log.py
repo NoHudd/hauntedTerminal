@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import config.dev_config as dev_cfg
 from engine.view_models import AttackView, StatsView
 from src.move_info import effect_tags
 
@@ -119,8 +120,9 @@ def hotkey_display(player_view: StatsView | None, attacks: list[AttackView]) -> 
 
 
 def low_hp_hint(player_hp: tuple[int, int] | None, attacks: list[AttackView]) -> str:
-    """When HP is low, name the key that heals — a new player won't go looking."""
-    if not player_hp:
+    """When HP is low, name the key that heals — a new player won't go looking.
+    A hint, so the Settings "In-game hints" switch turns it off."""
+    if not player_hp or not getattr(dev_cfg, "SHOW_HINTS", True):
         return ""
     hp, max_hp = player_hp
     if max_hp <= 0 or hp > max_hp * LOW_HP_FRACTION:

@@ -93,7 +93,10 @@ class SettingsScreen(ModalScreen):
             yield Switch(value=current_motion, id="reduce-motion-switch")
 
             yield Label("In-game hints", classes="settings-label")
-            yield Static("[dim]Show → take/cat/cd command hints while exploring[/dim]")
+            yield Static(
+                "[dim]Show → take/cat/cd command hints while exploring, "
+                "and a heal reminder when HP is low[/dim]"
+            )
             yield Switch(value=current_hints, id="hints-switch")
 
             yield Static(

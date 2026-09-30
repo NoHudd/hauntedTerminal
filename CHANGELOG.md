@@ -41,8 +41,8 @@ new game.
 - NPC dialogue changes with what you have done.
 - Picking up an item shows what it is, right under "Added … to your inventory".
 - The class cards list each class's three moves, and the fight menu says which
-  moves heal you or weaken the enemy. When your HP runs low, the fight tells
-  you which key heals.
+  moves heal you or weaken the enemy. When your HP runs low (and in-game hints
+  are on), the fight tells you which key heals.
 
 ### Easier to type
 - Forgiving item names, Tab completion, and "Did you mean…" on typos.

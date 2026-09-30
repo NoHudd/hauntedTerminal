@@ -22,6 +22,14 @@ _OPENING = [{"actor": "system", "message": "Combat initiated"}]
 _MID_FIGHT = [*_OPENING, {"actor": "enemy", "message": "The Knight hits you"}]
 
 
+@pytest.fixture(autouse=True)
+def _hints_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The low-HP line is a hint; don't let a developer's saved settings hide it.
+    import config.dev_config as dev_cfg
+
+    monkeypatch.setattr(dev_cfg, "SHOW_HINTS", True)
+
+
 @pytest.fixture
 def s(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Iterator[GameSession]:
     monkeypatch.setattr(save_manager, "save_dir", str(tmp_path))
@@ -83,6 +91,21 @@ def test_no_low_hp_hint_when_healthy_or_no_heal_move() -> None:
     assert "Low HP" not in healthy
     no_heal = render_combat_output(_MID_FIGHT, _PLAYER, _ATTACKS[:2], player_hp=(26, 160))
     assert "Low HP" not in no_heal
+
+
+def test_low_hp_hint_obeys_the_hints_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    import config.dev_config as dev_cfg
+
+    monkeypatch.setattr(dev_cfg, "SHOW_HINTS", False)
+    for log in (_OPENING, _MID_FIGHT):
+        out = render_combat_output(log, _PLAYER, _ATTACKS, player_hp=(26, 160))
+        assert "Low HP" not in out
+    # The menu's own effect tags are facts, not hints: they stay.
+    assert "heals 13 HP" in hotkey_display(_PLAYER, _ATTACKS)
+
+    monkeypatch.setattr(dev_cfg, "SHOW_HINTS", True)
+    out = render_combat_output(_MID_FIGHT, _PLAYER, _ATTACKS, player_hp=(26, 160))
+    assert "Low HP" in out
 
 
 def test_class_card_lists_every_move_with_its_effect() -> None:
