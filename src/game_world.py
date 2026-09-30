@@ -268,6 +268,35 @@ class GameWorld:
                 main_got += got
         return main_got, main_total, secret_got, secret_total
 
+    def reveal_doors(self, key_id):
+        """A key was gained: the doors it opens become visible (still locked
+        until walked into). Returns the room ids newly revealed."""
+        item = self.items.get(key_id)
+        revealed = []
+        for rid in getattr(item, "unlocks", None) or []:
+            state = self._room_state(str(rid))
+            if not state.get("keyRevealed"):
+                state["keyRevealed"] = True
+                revealed.append(str(rid))
+        return revealed
+
+    def door_visible(self, room_id):
+        """False while the room or any ancestor is locked and not yet revealed
+        by its key. Flag-gated rooms (/boot) always stay in view."""
+        from src.room_paths import ancestors, room_at, room_path
+
+        target = room_path(room_id)
+        for path in ancestors(target) + [target]:
+            rid = room_at(path)
+            if rid is None:
+                continue
+            if getattr(self.get_room(rid), "flags_required", 0):
+                continue
+            state = self.room_states.get(rid, {})
+            if state.get("locked", False) and not state.get("keyRevealed", False):
+                return False
+        return True
+
     def set_room_visited(self, room_id):
         """Mark a room as visited"""
         if room_id in self.room_states:
@@ -528,8 +557,11 @@ class GameWorld:
                     }
 
             if state.get("locked", False):
+                # A door its key has not revealed yet does not exist, as far
+                # as the player can tell.
                 return False, {
-                    "path": path, "room_id": rid, "reason": "locked",
+                    "path": path, "room_id": rid,
+                    "reason": "locked" if state.get("keyRevealed") else "missing",
                     "key_required": state.get("key_required"),
                     "class_restriction": None,
                 }

@@ -31,6 +31,7 @@ flag:
   file: lost_user_log
   via: grep
   text: "FLAG{grep_finds_needles}"
+  grants: lib_key
   nudge: "That log is hundreds of lines. Don't read it — search it."
   command: "[bold]grep FLAG lost_user_log[/bold]"
   teach: "The lost user's log here is hundreds of lines long — too long to read. [bold]grep[/bold] searches a file for a word and prints only the lines containing it. Type [bold]grep FLAG lost_user_log[/bold]."

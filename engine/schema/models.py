@@ -63,6 +63,8 @@ class RoomFlag(_Base):
     # kill flags: the rogue's line in ps.
     pid: int = 0
     process: str = ""
+    # A key this flag hands out on capture (the keys chain).
+    grants: ItemId | None = None
 
 
 class Room(_Base):

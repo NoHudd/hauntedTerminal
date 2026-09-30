@@ -20,8 +20,8 @@ exits:
   - home_grove
 items:
   - system_err_log
-  - chmod_key
-# Story items - Creator's Typo discovery and Firewall Knight key
+# Story item - Creator's Typo discovery. The Firewall Knight's key (chmod_key)
+# is granted by this room's flag.
 enemy_tier: 2
 enemy_count: 2
 npcs: []
@@ -41,5 +41,6 @@ aliases: ["/var", "/var/log", "/var/dungeon", "var", "dungeon"]
 flag:
   file: system_err_log
   text: "FLAG{logs_remember_everything}"
+  grants: chmod_key
   nudge: "The system keeps a hidden error log here."
   command: "[bold]ls -a[/bold], then [bold]cat .system_err_log[/bold]"

@@ -16,6 +16,7 @@ from engine.content import (
     find_broken_references,
     find_dialogue_problems,
     find_flag_problems,
+    find_key_chain_problems,
     find_lock_problems,
     find_nav_problems,
     find_reference_warnings,
@@ -62,6 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         + find_dialogue_problems(content)
         + find_lock_problems(content)
         + find_flag_problems(content)
+        + find_key_chain_problems(content)
         + find_unread_fields(content)
     )
     if problems:

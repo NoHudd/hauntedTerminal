@@ -39,6 +39,7 @@ flag:
   file: catalog_db
   via: grep
   text: "FLAG{knowledge_is_searchable}"
+  grants: opt_key
   nudge: "The catalog is far too long to read. Search it for the word FLAG."
   command: "[bold]grep FLAG catalog_db[/bold]"
   clue: "The catalog holds every title ever written. Nobody reads it front to back; they search it."

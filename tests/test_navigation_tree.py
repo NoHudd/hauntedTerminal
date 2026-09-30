@@ -75,6 +75,7 @@ def test_unknown_path_reports_no_such_file(session: GameSession) -> None:
 # --- permission --------------------------------------------------------------
 
 def test_sealed_directory_is_refused_and_names_its_key(session: GameSession) -> None:
+    session.world.reveal_doors("lib_key")  # seen, but the key is not held
     out = _text(session.submit("cd /usr"))
     assert "Permission denied" in out
     assert "lib_key" in out
@@ -84,6 +85,7 @@ def test_sealed_directory_is_refused_and_names_its_key(session: GameSession) -> 
 def test_a_sealed_parent_seals_its_children(session: GameSession) -> None:
     """/usr/games is not locked itself; /usr above it is."""
     assert not session.world.get_room_state("usr_share_games").get("locked", False)
+    session.world.reveal_doors("lib_key")  # seen, but the key is not held
 
     out = _text(session.submit("cd /usr/games"))
     assert "Permission denied" in out

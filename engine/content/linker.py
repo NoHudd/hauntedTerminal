@@ -307,6 +307,58 @@ def find_flag_problems(content: GameContent) -> list[str]:
     return problems
 
 
+def find_key_chain_problems(content: GameContent) -> list[str]:
+    """Flag-granted keys must be keys, and walking the chain from the start
+    must reach enough main flags to open every flag-gated room (empty ==
+    clean). Only non-hidden rooms count; boss drops are not relied on."""
+    problems: list[str] = []
+    grants: dict[str, str] = {}
+    for rid, room in content.rooms.items():
+        grant = room.flag.grants if room.flag is not None else None
+        if grant is None:
+            continue
+        item = content.items.get(grant)
+        if item is None or item.type != "key":
+            problems.append(f"room '{rid}': flag grants '{grant}', which is not a key")
+        grants[str(rid)] = str(grant)
+
+    by_path = {room.path: str(rid) for rid, room in content.rooms.items() if room.path}
+
+    def path_open(rid: str, held: set[str]) -> bool:
+        path = content.rooms[RoomId(rid)].path
+        while True:
+            owner = by_path.get(path)
+            if owner is not None:
+                room = content.rooms[RoomId(owner)]
+                if room.flags_required:
+                    return False
+                if room.locked and room.key_required not in held:
+                    return False
+            if path in ("/", ""):
+                return True
+            path = _parent_of(path)
+
+    held: set[str] = set()
+    while True:
+        open_rooms = [
+            str(rid) for rid, room in content.rooms.items()
+            if not room.hidden and path_open(str(rid), held)
+        ]
+        gained = {grants[r] for r in open_rooms if r in grants} - held
+        if not gained:
+            break
+        held |= gained
+
+    flags = len([r for r in open_rooms if content.rooms[RoomId(r)].flag is not None])
+    for rid, room in content.rooms.items():
+        if room.flags_required and flags < room.flags_required:
+            problems.append(
+                f"room '{rid}': needs {room.flags_required} flags but the key chain "
+                f"reaches only {flags} main flag rooms"
+            )
+    return problems
+
+
 def find_unread_fields(content: GameContent) -> list[str]:
     """Undeclared content fields outside UNIMPLEMENTED_FIELDS (empty == clean)."""
     sections: list[tuple[str, Mapping[Any, BaseModel]]] = [
