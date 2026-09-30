@@ -43,6 +43,24 @@ SIM_OBTAINABLE_RARITIES = {"common", "uncommon", "rare", "epic"}
 # Consumable ids that restore HP, with the amount (from data/items/consumables.yaml).
 _HEAL_ITEMS = {"health_packet": 30, "stable_cache": 40}
 
+# Main-path flags a player holds by the Overlord fight (/boot's own flag is
+# captured by winning it, so it never feeds the fight).
+MAIN_FLAGS_BEFORE_BOSS = 12
+
+
+def flag_xp_schedule(n_fights: int, n_flags: int, xp_per_flag: int) -> list[int]:
+    """Flag XP to award after each fight, spreading n_flags evenly across the
+    run so every flag's XP has landed by the last fight."""
+    if n_fights <= 0:
+        return []
+    schedule = []
+    awarded = 0
+    for i in range(n_fights):
+        due = round(n_flags * (i + 1) / n_fights)
+        schedule.append((due - awarded) * xp_per_flag)
+        awarded = due
+    return schedule
+
 
 @dataclass
 class RunResult:
@@ -185,6 +203,8 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
     player = _build_player(class_id)
     total = len(enemy_ids)
     cleared = 0
+    from src.flags import FLAG_XP
+    flag_xp = flag_xp_schedule(total, MAIN_FLAGS_BEFORE_BOSS, FLAG_XP)
     for enemy_id in enemy_ids:
         enemy = world.get_enemy(enemy_id, class_id)
         if not enemy:
@@ -198,6 +218,8 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
         cleared += 1
         base = enemy.experience
         player.harvest_cycles(difficulty.scale_xp(base))
+        if flag_xp[cleared - 1]:
+            player.harvest_cycles(flag_xp[cleared - 1])
         # Loot heals only if this enemy actually drops one and the roll hits —
         # faithful to the real (stingy) drop economy, not a free per-fight heal.
         for drop in enemy.drops:

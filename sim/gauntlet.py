@@ -62,5 +62,11 @@ def main_path_enemy_ids() -> list[str]:
     rolled = roll_room_enemies(main_path, enemies, rng)
 
     ids = [eid for rid in main_path for eid in rolled.get(rid, []) if eid in enemies]
+    # Rogue processes hide until `kill`, so they are in no room's roll — but a
+    # player needs their flags for /boot, so they are part of the main path.
+    for room in main_path.values():
+        flag = getattr(room, "flag", None)
+        if flag is not None and flag.via == "kill" and flag.enemy in enemies:
+            ids.append(str(flag.enemy))
     ids.sort(key=lambda eid: _threat(enemies[eid]))
     return ids
