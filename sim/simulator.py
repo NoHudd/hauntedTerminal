@@ -242,6 +242,8 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
         player.harvest_cycles(difficulty.scale_xp(base))
         if flag_xp[i]:
             player.harvest_cycles(flag_xp[i])
+            # A capture restores full HP in the game (FlagService._capture).
+            player.health = player.max_health
         # Loot heals only if this enemy actually drops one and the roll hits —
         # faithful to the real (stingy) drop economy, not a free per-fight heal.
         for drop in enemy.drops:

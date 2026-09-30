@@ -1,5 +1,11 @@
 # Live difficulty multipliers.
 #
+# STALE AS OF 2026-09-30 (later the same day): a flag capture now restores
+# full HP. Deaths in these runs came from attrition across fights, so the sim
+# now wins ~100% in every mode (before: 94/80/65% avg on seed 1000 @200).
+# Even any partial refill (10%) does the same. The numbers below predate
+# that; re-tune (sim.tune) only if the modes should differ in outcome again.
+#
 # Re-tuned 2026-09-30 for room flags. Runs now include the three rogue-process
 # fights (/proc, /var/tmp, /etc) and up to 12 flags' worth of XP (15 cycles
 # each), which made every mode near-certain (avg 97-99%).

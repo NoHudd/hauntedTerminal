@@ -73,6 +73,15 @@ class FlagService:
             f"{flag.text}[/bold yellow]\n"
             f"[dim]{self.summary()} · +{FLAG_XP} cycles[/dim]"
         )
+        # A capture is a safe point: the recovered memory restores you fully,
+        # so the flag hunt, not grinding, is how a player gets their HP back.
+        missing = self.player.max_health - self.player.health
+        if missing > 0:
+            self.player.heal(missing)
+            self.output.write(
+                f"[bold green]✚ +{missing} HP — the recovered memory has you "
+                "fully restored.[/bold green]"
+            )
         if getattr(flag, "grants", None):
             self._grant_key(str(flag.grants))
         if save:
