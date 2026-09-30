@@ -89,6 +89,7 @@ def test_ls_marks_cleared_child_directory():
     s = GameSession()
     try:
         s.new_game("t", "guardian")
+        s.world.mark_flag_captured("var_dungeon")
         for enemy_id in list(s.world.enemy_locations):
             if s.world.enemy_locations[enemy_id] == "var_dungeon":
                 s.world.remove_enemy_from_room(enemy_id)
@@ -111,6 +112,7 @@ def test_tree_marks_cleared_room():
     try:
         s.new_game("t", "guardian")
         s.world.set_room_visited("var_dungeon")
+        s.world.mark_flag_captured("var_dungeon")
         for enemy_id in list(s.world.enemy_locations):
             if s.world.enemy_locations[enemy_id] == "var_dungeon":
                 s.world.remove_enemy_from_room(enemy_id)

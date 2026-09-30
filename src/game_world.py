@@ -227,15 +227,30 @@ class GameWorld:
             debug_log(f"WARNING: Requested state for unknown room {room_id}, returning default state")
         return state
     
+    def _room_state(self, room_id):
+        return self.room_states.setdefault(room_id, {"visited": False, "locked": False})
+
     def mark_hidden_files_listed(self, room_id):
         """`ls -a` ran here: this room's dotfiles are now known to the player,
         so Tab may offer them."""
-        self.room_states.setdefault(room_id, {"visited": False, "locked": False})[
-            "hidden_listed"
-        ] = True
+        self._room_state(room_id)["hiddenListed"] = True
 
     def hidden_files_listed(self, room_id) -> bool:
-        return bool(self.room_states.get(room_id, {}).get("hidden_listed", False))
+        state = self.room_states.get(room_id, {})
+        # "hidden_listed" was the first spelling, in saves from 2026-09-29.
+        return bool(state.get("hiddenListed") or state.get("hidden_listed"))
+
+    def mark_flag_captured(self, room_id):
+        self._room_state(room_id)["flagCaptured"] = True
+
+    def flag_captured(self, room_id) -> bool:
+        return bool(self.room_states.get(room_id, {}).get("flagCaptured", False))
+
+    def mark_flag_taught(self, room_id):
+        self._room_state(room_id)["flagTaught"] = True
+
+    def flag_taught(self, room_id) -> bool:
+        return bool(self.room_states.get(room_id, {}).get("flagTaught", False))
 
     def set_room_visited(self, room_id):
         """Mark a room as visited"""
@@ -425,13 +440,16 @@ class GameWorld:
             self.fled_enemies[room_id] = []
 
     def is_room_cleared(self, room_id):
-        """Whether a room is done: visited if it never had enemies, otherwise
-        its enemies genuinely dealt with — not merely
+        """Whether a room is done: its flag captured (if it has one), and then
+        visited if it never had enemies, otherwise its enemies genuinely dealt
+        with — not merely
         absent right now. A fled enemy is removed from enemy_locations too,
         but respawn_fled_enemies puts it right back on the player's next
         ROOM_ENTERED for this room, so "currently no enemies present" alone
         is not enough; fled_enemies must also be empty for this room."""
         room = self.get_room(room_id)
+        if getattr(room, "flag", None) is not None and not self.flag_captured(room_id):
+            return False
         ever_had_enemies = bool(getattr(room, "enemies", None)) or \
             getattr(room, "enemy_tier", None) is not None
         if not ever_had_enemies:
