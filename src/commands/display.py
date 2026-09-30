@@ -115,8 +115,16 @@ class KeysCommand(Command):
             (iid, item) for iid, item in ctx.world.items.items()
             if str(item.type).lower() == "key"
         )
+        flag_keys = {
+            str(room.flag.grants) for room in ctx.world.rooms.values()
+            if getattr(room, "flag", None) is not None and room.flag.grants
+        }
         for key_id, item in keys:
-            has_key = ctx.player.has_item(key_id)
+            if not ctx.player.has_item(key_id):
+                # Unearned: its doors are still invisible, so don't name them.
+                source = "earned by a flag" if key_id in flag_keys else "dropped by a boss"
+                output.append(f"\n❌ ??? — {source}\n", style="dim")
+                continue
             # An undiscovered secret room stays secret, here as in ls.
             doors = ", ".join(
                 room_paths.room_path(r)
@@ -125,16 +133,13 @@ class KeysCommand(Command):
                 else "???"
                 for r in item.unlocks
             ) or "—"
-            output.append(
-                f"\n{'✅' if has_key else '❌'} {item.name} ({key_id})\n",
-                style="bold" if has_key else "dim",
-            )
-            output.append(f"   🚪 Opens: {doors}\n", style="blue" if has_key else "dim")
+            output.append(f"\n✅ {item.name} ({key_id})\n", style="bold")
+            output.append(f"   🚪 Opens: {doors}\n", style="blue")
 
         output.append("\n💡 HOW DOORS OPEN:\n", style="bold magenta")
         output.append(
-            "Keys open locked directories. Some turn up in different places each "
-            "run; some drop from bosses.\n",
+            "Some flags hand you a key; bosses drop the rest. A locked directory "
+            "only shows up once you hold its key.\n",
             style="dim",
         )
         for room_id, room in ctx.world.rooms.items():

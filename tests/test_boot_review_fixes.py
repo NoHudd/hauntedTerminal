@@ -61,12 +61,14 @@ def s() -> Iterator[GameSession]:
 
 
 def test_keys_command_tells_the_truth(s: GameSession) -> None:
+    s.player.add_to_inventory("lib_key", s.world.get_item("lib_key"))
     out = "\n".join(str(x) for x in s.submit("keys"))
     assert "var_dungeon" not in out and "class-restricted" not in out
     assert "/usr" in out and "11 flags" in out
 
 
 def test_keys_does_not_spoil_undiscovered_secret_rooms(s: GameSession) -> None:
+    s.player.add_to_inventory("opt_key", s.world.get_item("opt_key"))
     out = "\n".join(str(x) for x in s.submit("keys"))
     assert "/opt" not in out and "/root" not in out
     s.world.discover_room("opt_mage_tower")

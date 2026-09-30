@@ -81,6 +81,7 @@ def test_inventory_shows_starter_items(session: GameSession) -> None:
 
 
 def test_keys_shows_progression(session: GameSession) -> None:
+    session.player.add_to_inventory("lib_key", session.world.get_item("lib_key"))
     out = _text(session.submit("keys"))
     assert "KEYS" in out
     assert "lib_key" in out
