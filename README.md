@@ -57,12 +57,12 @@ _Exploring the Graveyard — pixel scene view, live panels, ECHO's quick referen
 
 ### Step 0 — download the game and go INTO its folder
 
-Download **`haunted-terminal-v0.2.0.zip`** from the
-[Releases page](https://github.com/NoHudd/hauntedTerminal/releases/latest),
+On this page click **Code → Download ZIP**
+([direct link](https://github.com/NoHudd/hauntedTerminal/archive/refs/heads/main.zip)),
 unzip it, then open a terminal in that folder:
 
 ```bash
-cd haunted-terminal
+cd hauntedTerminal-main
 ```
 
 All commands below must be run **from inside the game folder**.
