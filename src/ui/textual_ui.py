@@ -683,16 +683,9 @@ class TextualGameUI(App):
             return
 
         try:
-            # Use available attacks from combat view data (list of AttackView dicts)
-            # Filter out attacks on cooldown
-            available_list = [
-                attack
-                for attack in self._available_attacks
-                if not attack.on_cooldown
-            ]
-
-            # Bind keys dynamically
-            for i, attack_data in enumerate(available_list, 1):
+            # One key per attack in the panel's order, cooldowns included, so
+            # the number shown next to an attack is always the key that fires it.
+            for i, attack_data in enumerate(self._available_attacks, 1):
                 if i > 9:
                     break
 
@@ -748,67 +741,41 @@ class TextualGameUI(App):
         )
 
     def _execute_combat_hotkey(self, hotkey_number: int):
-        """Execute combat action based on hotkey number - only available attacks."""
-        # Use StateManager to check combat state
+        """Fire the attack the combat panel shows at this number. One that is
+        cooling down says so instead of firing anything."""
         if not self.state_manager.is_in_combat():
             return
 
         try:
-            # Log all available attacks with cooldown status
-            logger.debug(f"Hotkey {hotkey_number} pressed. Available attacks: {len(self._available_attacks)}")
-            for i, attack in enumerate(self._available_attacks, 1):
-                on_cd = attack.on_cooldown
-                cd_remaining = attack.cooldown_remaining
-                attack_name = attack.name
-                logger.debug(f"  [{i}] {attack_name}: on_cooldown={on_cd}, remaining={cd_remaining}")
-
-            # Use available attacks from combat view data (list of AttackView dicts)
-            # Only include attacks that are NOT on cooldown
-            available_list = [
-                attack
-                for attack in self._available_attacks
-                if not attack.on_cooldown
-            ]
-
-            logger.debug(f"After cooldown filter: {len(available_list)} attacks available")
-
-            if 1 <= hotkey_number <= len(available_list):
-                attack_data = available_list[hotkey_number - 1]
-                attack_id = attack_data.id
-                attack_name = attack_data.name
-
-                logger.debug(f"Executing attack: {attack_name} (id={attack_id})")
-
-                self.bus.emit_event(
-                    EventType.COMBAT_ACTION_SELECTED,
-                    {"choice": attack_id},
-                    "TextualGameUI"
+            if not 1 <= hotkey_number <= len(self._available_attacks):
+                logger.debug(
+                    f"Hotkey [{hotkey_number}] out of range "
+                    f"(only {len(self._available_attacks)} attacks)"
                 )
+                return
 
-                # Don't show immediate feedback during combat - the combat log will show the results
-                # The combat system handles all output during combat mode
-            else:
-                # Check if hotkey corresponds to an attack on cooldown
-                if 1 <= hotkey_number <= len(self._available_attacks):
-                    attack_data = self._available_attacks[hotkey_number - 1]
-                    if attack_data.on_cooldown:
-                        attack_name = attack_data.name
-                        cd_remaining = attack_data.cooldown_remaining
+            attack_data = self._available_attacks[hotkey_number - 1]
+            if attack_data.on_cooldown:
+                # Push cooldown notice to combat log so panel stays intact.
+                self._combat_log.append({
+                    "actor": "system",
+                    "message": (
+                        f"⏱ {attack_data.name} on cooldown "
+                        f"({attack_data.cooldown_remaining}t)"
+                    ),
+                })
+                if len(self._combat_log) > 10:
+                    self._combat_log.pop(0)
+                self._update_combat_main_output()
+                return
 
-                        # Push cooldown notice to combat log so panel stays intact.
-                        self._combat_log.append({
-                            "actor": "system",
-                            "message": f"⏱ {attack_name} on cooldown ({cd_remaining}t)"
-                        })
-                        if len(self._combat_log) > 10:
-                            self._combat_log.pop(0)
-                        self._update_combat_main_output()
-
-                        logger.debug(f"Hotkey [{hotkey_number}] - {attack_name} on cooldown for {cd_remaining} turns")
-                    else:
-                        logger.debug(f"Hotkey [{hotkey_number}] not available (only {len(available_list)} attacks ready)")
-                else:
-                    logger.debug(f"Hotkey [{hotkey_number}] out of range (only {len(self._available_attacks)} attacks)")
+            logger.debug(f"Executing attack: {attack_data.name} (id={attack_data.id})")
+            # The combat log shows the result; no immediate feedback here.
+            self.bus.emit_event(
+                EventType.COMBAT_ACTION_SELECTED,
+                {"choice": attack_data.id},
+                "TextualGameUI"
+            )
 
         except Exception as e:
             logger.error(f"Error executing combat hotkey {hotkey_number}: {e}")

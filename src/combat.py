@@ -234,7 +234,9 @@ class CombatSystem:
             if spell_attack_ids:
                  debug_log(f"Added {len(spell_attack_ids)} learned spell attacks: {spell_attack_ids}")
 
-        all_attack_ids = list(set(base_attacks_ids + spell_attack_ids)) # Use set to avoid duplicates
+        # Dedupe in class order: this order is the hotkey numbering, so it must
+        # not change between launches (a set's order does).
+        all_attack_ids = list(dict.fromkeys(base_attacks_ids + spell_attack_ids))
         debug_log(f"Combined attack IDs for {player_class}: {all_attack_ids}")
 
         available_attacks_data = {}

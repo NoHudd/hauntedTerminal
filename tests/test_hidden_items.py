@@ -43,3 +43,17 @@ def test_cat_reads_a_hidden_item_by_name(session: GameSession) -> None:
     readable by name."""
     out = _out(session, "cat bash_profile")
     assert "Sysadmin Spirit" in out
+
+
+def test_ls_a_shows_hidden_files_with_their_dot(session: GameSession) -> None:
+    """What you see is what you type: a hidden file lists as a dotfile, and its
+    hint names it the same way, since completion only offers it after a dot."""
+    out = _out(session, "ls -a")
+    assert ".bash_profile" in out
+    assert "cat .bash_profile" in out
+
+
+def test_echo_points_at_the_dotted_name(session: GameSession) -> None:
+    from src.data_loader import load_tutorial_hints
+
+    assert ".bash_profile" in load_tutorial_hints()["step_hidden"]

@@ -325,6 +325,9 @@ class LsCommand(Command):
         weapon_id = None
         for item_id in items:
             item = ctx.world.get_item(item_id)
+            # A hidden file is a dotfile: listed, hinted and completed with its
+            # leading dot, so what the player sees is what they type.
+            shown = f".{item_id}" if item and item.hidden else item_id
             description = ctx.get_formatted_item_description(item)
             # Colour the file by rarity so value reads at a glance. Common maps to
             # white, invisible against the description, so commons get green.
@@ -339,7 +342,7 @@ class LsCommand(Command):
             else:
                 output.append("  ")
             output.append(f"{item_icon(item.type if item else None)} ")
-            output.append(f"{item_id}", style=f"bold {item_color}")
+            output.append(shown, style=f"bold {item_color}")
             output.append(f" - {description}\n")
             if hints:
                 readable = (
@@ -347,7 +350,7 @@ class LsCommand(Command):
                     and not item.takeable
                 )
                 verb = "cat" if readable else "take"
-                output.append(f"     → {verb} {item_id}\n", style="dim cyan")
+                output.append(f"     → {verb} {shown}\n", style="dim cyan")
 
             if item and item.type == "weapon" and not weapon_found:
                 weapon_found = True

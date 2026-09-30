@@ -60,5 +60,5 @@ def test_story_files_list_in_red(session: GameSession) -> None:
         hints=False, long_format=False, has_content=False,
     )
     styles = {out.plain[span.start:span.end]: str(span.style) for span in out.spans}
-    assert "red" in styles["readme_txt_corrupt"]
+    assert "red" in styles[".readme_txt_corrupt"]  # hidden, so listed as a dotfile
     assert "red" not in styles["segfault_shield"]

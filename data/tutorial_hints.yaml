@@ -39,7 +39,7 @@
 "step5_postcombat": |-
   [bold green]ECHO>[/bold green] You won. [bold]use <item>[/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] escapes a losing one. Now — this directory holds more than plain [bold]ls[/bold] admits. Files whose names start with a dot stay hidden. Type: [bold]ls -a[/bold] to list everything.
 "step_hidden": |-
-  [bold green]ECHO>[/bold green] There — [bold]bash_profile[/bold], your own configuration file, hidden until now. [bold]ls -a[/bold] reveals hidden files anywhere, so try it in every new place. Read this one: type [bold]cat bash_profile[/bold]
+  [bold green]ECHO>[/bold green] There — [bold].bash_profile[/bold], your own configuration file, hidden until now. The leading dot is what hides it. [bold]ls -a[/bold] reveals hidden files anywhere, so try it in every new place. Read this one: type [bold]cat .bash_profile[/bold] ([bold]cat .[/bold] then [bold]Tab[/bold] finishes it)
 "step_cat": |-
   [bold green]ECHO>[/bold green] Feel that? A memory restored — and the system saved your progress. Every memory you recover with [bold]cat[/bold] is a checkpoint: if you fall, you resume from the last one. Keep reading what you find. Corrupted processes hide all over the system too — type: [bold]ps[/bold] to list what's running here.
 "step_ps": |-
