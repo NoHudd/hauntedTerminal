@@ -116,10 +116,10 @@ def test_undiscovered_directory_looks_like_it_does_not_exist(
     assert "No such file or directory" in out
 
 
-def test_class_restriction_is_reported_before_the_key(session: GameSession) -> None:
-    """A guardian cannot enter the weaver-only tower; naming a key they could
-    never use would be the unhelpful half of the message."""
+def test_a_guardian_with_the_key_may_enter_the_tower(session: GameSession) -> None:
+    """The trials are open to every class now; only the key gates them."""
     session.player.add_to_inventory("opt_key", session.world.get_item("opt_key"))
-    out = _text(session.submit("cd /opt"))
-    assert "Permission denied" in out
-    assert "weaver" in out.lower()
+    session.world.discover_room("opt_mage_tower")  # /opt is hidden until found
+    session.world.unlock_room("opt_mage_tower")
+    allowed, _ = session.world.check_access("opt_mage_tower", session.player)
+    assert allowed

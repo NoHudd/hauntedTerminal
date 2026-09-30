@@ -23,7 +23,7 @@ enemies:
 npcs: []
 locked: true
 key_required: opt_key
-class_restriction: guardian
+trial_class: guardian
 hidden: false
 
 # Navigation: canonical path + everything a player may type to get here.

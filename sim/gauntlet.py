@@ -52,12 +52,12 @@ def main_path_enemy_ids() -> list[str]:
     # gauntlet no player ever plays and dropped the boss entirely.
     #
     # Still excluded: hidden rooms (secret detours the player may never find) and
-    # class-restricted rooms (a run must never be scored against a boss its class
-    # cannot reach). rooms are typed Room models (from load_room_data).
+    # trial rooms (optional side fights, open to every class). rooms are typed
+    # Room models (from load_room_data).
     main_path = {
         rid: room for rid, room in rooms.items()
         if not room.hidden
-        and not room.class_restriction
+        and not room.trial_class
     }
     rolled = roll_room_enemies(main_path, enemies, rng)
 

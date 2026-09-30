@@ -15,6 +15,8 @@ from utils.debug_tools import debug_log
 FLAG_XP = 15
 STUCK_AFTER = 8
 ECHO = "[bold green]ECHO>[/bold green]"
+TRIAL_BONUS = 4
+TRIAL_TURNS = 10
 
 
 class FlagService:
@@ -81,6 +83,20 @@ class FlagService:
         lesson. Also resets the stuck counter."""
         self._idle = 0
         self._nudged_room = None
+        room = self.world.get_room(room_id)
+        trial = getattr(room, "trial_class", "") if room else ""
+        if trial and trial == self.player.player_class:
+            self.player.add_status_effect(
+                "trial_resonance",
+                {"name": "Resonance", "damage_bonus": TRIAL_BONUS,
+                 "description": f"+{TRIAL_BONUS} damage in your class's trial"},
+                TRIAL_TURNS,
+            )
+            self.output.write(
+                f"[bold magenta]This place resonates with you, "
+                f"{self.player.player_class}. +{TRIAL_BONUS} damage for "
+                f"{TRIAL_TURNS} turns.[/bold magenta]"
+            )
         if not self._guiding():
             return
         flag = self.flag_for(room_id)
