@@ -16,6 +16,7 @@ from textual.binding import Binding
 from textual.widgets import Footer, Static, Input
 from textual.containers import Container, VerticalScroll, Horizontal, Vertical
 from textual.reactive import var
+from textual.screen import ModalScreen
 from rich.text import Text
 
 from src.ui.ui_interface import UIInitializationError, UIStateError
@@ -33,6 +34,7 @@ from src.ui.panels.scene_view import SceneView
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
 from src.ui.screens.quit_confirm import MID_FIGHT_CHOICES, QuitConfirmScreen
+from src.ui.screens.save_picker import SavePickerScreen
 from src.ui.screens.selection_screen import SelectionCard, SelectionScreen
 from src.ui.screens.settings_screen import SettingsScreen
 from src.ui.combat_log import render_combat_output
@@ -125,6 +127,7 @@ class TextualGameUI(App):
         (EventType.GAME_WON, "_on_game_won"),
         (EventType.GAME_QUIT, "_on_game_quit"),
         (EventType.QUIT_CONFIRM_REQUESTED, "_on_quit_confirm_requested"),
+        (EventType.SAVE_PICKER_REQUESTED, "_on_save_picker_requested"),
         (EventType.TUTORIAL_HINT, "_on_tutorial_hint"),
     ]
 
@@ -352,6 +355,7 @@ class TextualGameUI(App):
     _SELECTION_STATES = {
         "waiting_for_difficulty",
         "waiting_for_class",
+        "waiting_for_save",
         "tutorial_name_input",
     }
 
@@ -372,7 +376,7 @@ class TextualGameUI(App):
 
     # -- art-card pickers -------------------------------------------------------
 
-    _picker: SelectionScreen | None = None
+    _picker: ModalScreen | None = None
 
     def _open_picker(self, heading: str, cards: list) -> None:
         def on_pick(card: SelectionCard) -> None:
@@ -397,6 +401,29 @@ class TextualGameUI(App):
             except Exception as e:
                 logger.debug(f"Picker dismiss failed: {e}")
             self._picker = None
+
+    def _on_save_picker_requested(self, event) -> None:
+        """LOAD GAME / slots-full NEW GAME: show (or refresh, after a delete)
+        the save picker. Its answers go back as typed commands."""
+        data = event.data or {}
+
+        def send(command: str) -> None:
+            self.bus.emit_event(
+                EventType.COMMAND_ENTERED, {"command": command}, "SavePickerScreen",
+            )
+
+        self._close_picker()
+        reduce_motion = bool(self._settings_manager.settings.get("reduce_motion", False))
+        self._picker = SavePickerScreen(
+            str(data.get("mode", "continue")),
+            list(data.get("runs", [])),
+            int(data.get("legacyCount", 0)),
+            send,
+            reduce_motion=reduce_motion,
+        )
+        # Deferred for the same reason as _open_picker: the Enter that chose
+        # LOAD GAME must not also answer the picker.
+        self.call_after_refresh(self.push_screen, self._picker)
 
     @staticmethod
     def _difficulty_cards() -> list:
