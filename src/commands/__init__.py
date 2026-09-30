@@ -33,6 +33,7 @@ from src.commands.shell import (
     TreeCommand,
     WhoamiCommand,
 )
+from src.commands.grep import GrepCommand
 from src.commands.hint import HintCommand
 from src.commands.system import QuitCommand, SaveCommand
 
@@ -65,6 +66,7 @@ MIGRATED: tuple[type[Command], ...] = (
     UseCommand,
     AttackCommand,
     HintCommand,
+    GrepCommand,
 )
 
 

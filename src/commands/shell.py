@@ -97,6 +97,15 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
         "the display is reset.",
         "Clears the output panel.",
     ),
+    "grep": (
+        "1", "print lines that match a pattern", "grep [-i] [-n] <pattern> <file>",
+        "Searches a file and prints only the lines that contain the pattern. The\n"
+        "rest of the file is skipped, which is why grep beats reading.\n\n"
+        "  -i   ignore case: FLAG, flag and Flag all match\n"
+        "  -n   show each matching line's number\n\n"
+        "Case matters without -i: 'flag' does not match 'FLAG'.",
+        "Logs here run to hundreds of lines. Don't read them. grep them.",
+    ),
     "man": (
         "1", "display the manual for a command", "man [command]",
         "Displays the manual page for a command: what it does, how it is invoked,\n"

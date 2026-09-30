@@ -16,6 +16,7 @@ _HELP_TEXT = """
         - [cyan]cd <path>[/cyan]: Change directory. Try [yellow]cd /var[/yellow], [yellow]cd ..[/yellow], or [yellow]cd[/yellow] alone for home
         - [cyan]pwd[/cyan]: Print the directory you are in
         - [cyan]cat <file>[/cyan]: Read a file
+        - [cyan]grep <word> <file>[/cyan]: Show only the lines of a file that contain a word
         - [cyan]tree[/cyan]: Show the filesystem you have discovered
         - [cyan]find <path> -name <x>[/cyan]: Search for a file
         - [cyan]ps[/cyan]: List running processes
