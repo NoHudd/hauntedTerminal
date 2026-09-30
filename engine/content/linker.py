@@ -251,20 +251,41 @@ def find_flag_problems(content: GameContent) -> list[str]:
         flag = room.flag
         if flag is None:
             continue
-        if flag.file not in content.items:
-            problems.append(f"room '{rid}': flag file '{flag.file}' is not an item")
-        elif flag.file not in room.items:
-            problems.append(
-                f"room '{rid}': flag file '{flag.file}' is not in this room's items"
-            )
+        if flag.via in ("cat", "grep"):
+            if flag.file is None:
+                problems.append(f"room '{rid}': a {flag.via} flag needs a file")
+            elif flag.file not in content.items:
+                problems.append(f"room '{rid}': flag file '{flag.file}' is not an item")
+            elif flag.file not in room.items:
+                problems.append(
+                    f"room '{rid}': flag file '{flag.file}' is not in this room's items"
+                )
+        if flag.via in ("kill", "defeat"):
+            enemy = content.enemies.get(flag.enemy) if flag.enemy else None
+            if enemy is None:
+                problems.append(f"room '{rid}': {flag.via} flag names no known enemy")
+            elif flag.via == "defeat" and flag.enemy not in room.enemies:
+                problems.append(
+                    f"room '{rid}': defeat flag enemy '{flag.enemy}' is not in its enemies"
+                )
+            elif flag.via == "kill":
+                if flag.pid <= 1 or not flag.process.strip():
+                    problems.append(f"room '{rid}': kill flag needs a pid > 1 and a process")
+                if flag.enemy in room.enemies or not enemy.pool_excluded:
+                    problems.append(
+                        f"room '{rid}': rogue '{flag.enemy}' must be pool_excluded and "
+                        "not already in the room's enemies"
+                    )
         if "FLAG{" not in flag.text:
             problems.append(f"room '{rid}': flag text has no FLAG{{...}}")
         if not flag.nudge.strip() or not flag.command.strip():
             problems.append(f"room '{rid}': flag needs both a nudge and a command")
-        if flag.via not in ("cat", "grep"):
-            problems.append(f"room '{rid}': flag via '{flag.via}' is not cat or grep")
+        if flag.via not in ("cat", "grep", "kill", "defeat"):
+            problems.append(
+                f"room '{rid}': flag via '{flag.via}' is not cat, grep, kill or defeat"
+            )
         if flag.via == "grep":
-            item = content.items.get(flag.file)
+            item = content.items.get(flag.file) if flag.file else None
             if item is None or item.log is None:
                 problems.append(f"room '{rid}': grep flag file '{flag.file}' has no log")
             elif flag.text not in item.log.flag_line:

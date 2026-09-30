@@ -49,7 +49,7 @@ class RoomFlag(_Base):
     """A room's capture-the-flag: the file whose reading captures it, the
     FLAG{...} text shown on capture, and beginner guidance (a nudge, the exact
     command, and an optional first-visit lesson Echo gives)."""
-    file: ItemId
+    file: ItemId | None = None
     text: str
     nudge: str
     command: str
@@ -58,6 +58,11 @@ class RoomFlag(_Base):
     via: str = "cat"
     # Said by any NPC in the room while the flag is still out there.
     clue: str = ""
+    # kill / defeat flags: the enemy whose defeat captures the flag.
+    enemy: EnemyId | None = None
+    # kill flags: the rogue's line in ps.
+    pid: int = 0
+    process: str = ""
 
 
 class Room(_Base):
