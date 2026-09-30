@@ -1,5 +1,5 @@
 """What using, reading or equipping an item does to the player and world."""
-from src import rng
+from src import rng, room_paths
 from utils.debug_tools import debug_log
 
 # Human-readable descriptions for story flags shown in journal/autosave feedback.
@@ -72,9 +72,11 @@ class ItemEffects:
 
         unlocked_something = False
         for room_to_unlock in resolved_unlocks:
-            if room_to_unlock in exits:
+            # An undiscovered secret stays secret: no click, no name.
+            if room_to_unlock in exits and self.world.is_discovered(room_to_unlock):
                 self.world.unlock_room(room_to_unlock)
-                self.output.write(f"[yellow]You hear a click. The path to {room_to_unlock} is now open.[/yellow]")
+                path = room_paths.room_path(room_to_unlock)
+                self.output.write(f"[yellow]You hear a click. The path to {path} is now open.[/yellow]")
                 unlocked_something = True
 
         if not unlocked_something:

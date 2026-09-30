@@ -6,6 +6,6 @@ dialogues:
   - "The Daemon Overlord's influence grows stronger with each passing cycle. You must act quickly."
   - "I have watched many sysadmin spirits pass through here. Few return from their journey to the core."
   - "Take heart—the filesystem itself aids those who seek to restore its balance."
-  - "Your first task is to explore and gather resources. Try 'cd root' to access the system root, then 'ls' to see what's available. The library key you need lies in the arcane archives."
+  - "Your first task is to explore and gather resources. Try 'cd root' to access the system root, then 'ls' to see what's available. Every directory hides a flag, and some flags hand you a key. Start with /mnt."
 on_talk:
   message: The Grove Guardian's voice resonates like a gentle data stream, bringing peace to your digital essence.

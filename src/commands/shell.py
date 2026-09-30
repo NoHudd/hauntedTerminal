@@ -50,7 +50,7 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
         "1", "print the working directory", "pwd",
         "Prints the absolute path of the directory you are currently in.\n"
         "Short for 'print working directory'.",
-        "Your location is always a real path — /home, /var/backups, /usr/games.",
+        "Your location is always a real path — /home, /var, /var/tmp.",
     ),
     "cat": (
         "1", "concatenate and print files", "cat [file]",

@@ -39,7 +39,7 @@ _HELP_TEXT = """
         - [cyan]save[/cyan] · [cyan]quit[/cyan] / [cyan]exit[/cyan]
 
         [bold]Navigation:[/bold]
-        - Directories are real paths: [yellow]/home[/yellow], [yellow]/var[/yellow], [yellow]/usr/games[/yellow]
+        - Directories are real paths: [yellow]/home[/yellow], [yellow]/var[/yellow], [yellow]/var/tmp[/yellow]
         - You may cd anywhere you have permission to reach, not just next door
         - Sealed directories need a key — and you need permission on every
           directory above them too
