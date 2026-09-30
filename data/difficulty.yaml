@@ -1,34 +1,33 @@
 # Live difficulty multipliers.
 #
-# Re-tuned 2026-09-29 for room flags. Runs now include the three rogue-process
-# fights (/proc, /var/tmp, /etc — their flags help open /boot) and up to 12
-# flags' worth of XP (15 cycles each). The XP outweighed the extra fights, so
-# every mode had become near-certain; only enemy_damage moved.
+# Re-tuned 2026-09-30 for room flags. Runs now include the three rogue-process
+# fights (/proc, /var/tmp, /etc) and up to 12 flags' worth of XP (15 cycles
+# each), which made every mode near-certain (avg 97-99%).
 #
-# Sim @80 runs/class (python -m sim.tune --mode all --runs 80), avg win rate:
-#            before (dmg 0.90/0.95/0.85)   after (dmg 1.0/1.1/1.0)   band
-#   easy     98.8%                         95.8%                     90-98
-#   medium   97.1%                         81.7%                     75-85
-#   hard     98.3%                         65.4%                     50-70
+# enemy_damage is held equal (0.9) and ordered with enemy_hp
+# (easy <= medium <= hard), so no mode hits harder per blow than a harder one;
+# the ramp comes from enemy_hp. xp_gain barely moves outcomes; enemy_hp is
+# steep (hard: 1.10 -> 66%, 1.15 -> 46%).
 #
-# Per-class spread is wide after this tune (medium: G 91 / W 59 / S 95;
-# hard: G 81 / W 66 / S 49). The tuner balances averages only; evening the
-# classes out is kit work, not a global multiplier.
+# Chosen by a grid on seed 1000 @100 runs/class, verified out of sample on
+# seed 2000 @200 runs/class (sim.simulator.measure), avg win rate:
+#            guardian  weaver  shaman   avg     band
+#   easy     97.0%     90.0%   99.5%    95.5%   90-98
+#   medium   88.5%     72.5%   89.0%    83.3%   75-85
+#   hard     77.0%     55.5%   72.0%    68.2%   50-70
 #
-# Hard is harder than medium through enemy_hp 1.15 (longer fights), not per-hit
-# damage. xp_gain is high across the board because enemies award their real
-# `experience` value, which is far below the flat 50 the game once assumed.
-#
-# Calibrated by: python -m sim.tune --mode all --runs 80
+# The sim gives rogue kills no gear progress (the game drops none), and pays
+# flag XP raw while combat XP is scaled, as the game does. Weaver is weakest
+# in every mode; evening the classes out is kit work, not a multiplier.
 easy:
   enemy_hp: 0.85
-  enemy_damage: 1.0
+  enemy_damage: 0.9
   xp_gain: 2.4
 medium:
-  enemy_hp: 0.95
-  enemy_damage: 1.1
-  xp_gain: 2.0
+  enemy_hp: 1.05
+  enemy_damage: 0.9
+  xp_gain: 1.8
 hard:
-  enemy_hp: 1.15
-  enemy_damage: 1.0
+  enemy_hp: 1.1
+  enemy_damage: 0.9
   xp_gain: 1.8
