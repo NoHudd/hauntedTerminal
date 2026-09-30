@@ -8,17 +8,13 @@ from src import difficulty
 
 logger = logging.getLogger(__name__)
 
-# Current on-disk save format version. v4 added the run's difficulty and the
-# player's equipped armor and status effects; a v3 save loads with medium
-# difficulty, no armor and no effects.
-SAVE_VERSION = 4
+# Current on-disk save format version. v5 added room flags (room_states
+# flagCaptured / flagTaught / hiddenListed) and the /boot flag gate.
+SAVE_VERSION = 5
 
-# Saves older than this cannot be loaded. v2 and earlier predate the filesystem
-# tree: they persist room_states captured when /usr, /var and /boot carried no
-# locks, so restoring one would hand the player an unsealed boss room and a
-# world whose paths no longer match its content. Rather than silently produce a
-# broken run, we refuse them and say why.
-MIN_SUPPORTED_VERSION = 3
+# Saves older than this cannot be loaded: v2 and earlier predate the filesystem
+# tree; v3-v4 predate room flags, so /boot's flag gate would strand them.
+MIN_SUPPORTED_VERSION = 5
 
 # Autosaves fire on each story beat (a lore file read), plus every manual save.
 # Without a cap the pool grows unbounded and every save/list operation slows
@@ -58,10 +54,15 @@ def _migrate_save(save_data):
         return save_data
 
     version = save_version(save_data)
-    if version < MIN_SUPPORTED_VERSION:
+    if version < 3:
         raise IncompatibleSaveError(
             f"save format v{version} is from before the filesystem rework and "
             f"cannot be loaded (current format is v{SAVE_VERSION})"
+        )
+    if version < MIN_SUPPORTED_VERSION:
+        raise IncompatibleSaveError(
+            f"save format v{version} is from before room flags and cannot be "
+            f"loaded (current format is v{SAVE_VERSION})"
         )
     return save_data
 

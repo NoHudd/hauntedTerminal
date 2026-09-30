@@ -99,3 +99,14 @@ def test_get_save_files_reads_v2(session: GameSession, tmp_path) -> None:
     assert len(files) == 1
     assert files[0]["player_name"] == "Saver"
     assert files[0]["date"] != "Unknown date"
+
+
+@pytest.mark.parametrize("version", [3, 4])
+def test_v4_saves_are_refused_and_hidden(version, tmp_path) -> None:
+    """Saves from before room flags have no flag state; /boot's gate would
+    strand them, so they are refused and not offered."""
+    (tmp_path / "old.json").write_text(json.dumps(_legacy_save(version)))
+    mgr = SaveManager(save_dir=str(tmp_path))
+    with pytest.raises(IncompatibleSaveError, match="flag"):
+        mgr.load_game("old.json")
+    assert mgr.get_save_files() == []

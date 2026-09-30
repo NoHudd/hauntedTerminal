@@ -106,17 +106,20 @@ def test_loading_a_hard_run_plays_it_on_hard(
         difficulty.set_mode(difficulty.DEFAULT_MODE)
 
 
-def test_a_v3_save_without_difficulty_still_loads(session: GameSession, tmp_path: Path) -> None:
+def test_a_save_missing_difficulty_armor_and_effects_still_loads(
+    session: GameSession, tmp_path: Path,
+) -> None:
+    """Fields a save may lack load as defaults. (v3/v4 saves themselves are now
+    refused — see test_saves — so this checks the current format.)"""
     mgr = SaveManager(save_dir=str(tmp_path))
-    mgr.save_game(session.player, session.world.get_state(), "v3.json")
-    raw = json.loads((tmp_path / "v3.json").read_text())
-    raw["version"] = 3
+    mgr.save_game(session.player, session.world.get_state(), "partial.json")
+    raw = json.loads((tmp_path / "partial.json").read_text())
     raw.pop("difficulty", None)
     for key in ("equipped_armor", "status_effects"):
         raw["player"].pop(key, None)
-    (tmp_path / "v3.json").write_text(json.dumps(raw))
+    (tmp_path / "partial.json").write_text(json.dumps(raw))
 
-    loaded = mgr.load_game("v3.json")
+    loaded = mgr.load_game("partial.json")
     restored = Player.from_dict(loaded["player"])
     assert restored.equipped_armor is None
     assert restored.status_effects == {}
