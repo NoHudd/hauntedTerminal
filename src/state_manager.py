@@ -17,11 +17,18 @@ class InvalidTransitionError(RuntimeError):
 class StateManager:
     """Game-state machine for one engine; emits transitions on that engine's bus."""
 
-    # Every transition the game makes, and no others. MENU -> PLAYING is Load
-    # Game; the -> MENU edges out of setup and play are F5 (restart) and the
-    # error fallbacks; PLAYING -> MENU is also "new game" after a win.
+    # Every transition the game makes, and no others. MENU -> WAITING_FOR_SAVE
+    # is LOAD GAME (and NEW GAME with every slot taken); the save picker then
+    # goes to PLAYING (a run picked), WAITING_FOR_DIFFICULTY (a run chosen to
+    # replace) or back to MENU. The -> MENU edges out of setup and play are F5,
+    # leaving a run for the main menu, and the error fallbacks.
     _valid_transitions: dict[GameState, list[GameState]] = {
-        GameState.MENU: [GameState.WAITING_FOR_DIFFICULTY, GameState.PLAYING],
+        GameState.MENU: [
+            GameState.WAITING_FOR_DIFFICULTY, GameState.PLAYING, GameState.WAITING_FOR_SAVE,
+        ],
+        GameState.WAITING_FOR_SAVE: [
+            GameState.MENU, GameState.PLAYING, GameState.WAITING_FOR_DIFFICULTY,
+        ],
         GameState.WAITING_FOR_DIFFICULTY: [GameState.WAITING_FOR_CLASS, GameState.MENU],
         GameState.WAITING_FOR_CLASS: [GameState.TUTORIAL_NAME_INPUT, GameState.MENU],
         GameState.TUTORIAL_NAME_INPUT: [GameState.PLAYING, GameState.MENU],

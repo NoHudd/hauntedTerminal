@@ -113,5 +113,5 @@ class HeadlessUI:
         self.bus.unsubscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
         self.bus = None
 
-    def _display_title_screen(self) -> None:
+    def _display_title_screen(self, skip_typewriter: bool = False) -> None:
         self.output_log.append("[title screen]")

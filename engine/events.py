@@ -62,6 +62,14 @@ class EventType(Enum):
     # The domain still accepts typed y/n/c, so a frontend that ignores this
     # event (the headless driver) keeps working exactly as before.
 
+    SAVE_PICKER_REQUESTED = auto()
+    # Emitted by: game_engine.py (LOAD GAME; NEW GAME when every slot is taken)
+    # Subscribed by: textual_ui.py (shows the save picker)
+    # Data: {"mode": "continue" | "replace", "runs": list[dict], "legacyCount": int}
+    # Each run: runId, playerName, playerClass, difficulty, level, roomPath,
+    # health, maxHealth, savedAt, cleared. The picker answers with the same
+    # commands a typed player can send: "pick <runId>", "delete <runId>", "back".
+
     GAME_QUIT = auto()
     # Emitted by: game_flow.py (perform_quit), game_engine.py (menu exit)
     # Subscribed by: textual_ui.py (App.exit), engine/headless/ui.py (records it)

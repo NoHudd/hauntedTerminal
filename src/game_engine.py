@@ -23,7 +23,7 @@ from src.item_placer import ItemPlacer
 from src.player import Player
 from src.command_handler import CommandHandler
 from src.game_output import GameOutput
-from src.save import save_manager
+from src.save import IncompatibleSaveError, save_manager
 from src.ui.ui_interface import UIProtocol, UIInitializationError
 from engine.events import EventBus, EventType
 from src.game_states import GameState, DEFAULT_GAME_STATE, DEFAULT_ROOM
@@ -66,6 +66,9 @@ class ImprovedGameEngine:
 
         # Non-reloadable state
         self.save_dir = "saves"
+        # Which save picker is up: "continue" (LOAD GAME) or "replace" (NEW
+        # GAME with every slot taken).
+        self._save_picker_mode = "continue"
         # UI is injected by the composition root (main.py) / GameSession / tests.
         # The backend never constructs the concrete frontend.
         self.ui = ui
@@ -201,6 +204,8 @@ class ImprovedGameEngine:
                 self.cmd_handler.handle_command(command)
             elif game_state == GameState.MENU:
                 self._handle_menu_command(command)
+            elif game_state == GameState.WAITING_FOR_SAVE:
+                self._handle_save_picker_input(command)
             elif game_state == GameState.WAITING_FOR_DIFFICULTY:
                 self._handle_difficulty_input(command)
             elif game_state == GameState.WAITING_FOR_CLASS:
@@ -415,8 +420,17 @@ class ImprovedGameEngine:
                 self.ui.update_output("\n1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: ")
     
     def _start_new_game(self):
-        """Start a new game by reloading world data and showing class selection."""
+        """NEW GAME. With every slot taken the player first picks a run to
+        replace; otherwise straight to setup."""
+        if save_manager.runs_full():
+            self._save_picker_mode = "replace"
+            self._show_save_picker()
+            return
+        save_manager.begin_run()
+        self._begin_setup()
 
+    def _begin_setup(self):
+        """A fresh world, then difficulty -> class -> name."""
         # Clean up stale event subscriptions from previous session
         if self.cmd_handler:
             self.cmd_handler.cleanup_event_subscriptions()
@@ -427,28 +441,113 @@ class ImprovedGameEngine:
 
         # Pick difficulty first (locked for the run), then class selection.
         self._show_difficulty_selection()
-        
+
     def _load_game(self):
-        """Load the most recently played run (the picker arrives in a later change)."""
+        """LOAD GAME: every run in the save picker, even when there are none."""
+        self._save_picker_mode = "continue"
+        self._show_save_picker()
+
+    # -- save picker ---------------------------------------------------------
+
+    def _run_rows(self, runs) -> list[dict]:
+        """What the picker shows for each run (camelCase, UI-ready)."""
+        from src import room_paths
+        id_to_path, _ = room_paths.build_nav_tables(self.world.rooms)
+        return [
+            {
+                "runId": run.run_id,
+                "playerName": run.player_name,
+                "playerClass": run.player_class,
+                "difficulty": run.difficulty,
+                "level": run.level,
+                "roomPath": id_to_path.get(run.room_id, run.room_id),
+                "health": run.health,
+                "maxHealth": run.max_health,
+                "savedAt": run.saved_at,
+                "cleared": run.cleared,
+            }
+            for run in runs
+        ]
+
+    def _show_save_picker(self, notice: str = ""):
+        """Enter the save picker: a typed list (headless, and behind the TUI's
+        modal) plus an event the TUI turns into the picker screen."""
+        rows = self._run_rows(save_manager.list_runs())
+        legacy = save_manager.legacy_count()
+        self.state_manager.set_state(GameState.WAITING_FOR_SAVE)
+        text = self._save_picker_text(self._save_picker_mode, rows, legacy)
+        self.ui.update_output(f"{notice}\n{text}" if notice else text)
+        self.bus.emit_event(
+            EventType.SAVE_PICKER_REQUESTED,
+            {"mode": self._save_picker_mode, "runs": rows, "legacyCount": legacy},
+            "ImprovedGameEngine",
+        )
+
+    @staticmethod
+    def _save_picker_text(mode: str, rows: list[dict], legacy: int) -> str:
+        heading = (
+            "CONTINUE A RUN" if mode == "continue"
+            else "SLOTS FULL — PICK A RUN TO REPLACE"
+        )
+        lines = [f"[bold cyan]{heading}[/bold cyan]", ""]
+        if not rows:
+            lines.append("No saves available")
+            if legacy:
+                noun = "save is" if legacy == 1 else "saves are"
+                lines.append(
+                    f"[dim]({legacy} old {noun} from an earlier version, "
+                    "kept in saves/legacy/)[/dim]"
+                )
+        for row in rows:
+            mark = " ✓ cleared" if row["cleared"] else ""
+            lines.append(
+                f"  {row['runId']}  {escape(row['playerName'])} · {row['playerClass']} · "
+                f"{row['difficulty']} · {escape(row['roomPath'])} · L{row['level']}{mark}"
+            )
+        verbs = "[green]pick <id>[/green]"
+        if mode == "continue" and rows:
+            verbs += ", [yellow]delete <id>[/yellow]"
+        lines += ["", f"Type {verbs} or [cyan]back[/cyan]."]
+        return "\n".join(lines)
+
+    def _handle_save_picker_input(self, command: str):
+        verb, _, arg = command.strip().partition(" ")
+        verb, arg = verb.lower(), arg.strip()
+        known = {run.run_id for run in save_manager.list_runs()}
+
+        if verb in ("back", "menu"):
+            self.state_manager.set_state(GameState.MENU)
+            self._show_title()
+        elif verb == "pick" and arg in known:
+            if self._save_picker_mode == "replace":
+                save_manager.begin_run(replace=arg)
+                self._begin_setup()
+            else:
+                self._continue_run(arg)
+        elif verb == "delete" and arg in known and self._save_picker_mode == "continue":
+            save_manager.delete_run(arg)
+            self._show_save_picker()
+        else:
+            self._show_save_picker(
+                notice=f"[bold red]Invalid choice: {escape(command.strip())}[/bold red]"
+            )
+
+    def _continue_run(self, run_id: str):
         try:
-            runs = save_manager.list_runs()
-            if not runs:
-                self.ui.update_output("[bold yellow]No save files found. Starting new game instead...[/bold yellow]\n")
-                self._start_new_game()
-                return
-            latest = runs[0]
-            self.ui.update_output(f"Loading {escape(latest.player_name)}'s run...")
-            save_data = save_manager.load_run(latest.run_id)
-            if not save_data:
-                self.ui.update_output("Failed to load save file. Starting new game instead...")
-                self._start_new_game()
-                return
-            save_manager.resume_run(latest.run_id)
-            self._enter_loaded_run(save_data, welcome=True)
-        except Exception as e:
-            logger.error(f"Error loading game: {e}")
-            self.ui.update_output(f"Error loading game: {e}. Starting new game instead...")
-            self._start_new_game()
+            save_data = save_manager.load_run(run_id)
+        except IncompatibleSaveError as e:
+            logger.warning(f"Refusing run {run_id}: {e}")
+            save_data = None
+        if not save_data:
+            self._show_save_picker(notice="[bold red]That save could not be loaded.[/bold red]")
+            return
+        save_manager.resume_run(run_id)
+        self._enter_loaded_run(save_data, welcome=True)
+
+    def _show_title(self):
+        """The title menu, without replaying the intro."""
+        if hasattr(self.ui, "_display_title_screen"):
+            self.ui._display_title_screen(skip_typewriter=True)
 
     @staticmethod
     def _reserved_name(name: str) -> bool:

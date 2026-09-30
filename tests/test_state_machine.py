@@ -71,8 +71,11 @@ def test_load_from_the_menu(
     monkeypatch.setattr("src.game_engine.save_manager", mgr)
     fresh.new_game("Tess", "guardian")
     mgr.save_game(fresh.player, fresh.world.get_state())
+    run_id = mgr.active_run_id
     fresh.engine.restart_game()
 
     fresh.submit("2")
+    assert fresh.state == GameState.WAITING_FOR_SAVE
+    fresh.submit(f"pick {run_id}")
     assert fresh.state == GameState.PLAYING
     assert fresh.player.name == "Tess"

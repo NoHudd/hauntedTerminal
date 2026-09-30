@@ -98,7 +98,9 @@ def test_loading_a_hard_run_plays_it_on_hard(
     difficulty.set_mode("medium")  # a fresh process, or another run in this one
     second = GameSession()
     try:
+        run_id = mgr.list_runs()[0].run_id
         second.engine._load_game()
+        second.submit(f"pick {run_id}")
         assert second.player.name == "Hardy"
         assert difficulty.current_mode() == "hard"
     finally:

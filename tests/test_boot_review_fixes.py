@@ -27,6 +27,20 @@ def test_old_pool_saves_are_set_aside_not_offered(tmp_path) -> None:
     assert mgr.legacy_count() == 1
 
 
+def test_load_game_points_at_old_saves_it_set_aside(tmp_path, monkeypatch) -> None:
+    (tmp_path / "save_old.json").write_text(json.dumps(_old_save()))
+    monkeypatch.setattr(save_manager, "save_dir", str(tmp_path))
+    s = GameSession()
+    try:
+        s.ui.clear_console()
+        s.engine._load_game()
+        out = "\n".join(str(x) for x in s.ui.drain())
+    finally:
+        s.close()
+    assert "No saves available" in out
+    assert "1 old save" in out and "saves/legacy/" in out
+
+
 def test_npcs_describe_the_flag_gate() -> None:
     knight = yaml.safe_load(open("data/npcs/firewall_knight.iptables.yml"))
     echo = yaml.safe_load(open("data/npcs/echo.usr.yml"))

@@ -14,6 +14,7 @@ class GameState(Enum):
     MENU = "menu"
     WAITING_FOR_CLASS = "waiting_for_class"
     WAITING_FOR_DIFFICULTY = "waiting_for_difficulty"
+    WAITING_FOR_SAVE = "waiting_for_save"
     TUTORIAL_NAME_INPUT = "tutorial_name_input"
     PLAYING = "playing"  
     IN_COMBAT = "in_combat"

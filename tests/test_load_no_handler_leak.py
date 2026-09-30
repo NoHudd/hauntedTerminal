@@ -19,10 +19,16 @@ def test_load_game_unsubscribes_old_handler():
 
         from src.save import save_manager
         save_manager.save_game(s.player, s.world.get_state())
+        run_id = save_manager.active_run_id
 
         # Call the load path directly (bypasses the bus, so engines leaked by
         # other tests can't distort the result).
+        # LOAD GAME is reached from the menu. Set the mode directly: restart_game
+        # would unsubscribe the old handler itself and hide the leak under test.
+        from src.game_states import GameState
+        s.engine.state_manager.set_state(GameState.MENU, emit_event=False)
         s.engine._load_game()
+        s.engine._handle_save_picker_input(f"pick {run_id}")
 
         assert s.engine.cmd_handler is not old_handler, "load did not build a new handler"
         old_parts = {id(old_handler), id(old_handler.tutorial)}
