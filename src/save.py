@@ -33,6 +33,10 @@ MAX_RUNS = 9
 
 RUN_PREFIX = "run_"
 
+# The pre-slot pool: save_<timestamp>.json. Migrated once, then kept in legacy/.
+LEGACY_PREFIX = "save_"
+LEGACY_DIR = "legacy"
+
 
 def _now() -> float:
     """Wall-clock seconds; one seam for tests to control save order."""
@@ -215,6 +219,7 @@ class SaveManager:
 
     def list_runs(self) -> list[RunInfo]:
         """Every loadable run, most recently saved first."""
+        self._migrate_legacy()
         runs: list[RunInfo] = []
         for name in self._run_files():
             data = self._read(os.path.join(self.save_dir, name))
@@ -245,6 +250,72 @@ class SaveManager:
             saved_at=float(data.get("savedAt", 0.0)),
             cleared=bool(data.get("cleared", False)),
         )
+
+    def _migrate_legacy(self) -> None:
+        """Turn pre-slot saves (one pool of save_<ts>.json files) into run slots.
+
+        Files are grouped by hero (name, class, difficulty); the newest file of
+        each group becomes a slot, newest groups first, up to the free slots.
+        Every old file (used, too old or unreadable) then moves to
+        saves/legacy/. Nothing is deleted.
+        """
+        try:
+            names = [
+                n for n in os.listdir(self.save_dir)
+                if n.startswith(LEGACY_PREFIX) and n.endswith(".json")
+            ]
+        except FileNotFoundError:
+            return
+        if not names:
+            return
+
+        groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+        for name in names:
+            data = self._read(os.path.join(self.save_dir, name))
+            if data is None or save_version(data) < MIN_SUPPORTED_VERSION:
+                continue
+            player = data.get("player") or {}
+            hero = (
+                str(player.get("name", "")),
+                str(player.get("player_class", "")),
+                str(data.get("difficulty", difficulty.DEFAULT_MODE)),
+            )
+            groups.setdefault(hero, []).append(data)
+
+        def saved_at(save: dict[str, Any]) -> float:
+            return float(save.get("savedAt", 0.0))
+
+        free = max(MAX_RUNS - len(self._run_files()), 0)
+        newest_first = sorted(
+            groups.values(), key=lambda saves: max(map(saved_at, saves)), reverse=True,
+        )
+        for saves in newest_first[:free]:
+            latest = max(saves, key=saved_at)
+            run_id = uuid.uuid4().hex[:8]
+            self._write(self._run_path(run_id), {
+                **latest,
+                "version": SAVE_VERSION,
+                "runId": run_id,
+                "createdAt": min(map(saved_at, saves)),
+                "cleared": False,
+            })
+
+        legacy = os.path.join(self.save_dir, LEGACY_DIR)
+        os.makedirs(legacy, exist_ok=True)
+        for name in names:
+            os.replace(os.path.join(self.save_dir, name), os.path.join(legacy, name))
+        logger.info(
+            f"Moved {len(names)} old save(s) to {legacy}; "
+            f"{min(len(groups), free)} became run slots"
+        )
+
+    def legacy_count(self) -> int:
+        """Old-format saves kept in saves/legacy/."""
+        try:
+            names = os.listdir(os.path.join(self.save_dir, LEGACY_DIR))
+        except FileNotFoundError:
+            return 0
+        return len([n for n in names if n.endswith(".json")])
 
     def runs_full(self) -> bool:
         return len(self.list_runs()) >= MAX_RUNS

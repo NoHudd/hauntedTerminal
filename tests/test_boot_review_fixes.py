@@ -20,6 +20,13 @@ def _old_save() -> dict:
     }
 
 
+def test_old_pool_saves_are_set_aside_not_offered(tmp_path) -> None:
+    (tmp_path / "save_old.json").write_text(json.dumps(_old_save()))
+    mgr = SaveManager(save_dir=str(tmp_path))
+    assert mgr.list_runs() == []
+    assert mgr.legacy_count() == 1
+
+
 def test_npcs_describe_the_flag_gate() -> None:
     knight = yaml.safe_load(open("data/npcs/firewall_knight.iptables.yml"))
     echo = yaml.safe_load(open("data/npcs/echo.usr.yml"))
