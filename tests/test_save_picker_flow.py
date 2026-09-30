@@ -145,3 +145,37 @@ def test_the_replace_picker_has_no_delete(mgr, fresh, monkeypatch: pytest.Monkey
     assert "Invalid choice" in out
     assert fresh.state == GameState.WAITING_FOR_SAVE
     assert [r.run_id for r in mgr.list_runs()] == [ada]
+
+
+def test_a_run_that_fails_to_load_reopens_the_picker(mgr, fresh, tmp_path) -> None:
+    import json
+    ada = _make_run(mgr, "Ada", "guardian")
+    path = tmp_path / f"run_{ada}.json"
+    data = json.loads(path.read_text())
+    data["world"] = "garbage"
+    path.write_text(json.dumps(data))
+    seen = _picker_events(fresh)
+
+    fresh.submit("2")
+    before = len(seen)
+    out = _text(fresh.submit(f"pick {ada}"))
+    assert fresh.state == GameState.WAITING_FOR_SAVE
+    assert "could not be loaded" in out
+    assert len(seen) == before + 1  # a fresh picker the player can answer
+    assert mgr.active_run_id is None
+
+
+def test_markup_in_a_saved_class_or_difficulty_does_not_break_the_list(
+    mgr, fresh, tmp_path,
+) -> None:
+    import json
+    ada = _make_run(mgr, "Ada", "guardian")
+    path = tmp_path / f"run_{ada}.json"
+    data = json.loads(path.read_text())
+    data["player"]["player_class"] = "[bold"
+    data["difficulty"] = "[/x]"
+    path.write_text(json.dumps(data))
+
+    out = _text(fresh.submit("2"))
+    assert fresh.state == GameState.WAITING_FOR_SAVE
+    assert "Error" not in out

@@ -218,8 +218,13 @@ class SaveManager:
         return _migrate_save(data)
 
     def list_runs(self) -> list[RunInfo]:
-        """Every loadable run, most recently saved first."""
-        self._migrate_legacy()
+        """Every loadable run, most recently saved first. A bad file (or a
+        failed migration) is logged and skipped: one broken save must never
+        lock the player out of NEW GAME / LOAD GAME."""
+        try:
+            self._migrate_legacy()
+        except (OSError, TypeError, ValueError, AttributeError) as e:
+            logger.warning(f"Old-save migration failed: {e}")
         runs: list[RunInfo] = []
         for name in self._run_files():
             data = self._read(os.path.join(self.save_dir, name))
@@ -231,7 +236,10 @@ class SaveManager:
             except IncompatibleSaveError as e:
                 logger.warning(f"Skipping {name}: {e}")
                 continue
-            runs.append(self._run_info(name, data))
+            try:
+                runs.append(self._run_info(name, data))
+            except (TypeError, ValueError, AttributeError) as e:
+                logger.warning(f"Skipping malformed save {name}: {e}")
         runs.sort(key=lambda run: run.saved_at, reverse=True)
         return runs
 

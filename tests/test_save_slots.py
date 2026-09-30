@@ -173,3 +173,29 @@ def test_load_run_round_trip(mgr, session) -> None:
     loaded = mgr.load_run(mgr.active_run_id)
     assert loaded is not None
     assert Player.from_dict(loaded["player"]).name == "Slotty"
+
+
+@pytest.mark.parametrize("bad", [
+    {"version": 6, "player": {"level": None}},
+    {"version": 6, "player": [1, 2]},
+    {"version": 6, "player": {"health": "lots"}},
+])
+def test_a_malformed_run_file_is_skipped_not_fatal(mgr, session, tmp_path, bad) -> None:
+    _save(mgr, session)
+    (tmp_path / "run_badbad00.json").write_text(json.dumps(bad))
+    assert [r.run_id for r in mgr.list_runs()] == [mgr.active_run_id]
+    assert not mgr.runs_full()
+
+
+def test_a_failed_migration_does_not_block_the_run_list(
+    mgr, session, tmp_path, monkeypatch,
+) -> None:
+    _save(mgr, session)
+    (tmp_path / "save_1.json").write_text(json.dumps({"version": 5, "player": {"name": "Old"}}))
+
+    def broken_replace(src, dst):
+        raise OSError("read-only disk")
+
+    monkeypatch.setattr(save_mod.os, "replace", broken_replace)
+    monkeypatch.setattr(mgr, "_write", lambda path, data: None)
+    assert len(mgr.list_runs()) == 1

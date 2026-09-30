@@ -162,11 +162,10 @@ class SavePickerScreen(ModalScreen):
             icon = CLASS_ICONS.get(run["playerClass"], "•")
             name = escape(f"{run['playerName'][:10]:<10}")
             room = escape(f"{run['roomPath'][:12]:<12}")
+            cls = escape(f"{run['playerClass'].title()[:8]:<8}")
+            diff = escape(f"{run['difficulty'][:6]:<6}")
             mark = " ✓" if run["cleared"] else ""
-            body = (
-                f"{icon} {name} {run['playerClass'].title():<8} · "
-                f"{run['difficulty']:<6} {room} L{run['level']}{mark}"
-            )
+            body = f"{icon} {name} {cls} · {diff} {room} L{run['level']}{mark}"
             lines.append(
                 f"[reverse bold]▶ {body}[/reverse bold]" if i == self._index else f"  {body}"
             )

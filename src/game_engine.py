@@ -495,8 +495,8 @@ class ImprovedGameEngine:
         for row in rows:
             mark = " ✓ cleared" if row["cleared"] else ""
             lines.append(
-                f"  {row['runId']}  {escape(row['playerName'])} · {row['playerClass']} · "
-                f"{row['difficulty']} · {escape(row['roomPath'])} · L{row['level']}{mark}"
+                f"  {row['runId']}  {escape(row['playerName'])} · {escape(row['playerClass'])} · "
+                f"{escape(row['difficulty'])} · {escape(row['roomPath'])} · L{row['level']}{mark}"
             )
         verbs = "[green]pick <id>[/green]"
         if mode == "continue" and rows:
@@ -527,16 +527,27 @@ class ImprovedGameEngine:
             )
 
     def _continue_run(self, run_id: str):
+        failed = "[bold red]That save could not be loaded.[/bold red]"
         try:
             save_data = save_manager.load_run(run_id)
         except IncompatibleSaveError as e:
             logger.warning(f"Refusing run {run_id}: {e}")
             save_data = None
         if not save_data:
-            self._show_save_picker(notice="[bold red]That save could not be loaded.[/bold red]")
+            self._show_save_picker(notice=failed)
             return
-        save_manager.resume_run(run_id)
-        self._enter_loaded_run(save_data, welcome=True)
+        try:
+            save_manager.resume_run(run_id)
+            self._enter_loaded_run(save_data, welcome=True)
+        except Exception as e:
+            # A save that lists fine can still hold content this build cannot
+            # rebuild. Hand the player a fresh picker rather than a dead one.
+            logger.error(f"Run {run_id} failed to load: {e}")
+            save_manager.end_run()
+            if self.state_manager.current_state == GameState.WAITING_FOR_SAVE:
+                self._show_save_picker(notice=failed)
+            else:
+                self._return_to_menu()
 
     def _show_title(self):
         """The title menu, without replaying the intro."""

@@ -180,3 +180,10 @@ def test_empty_picker_escape_returns_to_the_title_without_quitting(
             engine._cleanup()
 
     asyncio.run(scenario())
+
+
+def test_markup_in_saved_fields_renders_as_text() -> None:
+    from rich.text import Text
+    run = dict(RUNS[0], playerClass="[bold", difficulty="[/x]", roomPath="[red]")
+    screen, _ = _screen(runs=[run])
+    Text.from_markup(screen.list_text())
