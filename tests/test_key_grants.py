@@ -55,6 +55,21 @@ def test_no_grant_when_door_already_open(s: GameSession) -> None:
     assert "a new directory appeared" not in out
 
 
+def test_old_save_loses_a_floor_copy_of_a_flag_key(s: GameSession) -> None:
+    """Saves from before the keys chain left chmod_key lying in /var; the
+    /var flag hands it out now, so loading drops the floor copy."""
+    s.world.item_locations["chmod_key"] = "var_dungeon"
+    saved = {"player": s.player.to_dict(), "world": copy.deepcopy(s.world.get_state())}
+    s.engine._enter_loaded_run(saved)
+    assert "chmod_key" not in s.world.item_locations
+    s.player.current_room = "var_dungeon"
+    s.world.enemy_locations = {
+        e: r for e, r in s.world.enemy_locations.items() if r != "var_dungeon"
+    }
+    s.submit("cat .system_err_log")
+    assert [k for k in s.player.inventory if k.startswith("chmod_key")] == ["chmod_key"]
+
+
 def test_taking_a_dropped_key_reveals_its_door(s: GameSession) -> None:
     s.world.item_locations["sudo_privileges_badge"] = "mnt_forest"
     out = _out(s, "take sudo_privileges_badge")

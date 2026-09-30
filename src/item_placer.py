@@ -162,10 +162,7 @@ class ItemPlacer:
         """
         from_drops = self._keys_granted_by_enemies()
         # Room flags hand these out on capture (the keys chain).
-        from_flags = {
-            str(room.flag.grants) for room in self.world.rooms.values()
-            if getattr(room, "flag", None) is not None and room.flag.grants
-        }
+        from_flags = self.world.flag_granted_keys()
         unplaced = [
             item_id for item_id in self.world.items
             if self.is_key(item_id)

@@ -514,6 +514,14 @@ class GameWorld:
         debug_log(f"Room {room_id} has exits: {exits}")
         return exits
 
+    def flag_granted_keys(self):
+        """Keys a room flag hands out on capture (the keys chain). They never
+        lie on a floor: the placer skips them and loading clears old copies."""
+        return {
+            str(room.flag.grants) for room in self.rooms.values()
+            if getattr(room, "flag", None) is not None and room.flag.grants
+        }
+
     def visible_exits(self, room_id):
         """The exits a player can see from here, as `ls` shows them: no hidden
         room before `ls -a` finds it, no locked door before its key reveals it.

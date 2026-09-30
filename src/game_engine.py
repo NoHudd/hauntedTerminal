@@ -361,6 +361,10 @@ class ImprovedGameEngine:
         for key_id, item in self.player.inventory.items():
             if str(getattr(item, "type", "")).lower() == "key":
                 self.world.reveal_doors(key_id)
+        # They may also have a flag's key still lying on a floor (chmod_key in
+        # /var). The flag hands it out now, so that copy would be a duplicate.
+        for key_id in self.world.flag_granted_keys():
+            self.world.item_locations.pop(key_id, None)
 
         # Unsubscribe the old handler first, or the dead run's handler keeps
         # reacting to ENEMY_DEFEATED with its stale player.
