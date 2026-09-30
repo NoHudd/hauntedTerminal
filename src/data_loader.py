@@ -6,7 +6,6 @@ from utils.debug_tools import debug_log
 # Cache for loaded data to avoid repeated disk reads
 _class_data_cache = None
 _items_cache = None
-_abilities_data_cache = None
 
 def load_class_data():
     """Load character classes as typed engine CharacterClass models (id -> model)."""
@@ -35,51 +34,6 @@ def load_item(item_id):
         debug_log(f"Item {item_id} not found")
         return None
     return item.model_copy(deep=True)
-
-def load_abilities_data():
-    """Load abilities from abilities.yaml"""
-    global _abilities_data_cache
-    
-    # Return cached data if available
-    if _abilities_data_cache is not None:
-        return _abilities_data_cache
-    
-    try:
-        # Try to load from abilities.yaml
-        filepath = 'data/abilities.yaml'
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as file:
-                data = yaml.safe_load(file)
-                if data is None:
-                    debug_log("ERROR: Empty abilities file")
-                    return {"abilities": {}}
-                
-                # Store in cache
-                _abilities_data_cache = data
-                debug_log(f"Loaded abilities data with {len(data.get('abilities', {}))} abilities")
-                return data
-        else:
-            debug_log(f"ERROR: Abilities file not found at path: {filepath}")
-            return {"abilities": {}}
-            
-    except Exception as e:
-        debug_log(f"ERROR loading abilities data: {e}")
-        return {"abilities": {}}
-
-def get_abilities_for_class(class_name):
-    """Get all abilities for a specific class"""
-    all_abilities = load_abilities_data().get("abilities", {})
-    class_abilities = {}
-    
-    for ability_id, ability_data in all_abilities.items():
-        # Check if this ability belongs to the specified class
-        if ability_data.get("class") == class_name or "all" in ability_data.get("class", ""):
-            class_abilities[ability_id] = ability_data
-    
-    if not class_abilities:
-        debug_log(f"WARNING: No abilities found for class '{class_name}'")
-        
-    return class_abilities
 
 # Helper to load a YAML file
 def load_yaml(filepath):

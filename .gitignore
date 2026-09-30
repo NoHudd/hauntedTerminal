@@ -47,3 +47,6 @@ var/
 
 # Design docs are local-only working notes
 docs/
+
+# sim/tune.py writes its proposal here for a human to review; never committed
+data/difficulty.proposed.yaml
