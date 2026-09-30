@@ -20,6 +20,7 @@ _HELP_TEXT = """
         - [cyan]tree[/cyan]: Show the filesystem you have discovered
         - [cyan]find <path> -name <x>[/cyan]: Search for a file
         - [cyan]ps[/cyan]: List running processes
+        - [cyan]kill <PID>[/cyan]: End a process (PIDs come from ps)
         - [cyan]whoami[/cyan]: Who you currently are
         - [cyan]echo <text>[/cyan] · [cyan]clear[/cyan] · [cyan]man <command>[/cyan]
 

@@ -35,6 +35,7 @@ from src.commands.shell import (
 )
 from src.commands.grep import GrepCommand
 from src.commands.hint import HintCommand
+from src.commands.kill import KillCommand
 from src.commands.system import QuitCommand, SaveCommand
 
 #: Command classes that have been migrated off CommandHandler. Add to this list
@@ -67,6 +68,7 @@ MIGRATED: tuple[type[Command], ...] = (
     AttackCommand,
     HintCommand,
     GrepCommand,
+    KillCommand,
 )
 
 

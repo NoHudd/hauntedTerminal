@@ -106,6 +106,14 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
         "Case matters without -i: 'flag' does not match 'FLAG'.",
         "Logs here run to hundreds of lines. Don't read them. grep them.",
     ),
+    "kill": (
+        "1", "terminate a process", "kill <pid>",
+        "Sends a signal to the process with the given PID, asking it to stop.\n"
+        "Find PIDs with ps. Some processes refuse politely-worded signals.\n\n"
+        "PID 1 is init; killing it would take the whole system down, so the\n"
+        "kernel does not let you.",
+        "Rogue processes hide in ps. Their PIDs are how you drag them out.",
+    ),
     "man": (
         "1", "display the manual for a command", "man [command]",
         "Displays the manual page for a command: what it does, how it is invoked,\n"

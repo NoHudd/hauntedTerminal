@@ -78,5 +78,11 @@ class PsCommand(Command):
                 " 23     1  \\[kthreadd]",
                 " 42     1  \\[ksoftirqd/0]",
             ]
+        rogue = ctx.flags.rogue_process()
+        if rogue is not None:
+            pid, process = rogue
+            lines.append(
+                f"{pid:>5}     1  {process}   [bold red]← 99.9% CPU[/bold red]"
+            )
         ctx.output.write("\n".join(lines))
         ctx.tutorial.after_ps()
