@@ -124,6 +124,10 @@ class TakeCommand(Command):
             take_flag = item.story_flag
             if take_flag:
                 ctx.player.set_story_flag(take_flag)
+            if str(item.type).lower() == "key":
+                revealed = ctx.world.reveal_doors(actual_item_id)
+                if revealed:
+                    ctx.flags.announce_key(actual_item_id, revealed)
 
             from src.rarity import RaritySystem
 

@@ -73,8 +73,52 @@ class FlagService:
             f"{flag.text}[/bold yellow]\n"
             f"[dim]{self.summary()} · +{FLAG_XP} cycles[/dim]"
         )
+        if getattr(flag, "grants", None):
+            self._grant_key(str(flag.grants))
         if save:
             self.checkpoint()
+
+    def _grant_key(self, key_id: str) -> None:
+        """The keys chain: this flag hands out a key. Skipped when it is
+        already held or its doors are already open (an older save)."""
+        if self.player.has_item(key_id):
+            return
+        item = self.world.get_item(key_id)
+        if item is None:
+            return
+        still_locked = [
+            str(r) for r in item.unlocks
+            if self.world.room_states.get(str(r), {}).get("locked", False)
+        ]
+        if not still_locked:
+            return
+        self.player.add_to_inventory(key_id, item)
+        self.announce_key(key_id, self.world.reveal_doors(key_id) or still_locked)
+
+    def announce_key(self, key_id: str, revealed: list[str]) -> None:
+        """Say which doors a newly gained key made visible (secret rooms not
+        yet discovered stay unnamed), plus a one-time Echo lesson."""
+        item = self.world.get_item(key_id)
+        name = item.name if item is not None else key_id
+        shown = [
+            room_paths.room_path(r) for r in revealed
+            if not getattr(self.world.get_room(r), "hidden", False)
+            or self.world.is_discovered(r)
+        ]
+        if shown:
+            self.output.write(
+                f"[bold yellow]🔑 {name} — a new directory appeared: "
+                f"{', '.join(shown)}. Type [bold]cd {shown[0]}[/bold][/bold yellow]"
+            )
+        else:
+            self.output.write(f"[bold yellow]🔑 You got the {name}.[/bold yellow]")
+        tutorial = self.player.tutorial_state
+        if not tutorial.get("keyLessonSeen"):
+            tutorial["keyLessonSeen"] = True
+            self.output.write(
+                f"{ECHO} Flags can open doors: some hand you a key, and a locked "
+                "directory only shows up once you hold its key."
+            )
 
     def on_grep(self, item_id: str, matched: list[str]) -> bool:
         """grep printed `matched` from item_id. Captures a grep flag when the
@@ -242,7 +286,8 @@ class FlagService:
         asked = self._hints_asked.get(room_id, 0) + 1
         self._hints_asked[room_id] = asked
         if asked == 1:
-            self.output.write(f"{ECHO} {flag.nudge}")
+            extra = " Capturing it also opens a new door." if flag.grants else ""
+            self.output.write(f"{ECHO} {flag.nudge}{extra}")
         else:
             self.output.write(f"{ECHO} Type {flag.command}")
 

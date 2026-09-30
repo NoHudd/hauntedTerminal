@@ -358,6 +358,11 @@ class ImprovedGameEngine:
         # Fresh content, then the saved world state on top of it.
         self._load_game_data_for_load()
         self.world.set_state(save_data.get("world", {}))
+        # Saves from before the keys chain hold keys whose doors were never
+        # revealed; reveal them so the player can see where to go.
+        for key_id, item in self.player.inventory.items():
+            if str(getattr(item, "type", "")).lower() == "key":
+                self.world.reveal_doors(key_id)
 
         # Unsubscribe the old handler first, or the dead run's handler keeps
         # reacting to ENEMY_DEFEATED with its stale player.
