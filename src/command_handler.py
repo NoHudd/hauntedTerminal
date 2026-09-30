@@ -389,6 +389,8 @@ class CommandHandler:
             return
 
         if fled and enemy_id:
+            # A flag taken before fleeing is still the player's: save it now.
+            self.flags.flush_checkpoint()
             # Mark enemy as fled
             fled_from_room = self.player.current_room
             self.world.mark_enemy_as_fled(enemy_id, fled_from_room)
@@ -410,8 +412,10 @@ class CommandHandler:
         # Victory: the defeated enemy is already removed from the room (via
         # ENEMY_DEFEATED), so the Core is clear if the Overlord just fell.
         if victory:
-            self.flags.flush_checkpoint()
-            self.flow.check_game_completion()
+            # Win first: a checkpoint between the Overlord's death and the win
+            # would load as a finished world whose finale can never fire.
+            if not self.flow.check_game_completion():
+                self.flags.flush_checkpoint()
 
     def on_kill(self, enemy_id):
         """An enemy died; the combat session calls this directly.
