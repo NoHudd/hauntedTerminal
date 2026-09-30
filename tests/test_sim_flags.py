@@ -28,3 +28,13 @@ def test_flag_xp_schedule_handles_short_runs() -> None:
 
 def test_flag_xp_schedule_with_no_fights() -> None:
     assert flag_xp_schedule(0, 12, 15) == []
+
+
+def test_rogue_fights_earn_no_gear_progress() -> None:
+    """Killing a rogue drops no gear in the game, so it must not advance the
+    sim's gear tier (they sort first and would hand out free upgrades)."""
+    from sim.simulator import gear_stages
+
+    stages = gear_stages(["r1", "r2", "a", "b"], {"r1", "r2"})
+    assert stages == [(0, 2), (0, 2), (0, 2), (1, 2)]
+    assert gear_stages(["a", "b"], set()) == [(0, 2), (1, 2)]

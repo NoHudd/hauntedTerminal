@@ -199,17 +199,39 @@ def _fight(player: Player, enemy: Enemy) -> bool:
     return player.is_alive() and enemy_hp <= 0
 
 
+def gear_stages(enemy_ids: list[str], rogues: set[str]) -> list[tuple[int, int]]:
+    """(cleared, total) gear progress to equip for before each fight. Rogue
+    fights drop no gear in the game, so they neither count as progress nor
+    toward the total — they sort first and would otherwise hand out tiers."""
+    total = sum(1 for e in enemy_ids if e not in rogues)
+    stages = []
+    cleared = 0
+    for enemy_id in enemy_ids:
+        stages.append((cleared, total))
+        if enemy_id not in rogues:
+            cleared += 1
+    return stages
+
+
+def _rogue_ids() -> set[str]:
+    return {
+        str(room.flag.enemy) for room in load_room_data().values()
+        if getattr(room, "flag", None) is not None and room.flag.via == "kill"
+    }
+
+
 def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunResult:
     player = _build_player(class_id)
     total = len(enemy_ids)
     cleared = 0
     from src.flags import FLAG_XP
     flag_xp = flag_xp_schedule(total, MAIN_FLAGS_BEFORE_BOSS, FLAG_XP)
-    for enemy_id in enemy_ids:
+    stages = gear_stages(enemy_ids, _rogue_ids())
+    for i, enemy_id in enumerate(enemy_ids):
         enemy = world.get_enemy(enemy_id, class_id)
         if not enemy:
             continue
-        _equip_for_stage(player, class_id, cleared, total)  # loot progression
+        _equip_for_stage(player, class_id, *stages[i])  # loot progression
         if not _fight(player, enemy):
             return RunResult(
                 False, enemy_id, cleared, player.level,
@@ -218,8 +240,8 @@ def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunRe
         cleared += 1
         base = enemy.experience
         player.harvest_cycles(difficulty.scale_xp(base))
-        if flag_xp[cleared - 1]:
-            player.harvest_cycles(flag_xp[cleared - 1])
+        if flag_xp[i]:
+            player.harvest_cycles(flag_xp[i])
         # Loot heals only if this enemy actually drops one and the roll hits —
         # faithful to the real (stingy) drop economy, not a free per-fight heal.
         for drop in enemy.drops:
