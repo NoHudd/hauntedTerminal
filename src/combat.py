@@ -494,7 +494,7 @@ class CombatSession:
         
         # Handle use command
         elif cmd == "use" and len(parts) > 1:
-            item_input = parts[1]
+            item_input = " ".join(parts[1:])
             resolved = self.player.resolve_inventory_item(item_input)
             if resolved and resolved in self.player.inventory:
                 item_data = self.player.inventory[resolved]

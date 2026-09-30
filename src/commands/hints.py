@@ -48,6 +48,9 @@ def show_not_found(
     ctx.output.error(message)
     hint = not_found_hint(typed, candidates, label=label)
     if hint:
+        # In a fight Tab toggles Selection Mode instead, so the tip would lie.
+        if ctx.current_combat_session is None:
+            hint += "  [dim](Tab finishes names)[/dim]"
         ctx.output.write(hint)
 
 

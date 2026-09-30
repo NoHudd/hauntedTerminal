@@ -1,5 +1,16 @@
 """Turn what the player typed into an item id."""
+import re
+
 from utils.debug_tools import debug_log
+
+_SEPARATORS = re.compile(r"[\s_.\-]+")
+
+
+def name_key(s: str) -> str:
+    """Comparison form of an item name: case and separators don't matter, so
+    `health_packet`, `health packet`, `health-packet` and `healthPacket` all
+    compare equal."""
+    return _SEPARATORS.sub("", s.lower())
 
 
 class ItemResolver:
@@ -29,18 +40,17 @@ class ItemResolver:
         self.world = world
         self.player = player
 
-    @staticmethod
-    def _normalize(s: str) -> str:
-        return s.lower().replace(".", "_").replace("-", "_")
-
     def _find_in(self, search_term, item_ids, get_item_fn):
-        """Find an item ID by name or ID match (fuzzy)."""
-        target = self._normalize(search_term)
+        """Find an item ID whose id or display name matches, ignoring case and
+        separators."""
+        target = name_key(search_term)
+        if not target:
+            return None
         for item_id in item_ids:
-            if self._normalize(item_id) == target:
+            if name_key(item_id) == target:
                 return item_id
             item_data = get_item_fn(item_id)
-            if item_data and self._normalize(item_data.name) == target:
+            if item_data and name_key(item_data.name) == target:
                 return item_id
         return None
 
@@ -81,16 +91,25 @@ class ItemResolver:
         if item_input in available_items:
             return item_input
 
+        key = name_key(item_input)
+        if not key:
+            return None
+
+        # Same name, any spelling (case, _, -, spaces, camelCase)
+        spelled = self.find_in_list(item_input, available_items)
+        if spelled:
+            return spelled
+
         # Check shortcuts
-        if item_input.lower() in self.SHORTCUTS:
-            shortcut_items = self.SHORTCUTS[item_input.lower()]
+        if key in self.SHORTCUTS:
+            shortcut_items = self.SHORTCUTS[key]
             for shortcut_item in shortcut_items:
                 if shortcut_item in available_items:
                     debug_log(f"Shortcut '{item_input}' resolved to '{shortcut_item}'")
                     return shortcut_item
 
         # Check partial matches (starts with the input)
-        partial_matches = [item for item in available_items if item.lower().startswith(item_input.lower())]
+        partial_matches = [item for item in available_items if name_key(item).startswith(key)]
         if len(partial_matches) == 1:
             debug_log(f"Partial match '{item_input}' resolved to '{partial_matches[0]}'")
             return partial_matches[0]
@@ -103,7 +122,7 @@ class ItemResolver:
 
         # Check if input contains key words that match item names
         for available_item in available_items:
-            if item_input.lower() in available_item.lower():
+            if key in name_key(available_item):
                 debug_log(f"Substring match '{item_input}' found in '{available_item}'")
                 return available_item
 

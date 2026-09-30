@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Item/NPC interaction commands: drop, equip, examine, talk.
 
-Each takes a single identifier token (item/npc id). To preserve the original
-behaviour these read args[0]; item ids are single tokens, so nothing is lost.
+Item commands read the whole argument ("health packet" is one name) and
+resolve it spelling-blind through ctx.resolver / Player.resolve_inventory_item;
+talk still reads a single npc-id token.
 Item behaviour comes from ctx.effects, lookups from ctx.resolver and hints
 from ctx.tutorial; starting a fight is still the handler's check_for_enemies.
 """
@@ -26,6 +27,11 @@ def _first(args: list[str]) -> str:
     return args[0] if args else ""
 
 
+def _name(args: list[str]) -> str:
+    """The whole argument as one item name: `take health packet`."""
+    return " ".join(args)
+
+
 def _tutorial_gear_equipped(ctx: "CommandHandler", kind: str) -> None:
     """Tutorial only: once the first weapon AND first armor are on, the scripted
     fight opens. A player who skipped (completed=True) is never ambushed."""
@@ -41,7 +47,7 @@ class TakeCommand(Command):
     name = "take"
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        item_id = _first(args)
+        item_id = _name(args)
         if not item_id:
             debug_log("take command called with no item specified")
             ctx.output.error("[bold red]No item specified. Use 'take <item>'[/bold red]")
@@ -150,7 +156,7 @@ class CatCommand(Command):
     name = "cat"
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        filename = _first(args)
+        filename = _name(args)
         if not filename:
             ctx.output.error("[bold red]No file specified. Use 'cat <filename>'[/bold red]")
             return
@@ -208,11 +214,12 @@ class DropCommand(Command):
     name = "drop"
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        item_id = _first(args)
+        item_id = _name(args)
         if not item_id:
             ctx.output.error("[bold red]No item specified. Use 'drop <item>'[/bold red]")
             return
 
+        item_id = ctx.player.resolve_inventory_item(item_id) or item_id
         if not ctx.player.has_item(item_id):
             show_not_found(
                 ctx,
@@ -250,18 +257,19 @@ class ExamineCommand(Command):
     name = "examine"
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        item_id = _first(args)
+        item_id = _name(args)
         if not item_id:
             ctx.output.error("[bold red]No item specified. Use 'examine <item>'[/bold red]")
             return
 
-        if ctx.player.has_item(item_id):
-            item = ctx.player.get_item_from_inventory(item_id)
+        in_inventory = ctx.player.resolve_inventory_item(item_id)
+        if in_inventory:
+            item = ctx.player.get_item_from_inventory(in_inventory)
         else:
             current_room = ctx.player.current_room
-            items_in_room = ctx.world.get_items_in_room(current_room)
-            if item_id in items_in_room:
-                item = ctx.world.get_item(item_id)
+            in_room = ctx.resolver.resolve_shortcut(item_id, "room")
+            if in_room:
+                item = ctx.world.get_item(in_room)
             else:
                 show_not_found(
                     ctx,
@@ -406,7 +414,7 @@ class EquipCommand(Command):
     name = "equip"
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        weapon_id = _first(args)
+        weapon_id = _name(args)
         if not weapon_id:
             debug_log("equip command called with no weapon specified")
             ctx.output.write(

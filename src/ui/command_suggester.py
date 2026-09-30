@@ -105,7 +105,7 @@ class CommandSuggester(Suggester):
             if source == "inventory":
                 return self._inventory_candidates(player)
             if source == "room_items":
-                return list(world.get_items_in_room(player.current_room))
+                return self._room_item_candidates(player, world)
             if source == "exits":
                 return self._exit_candidates(player, world)
             if source == "npcs":
@@ -115,6 +115,17 @@ class CommandSuggester(Suggester):
         except Exception:
             return []
         return []
+
+    @staticmethod
+    def _room_item_candidates(player, world) -> List[str]:
+        # Hidden files are offered as dotfiles, so — as in a real shell — they
+        # only complete once the player types the leading dot, and never leak
+        # into a plain completion.
+        candidates: List[str] = []
+        for item_id in world.get_items_in_room(player.current_room):
+            hidden = getattr(world.get_item(item_id), "hidden", False)
+            candidates.append(f".{item_id}" if hidden else item_id)
+        return candidates
 
     def _inventory_candidates(self, player) -> List[str]:
         # Strip instance suffixes like "_1" so users can type the canonical id

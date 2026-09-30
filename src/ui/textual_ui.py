@@ -35,6 +35,7 @@ from src.ui.screens.quit_confirm import QuitConfirmScreen
 from src.ui.screens.selection_screen import SelectionCard, SelectionScreen
 from src.ui.screens.settings_screen import SettingsScreen
 from src.ui.combat_log import render_combat_output
+from src.ui.command_input import CommandInput
 from src.ui.command_suggester import CommandSuggester
 from src.ui.endings import FinaleReveal, game_over_text
 from src.ui.title_menu import TitleMenu
@@ -62,6 +63,8 @@ class TextualGameUI(App):
         Binding("ctrl+c", "request_quit", "Quit", show=False, priority=True),
         Binding("ctrl+p", "open_settings", "Settings", key_display="ctrl + p"),
         Binding("l", "toggle_log_viewer", "Show/Hide Logs", key_display="L"),
+        # Priority, so it reaches the app even while the command box has focus.
+        Binding("f12", "toggle_log_viewer", "Logs", show=False, priority=True),
         Binding("f5", "restart_game", "Restart Game", key_display="F5"),
     ]
 
@@ -146,7 +149,7 @@ class TextualGameUI(App):
                 yield StatsPanel(id="stats-panel")
         yield EchoPanel(id="echo-panel")
         yield Footer()
-        yield Input(placeholder="Enter command...", id="input-field")
+        yield CommandInput(placeholder="Enter command...", id="input-field")
 
     def on_mount(self) -> None:
         """Initialize the UI when mounted."""
@@ -174,12 +177,13 @@ class TextualGameUI(App):
             self._update_all_panels_to_defaults()
 
             # Attach context-aware autocomplete to the input field (always)
-            input_widget = self.query_one("#input-field", Input)
+            input_widget = self.query_one("#input-field", CommandInput)
             input_widget.suggester = CommandSuggester(
                 get_player=lambda: self._player_ref,
                 get_world=lambda: self._world_ref,
                 get_aliases=lambda: self._room_aliases_ref,
             )
+            input_widget.can_complete = lambda: not self.state_manager.is_in_combat()
 
             # Display title screen with arrow-key main menu.
             # SKIP_INTRO bypasses the typewriter but keeps the navigable menu.

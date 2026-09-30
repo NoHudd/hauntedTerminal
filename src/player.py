@@ -1,6 +1,7 @@
 from utils.debug_tools import debug_log
 from engine.schema import Item
 from src.data_loader import load_class_data, load_item
+from src.item_resolver import name_key
 
 # Armor mitigation: defense -> capped percent damage reduction.
 ARMOR_MITIGATION_CAP = 33       # max % damage reduced, so a tank can't become unkillable
@@ -202,14 +203,26 @@ class Player:
             return None
 
         keys = list(self.inventory.keys())
-        lower = name.lower()
+        lower = name_key(name)
+        if not lower:
+            return None
 
         # Exact match
         if name in self.inventory:
             return name
 
+        # Same id, then same display name, any spelling (case, _, -, spaces,
+        # camelCase). Ids first: every numbered copy shares the display name.
+        for k in keys:
+            if name_key(k) == lower:
+                return k
+        for k in keys:
+            item = self.inventory[k]
+            if item is not None and name_key(item.name) == lower:
+                return k
+
         # Prefix match (suffixed instance keys like health_packet_1)
-        prefix_matches = [k for k in keys if k.lower().startswith(lower)]
+        prefix_matches = [k for k in keys if name_key(k).startswith(lower)]
         if len(prefix_matches) == 1:
             return prefix_matches[0]
 
@@ -232,7 +245,7 @@ class Player:
                 # Try exact then prefix
                 if target in self.inventory:
                     return target
-                target_matches = [k for k in keys if k.lower().startswith(target.lower())]
+                target_matches = [k for k in keys if name_key(k).startswith(name_key(target))]
                 if target_matches:
                     return target_matches[0]
 
@@ -244,7 +257,7 @@ class Player:
             return prefix_matches[0]
 
         # Substring fallback
-        substring_matches = [k for k in keys if lower in k.lower()]
+        substring_matches = [k for k in keys if lower in name_key(k)]
         if substring_matches:
             return substring_matches[0]
 

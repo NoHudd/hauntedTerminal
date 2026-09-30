@@ -21,11 +21,11 @@
 #   completed    cheat sheet, sets tutorial_state["completed"]
 #   skip_summary shown instead of everything above if the player skips
 "skip_summary": |-
-  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use <item>[/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes, [bold]ls -a[/bold] reveals hidden files. [bold]cat[/bold] reads a file — restoring a memory saves a checkpoint you resume from if you fall. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
+  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items; [bold]Tab[/bold] finishes a name you've started. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use <item>[/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes, [bold]ls -a[/bold] reveals hidden files. [bold]cat[/bold] reads a file — restoring a memory saves a checkpoint you resume from if you fall. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
 "step1": |-
   [bold green]ECHO>[/bold green] You're in /home — a stable part of the filesystem. The rest is corrupted and needs clearing. Let's start simple. Type: [bold]ls[/bold] and press Enter to see what's here.
 "step2": |-
-  [bold green]ECHO>[/bold green] Good — that's everything in this directory. See that weapon? Type: [bold]take {weapon_name}[/bold] to pick it up. Items you carry appear in the Inventory panel on the right.
+  [bold green]ECHO>[/bold green] Good — that's everything in this directory. See that weapon? Type: [bold]take {weapon_name}[/bold] to pick it up. Items you carry appear in the Inventory panel on the right. Tip: type the first few letters and press [bold]Tab[/bold] — it finishes the name for you, like a real shell.
 "step3": |-
   [bold green]ECHO>[/bold green] You're carrying it, but it's not active yet. Type: [bold]equip {weapon_name}[/bold] to ready it. Equipping means it'll be used in combat.
 "step_armor": |-
@@ -60,6 +60,7 @@
     • [bold]ls -a[/bold] — reveal hidden files and directories
     • [bold]cat[/bold] — read a file; restoring a memory saves a checkpoint
     • [bold]take / equip[/bold] — grab and ready items
+    • [bold]Tab[/bold] — finish a name you've started typing
     • [bold]1-9[/bold] in combat — attack (Selection Mode, opens automatically)
     • [bold]0[/bold] in combat — flee
     • [bold]TAB[/bold] in combat — type 'use <item>' instead

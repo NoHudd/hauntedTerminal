@@ -20,7 +20,7 @@ class UseCommand(Command):
     name = "use"
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        item_id = args[0] if args else ""
+        item_id = " ".join(args)
         if not item_id:
             debug_log("use command called with no item specified")
             ctx.output.error("[bold red]No item specified. Use 'use <item>'[/bold red]")
