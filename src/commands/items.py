@@ -12,10 +12,13 @@ from __future__ import annotations
 from src import rng
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
+
 from src.commands.base import Command
 from src.commands.hints import inventory_names, show_not_found, visible_room_items
 from src.item_effects import class_restriction_text
 from src.item_icons import item_icon
+from src.logs import log_lines
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -197,11 +200,14 @@ class CatCommand(Command):
     def _render(ctx: "CommandHandler", item: "Item", item_id: str) -> bool:
         """Print the file; run on_read + story flag. Returns True if a story beat fired."""
         item_name = item.name
-        content = (
-            item.content
-            or item.description
-            or "This file appears to be empty or corrupted."
-        )
+        if item.log is not None:
+            content = escape("\n".join(log_lines(item)))
+        else:
+            content = (
+                item.content
+                or item.description
+                or "This file appears to be empty or corrupted."
+            )
         ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
         if item.on_read is not None:
             ctx.effects.execute_effect(item.on_read)
@@ -409,6 +415,7 @@ class TalkCommand(Command):
             f"[bold cyan]🗨  {npc_name}[/bold cyan]\n"
             f'[italic yellow]"{dialogue}"[/italic yellow]'
         )
+        ctx.flags.on_npc_talk()
 
         if npc.on_talk is not None:
             ctx.effects.execute_effect(npc.on_talk)

@@ -10,6 +10,7 @@ from collections.abc import Callable
 from typing import Any
 
 from src import room_paths
+from src.logs import log_lines
 from utils.debug_tools import debug_log
 
 FLAG_XP = 15
@@ -59,6 +60,18 @@ class FlagService:
         flag = self.flag_for(room_id)
         if flag is None or flag.file != item_id or self.world.flag_captured(room_id):
             return False
+        if flag.via == "grep":
+            if self._guiding():
+                item = self.world.get_item(item_id)
+                count = len(log_lines(item)) if item is not None and item.log else 0
+                self.output.write(
+                    f"{ECHO} {count} lines — nobody reads all that. {flag.nudge}"
+                )
+            return False
+        self._capture(room_id, flag, save)
+        return True
+
+    def _capture(self, room_id: str, flag: Any, save: bool) -> None:
         self.world.mark_flag_captured(room_id)
         self.player.harvest_cycles(FLAG_XP)
         self._idle = 0
@@ -69,7 +82,26 @@ class FlagService:
         )
         if save:
             self.checkpoint()
+
+    def on_grep(self, item_id: str, matched: list[str]) -> bool:
+        """grep printed `matched` from item_id. Captures a grep flag when the
+        flag line was among them."""
+        room_id = self.player.current_room
+        flag = self.flag_for(room_id)
+        if (
+            flag is None or flag.via != "grep" or flag.file != item_id
+            or self.world.flag_captured(room_id)
+            or not any(flag.text in line for line in matched)
+        ):
+            return False
+        self._capture(room_id, flag, save=True)
         return True
+
+    def on_npc_talk(self) -> None:
+        room_id = self.player.current_room
+        flag = self.flag_for(room_id)
+        if flag is not None and flag.clue and not self.world.flag_captured(room_id):
+            self.output.write(f"[italic cyan]{flag.clue}[/italic cyan]")
 
     def checkpoint(self) -> None:
         try:
