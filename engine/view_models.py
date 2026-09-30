@@ -110,6 +110,8 @@ class AttackView:
     cooldown_remaining: int = 0
     on_cooldown: bool = False
     accuracy: int = 100
+    healing: int = 0        # HP the player regains on a hit
+    weaken: float = 0.0     # fraction cut from the enemy's next hit
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for event serialization."""

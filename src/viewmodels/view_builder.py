@@ -280,7 +280,9 @@ class ViewBuilder:
                     cooldown=attack.get('cooldown', 0),
                     cooldown_remaining=cooldown_remaining,
                     on_cooldown=on_cooldown,
-                    accuracy=attack.get('accuracy', 100)
+                    accuracy=attack.get('accuracy', 100),
+                    healing=attack.get('healing', 0),
+                    weaken=attack.get('enemy_damage_reduction', 0.0),
                 )
                 attack_views.append(attack_view)
             return attack_views

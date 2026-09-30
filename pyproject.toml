@@ -43,6 +43,7 @@ files = [
     "src/ui/panels/inventory_panel.py",
     "src/ui/panels/stats_panel.py",
     "src/version.py",
+    "src/move_info.py",
 ]
 strict = true
 plugins = ["pydantic.mypy"]

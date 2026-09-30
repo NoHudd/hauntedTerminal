@@ -39,6 +39,10 @@ new game.
   armor before the first fight, and pins Echo's current instruction above the
   input. Reading a memory file restores a memory and saves a checkpoint.
 - NPC dialogue changes with what you have done.
+- Picking up an item shows what it is, right under "Added … to your inventory".
+- The class cards list each class's three moves, and the fight menu says which
+  moves heal you or weaken the enemy. When your HP runs low, the fight tells
+  you which key heals.
 
 ### Easier to type
 - Forgiving item names, Tab completion, and "Did you mean…" on typos.
@@ -53,6 +57,8 @@ new game.
 - The Inventory panel now updates during a fight (used items used to stay
   listed until the fight ended).
 - The Legacy Backup really revives you, once.
+- The Shaman's class card showed 100 HP and 8 damage; it really has 120 and 10.
+  Card numbers now come from the real stats.
 - The game-over screen no longer scrolls or shows stray markup, and r/n/q work.
 - Saves keep your armor, status effects and difficulty.
 - Hidden files show their leading dot, and Tab completes them.

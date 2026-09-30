@@ -406,19 +406,18 @@ class TextualGameUI(App):
     @staticmethod
     def _class_cards() -> list:
         from src.data_loader import load_class_data
+        from src.move_info import class_move_lines, stat_lines
         accents = {"guardian": "cyan", "weaver": "magenta", "shaman": "green"}
         cards = []
         for i, (class_id, data) in enumerate(load_class_data().items(), 1):
-            # data is a typed CharacterClass model; display carries labeled stats
-            tagline = (getattr(data, "description", "") or "").split(" - ")[0]
-            disp = getattr(data, "display", None)
-            if disp is not None:
-                stats = f"{disp.hp_label}\n{disp.dmg_label}\n⚔ {disp.weapon_name}"
-            else:
-                stats = f"HP {getattr(data, 'base_health', '?')} · DMG {getattr(data, 'base_damage', '?')}"
+            # data is a typed CharacterClass model; display carries the labels
+            tagline = (data.description or "").split(" - ")[0]
+            hp, dmg = stat_lines(data)
+            moves = "\n".join(class_move_lines(data))
+            stats = f"{hp}\n{dmg}\n⚔ {data.display.weapon_name}\n\nMoves:\n{moves}"
             cards.append(SelectionCard(
                 command=str(i),
-                title=getattr(data, "name", class_id),
+                title=data.name,
                 subtitle=f"{tagline}\n\n{stats}",
                 art_key=f"class_{class_id}",
                 accent=accents.get(class_id, "white"),
@@ -934,7 +933,10 @@ class TextualGameUI(App):
         if self._combat_view is None:
             return
         content_text = render_combat_output(
-            self._combat_log, self._player_view, self._available_attacks
+            self._combat_log, self._player_view, self._available_attacks,
+            player_hp=(
+                self._combat_view.player_health, self._combat_view.player_max_health
+            ),
         )
         # Bypass update_output's combat-routing to avoid recursion.
         self._add_to_history(content_text)

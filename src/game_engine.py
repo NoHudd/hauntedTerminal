@@ -568,6 +568,7 @@ class ImprovedGameEngine:
         never break the borders."""
         try:
             from src.data_loader import load_class_data
+            from src.move_info import class_move_lines, stat_lines
             from rich.panel import Panel
             from rich.console import Group
             from rich.text import Text
@@ -593,8 +594,7 @@ class ImprovedGameEngine:
                 tagline = cls.description.split(" - ", 1)
                 tagline_main = tagline[0] if tagline else ""
                 tagline_sub = tagline[1] if len(tagline) > 1 else ""
-                hp = d.hp_label
-                dmg = d.dmg_label
+                hp, dmg = stat_lines(cls)
                 weapon = d.weapon_name
                 pref = ", ".join(cls.preferred_zones or [])
 
@@ -610,6 +610,10 @@ class ImprovedGameEngine:
                 body.append("🗡  ", style="white")
                 body.append("Weapon: ", style="dim")
                 body.append(weapon + "\n")
+                body.append("✨  ", style="white")
+                body.append("Moves:\n", style="dim")
+                for line in class_move_lines(cls):
+                    body.append("   " + line + "\n")
                 if pref:
                     body.append("🗺  ", style="white")
                     body.append("Zones: ", style="dim")

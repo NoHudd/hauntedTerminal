@@ -18,9 +18,9 @@ classes:
       - shield_bash
     display:
       color: blue
-      hp_label: "High Health (120 HP)"
+      hp_label: "High Health"
       hp_color: green
-      dmg_label: "Moderate Damage (10 DMG)"
+      dmg_label: "Moderate Damage"
       dmg_color: yellow
       weapon_name: "Segfault Shield"
       echo_description: "a defender of the core systems, wielding shields and restoration protocols"
@@ -44,9 +44,9 @@ classes:
       - frost_nova
     display:
       color: red
-      hp_label: "Moderate Health (90 HP)"
+      hp_label: "Moderate Health"
       hp_color: yellow
-      dmg_label: "High Damage (15 DMG)"
+      dmg_label: "High Damage"
       dmg_color: green
       weapon_name: "Null Pointer"
       echo_description: "an aggressive code manipulator who exploits system vulnerabilities"
@@ -70,9 +70,9 @@ classes:
       - healing_strike
     display:
       color: green
-      hp_label: "Balanced Health (100 HP)"
-      hp_color: yellow
-      dmg_label: "Low Damage (8 DMG)"
-      dmg_color: red
+      hp_label: "High Health"
+      hp_color: green
+      dmg_label: "Moderate Damage"
+      dmg_color: yellow
       weapon_name: "Daemon Whisper"
       echo_description: "a mystic who communes with lost data and heals corrupted sectors"
