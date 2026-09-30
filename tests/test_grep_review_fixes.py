@@ -101,7 +101,6 @@ def test_tab_completes_grep_and_its_file(s: GameSession) -> None:
     from src.ui.command_suggester import CommandSuggester
 
     s.player.current_room = "dev_null_void"
-    sug = CommandSuggester(get_player=lambda: s.player, get_world=lambda: s.world,
-                           get_aliases=dict)
+    sug = CommandSuggester(get_player=lambda: s.player, get_world=lambda: s.world)
     assert asyncio.run(sug.get_suggestion("gr")) == "grep"
     assert asyncio.run(sug.get_suggestion("grep FLAG ke")) == "grep FLAG kern_log"

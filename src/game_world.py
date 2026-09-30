@@ -513,6 +513,15 @@ class GameWorld:
         exits = room.exits
         debug_log(f"Room {room_id} has exits: {exits}")
         return exits
+
+    def visible_exits(self, room_id):
+        """The exits a player can see from here, as `ls` shows them: no hidden
+        room before `ls -a` finds it, no locked door before its key reveals it.
+        Anything that names or completes a door uses this."""
+        return [
+            exit_id for exit_id in self.get_exits(room_id)
+            if self.is_discovered(exit_id) and self.door_visible(exit_id)
+        ]
     
     def is_discovered(self, room_id):
         """Whether a room is visible at all. Undiscovered rooms behave like paths

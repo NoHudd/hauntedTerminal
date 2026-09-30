@@ -104,7 +104,7 @@ def _suggest(typed: str, after: tuple[str, ...] = ()) -> str | None:
         for cmd in after:
             s.submit(cmd)
         suggester = CommandSuggester(
-            get_player=lambda: s.player, get_world=lambda: s.world, get_aliases=dict
+            get_player=lambda: s.player, get_world=lambda: s.world
         )
         return asyncio.run(suggester.get_suggestion(typed))
     finally:

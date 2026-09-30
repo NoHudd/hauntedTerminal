@@ -75,12 +75,8 @@ def _permission_bits(ctx: "CommandHandler", room_id: str) -> str:
 def _exit_names(ctx: "CommandHandler", room_id: str) -> list[str]:
     """Names a player could type to leave this room: path basenames and room ids."""
     names: list[str] = []
-    for exit_id in ctx.world.get_exits(room_id):
-        # Hidden rooms stay hidden: a typo must not reveal what `ls -a` guards.
-        if not ctx.world.is_discovered(exit_id):
-            continue
-        if not ctx.world.door_visible(exit_id):
-            continue
+    # Hidden rooms stay hidden: a typo must not reveal what `ls -a` guards.
+    for exit_id in ctx.world.visible_exits(room_id):
         names.append(room_paths.basename(room_paths.room_path(exit_id)))
         names.append(exit_id)
     return names

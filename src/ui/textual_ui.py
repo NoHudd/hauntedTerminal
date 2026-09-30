@@ -87,7 +87,6 @@ class TextualGameUI(App):
         self._combat_hint_shown = False  # Track if selection mode hint was shown
         self._player_ref = None  # Set by game engine after player creation; used for tutorial checks
         self._world_ref = None   # Set by game engine; used by autocomplete suggester
-        self._room_aliases_ref: dict = {}  # Populated from CommandHandler for cd autocomplete
 
         self._title_menu = TitleMenu(self)
         self._finale = FinaleReveal(self)
@@ -181,7 +180,6 @@ class TextualGameUI(App):
             input_widget.suggester = CommandSuggester(
                 get_player=lambda: self._player_ref,
                 get_world=lambda: self._world_ref,
-                get_aliases=lambda: self._room_aliases_ref,
             )
             input_widget.can_complete = lambda: not self.state_manager.is_in_combat()
 

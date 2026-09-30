@@ -88,8 +88,6 @@ class ImprovedGameEngine:
             return
         self.ui._player_ref = self.player
         self.ui._world_ref = self.world
-        if self.cmd_handler:
-            self.ui._room_aliases_ref = self.cmd_handler.room_aliases
 
     def _initialize_game_components(self):
         """Initialize/reinitialize game components (reloadable)."""

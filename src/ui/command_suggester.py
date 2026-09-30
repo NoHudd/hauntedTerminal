@@ -10,6 +10,8 @@ from typing import Optional, Callable, List
 
 from textual.suggester import Suggester
 
+from src import room_paths
+
 
 # Map common shorthand -> canonical inventory id prefix
 _INVENTORY_SHORTCUTS = {
@@ -48,12 +50,11 @@ _VERB_SOURCE = {
 class CommandSuggester(Suggester):
     """Suggest the rest of a command from live game state."""
 
-    def __init__(self, get_player: Callable, get_world: Callable, get_aliases: Callable):
+    def __init__(self, get_player: Callable, get_world: Callable):
         # Disable cache — suggestions depend on mutable game state.
         super().__init__(use_cache=False, case_sensitive=False)
         self._get_player = get_player
         self._get_world = get_world
-        self._get_aliases = get_aliases
 
     async def get_suggestion(self, value: str) -> Optional[str]:
         if not value:
@@ -164,27 +165,11 @@ class CommandSuggester(Suggester):
         return seen
 
     def _exit_candidates(self, player, world) -> List[str]:
-        try:
-            current = world.get_room(player.current_room) or {}
-            exits = list(current.get("exits", []))
-        except Exception:
-            exits = []
-
-        # Map room IDs to filesystem-style aliases for display, keep both forms
-        aliases = self._get_aliases() or {}
-        # Reverse map: room_id -> preferred path alias (longest path wins)
-        path_aliases: dict = {}
-        for alias, room_id in aliases.items():
-            if not alias.startswith("/"):
-                continue
-            existing = path_aliases.get(room_id)
-            if existing is None or len(alias) > len(existing):
-                path_aliases[room_id] = alias
-
+        # Only doors `ls` would show: Tab must not reveal a hidden room or a
+        # locked door the player hasn't earned sight of yet.
+        # Each door completes as its real path (what `ls` prints) or its id.
         suggestions: List[str] = []
-        for room_id in exits:
-            path = path_aliases.get(room_id)
-            if path:
-                suggestions.append(path)
+        for room_id in world.visible_exits(player.current_room):
+            suggestions.append(room_paths.room_path(room_id))
             suggestions.append(room_id)
         return suggestions
