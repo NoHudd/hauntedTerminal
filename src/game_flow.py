@@ -220,6 +220,10 @@ class GameFlow:
         # The UI performs the finale (paced reveal + scene beat + recap); the
         # engine only supplies the material via one GAME_WON event.
         sections = [part.strip() for part in message.split("\n\n") if part.strip()]
+        flags, flags_total, secrets, secrets_total = self.world.flag_counts()
+        if flags_total and flags >= flags_total:
+            from src.ui.endings import FULL_CLEAR_EPILOGUE
+            sections.append(FULL_CLEAR_EPILOGUE)
         from src import difficulty
         stats = {
             "level": getattr(self.player, "level", 1),
@@ -230,6 +234,10 @@ class GameFlow:
             "ending": choice,
             "player_name": getattr(self.player, "name", ""),
             "player_class": getattr(self.player, "player_class", ""),
+            "flags": flags,
+            "flags_total": flags_total,
+            "secrets": secrets,
+            "secrets_total": secrets_total,
         }
         self.bus.emit_event(
             EventType.GAME_WON,

@@ -61,7 +61,27 @@ class FinaleReveal:
         self._queue = []
 
 
+FULL_CLEAR_EPILOGUE = (
+    "[bold green]Every directory answers again.[/bold green] You did not just "
+    "stop the Overlord — you walked every path it corrupted and took back every "
+    "flag it hid. The filesystem remembers who restored it."
+)
+
+
+def rank_for(flags: int, flags_total: int, secrets: int, secrets_total: int) -> str:
+    if flags >= flags_total and secrets >= secrets_total:
+        return "root"
+    if flags >= flags_total:
+        return "Sysadmin Supreme"
+    if flags >= flags_total - 1:
+        return "Sysadmin"
+    return "Operator"
+
+
 def build_recap(stats: dict[str, Any]) -> str:
+    flags, flags_total = stats.get("flags", 0), stats.get("flags_total", 0)
+    secrets, secrets_total = stats.get("secrets", 0), stats.get("secrets_total", 0)
+    rank = rank_for(flags, flags_total, secrets, secrets_total)
     return (
         "── YOUR RUN ──────────────────────────\n"
         f"[bold]{stats.get('player_name', '?')}[/bold] · "
@@ -69,6 +89,8 @@ def build_recap(stats: dict[str, Any]) -> str:
         f"ending: [cyan]{str(stats.get('ending', '?')).upper()}[/cyan]\n"
         f"Level {stats.get('level', 1)} · {stats.get('cycles', 0)} cycles harvested\n"
         f"{stats.get('kills', 0)} enemies purged · {stats.get('items_found', 0)} items recovered\n"
+        f"⚑ Flags {flags}/{flags_total} · Secrets {secrets}/{secrets_total} · "
+        f"rank: [bold]{rank}[/bold]\n"
         f"difficulty: {stats.get('difficulty', '?')}\n"
         "──────────────────────────────────────\n"
         "[green]n[/green] new run · [red]q[/red] quit"
