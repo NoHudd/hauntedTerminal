@@ -29,7 +29,7 @@ dialogue:
     - "The corruption is just the system crying out. Listen to the logs... they tell the truth."
     - "Seek the lore fragments scattered across the filesystem. They contain your history."
     - "The Daemon Overlord resides in /boot/kernel - the Core. But you cannot reach it without permission."
-    - "The kernel at /boot opens only when you hold eleven flags. tree shows which directories still hide one."
+    - "The kernel at /boot opens only when you hold eleven flags. tree shows the flags you hold."
 
   navigation_help:
     - "Lost? Use 'ls' to see what's in your current directory. Use 'cd <room_name>' to move."

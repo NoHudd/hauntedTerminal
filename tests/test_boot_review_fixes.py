@@ -66,6 +66,25 @@ def test_keys_command_tells_the_truth(s: GameSession) -> None:
     assert "/usr" in out and "11 flags" in out
 
 
+def test_keys_does_not_spoil_undiscovered_secret_rooms(s: GameSession) -> None:
+    out = "\n".join(str(x) for x in s.submit("keys"))
+    assert "/opt" not in out and "/root" not in out
+    s.world.discover_room("opt_mage_tower")
+    assert "/opt" in "\n".join(str(x) for x in s.submit("keys"))
+
+
+def test_tree_is_described_truthfully(s: GameSession) -> None:
+    """tree marks flags you hold; it cannot show where uncaptured ones hide."""
+    s.player.tutorial_state["completed"] = True
+    texts = [
+        "\n".join(str(x) for x in s.submit("cd /boot")),
+        "\n".join(str(x) for x in s.submit("keys")),
+        open("data/npcs/echo.usr.yml").read(),
+    ]
+    for text in texts:
+        assert "still hide one" not in text and "where they hide" not in text
+
+
 def test_rank_ladder_matches_real_wins() -> None:
     assert rank_for(12, 13, 0, 5) == "Sysadmin"
     assert rank_for(13, 13, 4, 5) == "Sysadmin Supreme"

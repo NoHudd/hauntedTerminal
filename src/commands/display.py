@@ -117,7 +117,14 @@ class KeysCommand(Command):
         )
         for key_id, item in keys:
             has_key = ctx.player.has_item(key_id)
-            doors = ", ".join(room_paths.room_path(r) for r in item.unlocks) or "—"
+            # An undiscovered secret room stays secret, here as in ls.
+            doors = ", ".join(
+                room_paths.room_path(r)
+                if not getattr(ctx.world.get_room(r), "hidden", False)
+                or ctx.world.is_discovered(r)
+                else "???"
+                for r in item.unlocks
+            ) or "—"
             output.append(
                 f"\n{'✅' if has_key else '❌'} {item.name} ({key_id})\n",
                 style="bold" if has_key else "dim",
@@ -126,7 +133,8 @@ class KeysCommand(Command):
 
         output.append("\n💡 HOW DOORS OPEN:\n", style="bold magenta")
         output.append(
-            "Keys open locked directories, and turn up in different places each run.\n",
+            "Keys open locked directories. Some turn up in different places each "
+            "run; some drop from bosses.\n",
             style="dim",
         )
         for room_id, room in ctx.world.rooms.items():
@@ -135,7 +143,7 @@ class KeysCommand(Command):
                 output.append(
                     f"{room_paths.room_path(room_id)} takes no key: it opens once you "
                     f"hold {room.flags_required} flags (you have {have}). "
-                    "tree shows where they hide.\n",
+                    "tree shows the flags you hold.\n",
                     style="dim",
                 )
         output.append("Stuck in a room? Type hint.\n", style="dim")

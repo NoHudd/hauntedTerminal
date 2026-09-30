@@ -166,7 +166,7 @@ class CdCommand(Command):
             ctx.output.write(
                 f"[yellow]💡 {path} opens once you hold {denial['flags_required']} "
                 f"flags. You have {denial['flags_have']} — [bold]tree[/bold] shows "
-                "which directories still hide one.[/yellow]"
+                "the flags you hold.[/yellow]"
             )
             return
 
