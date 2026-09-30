@@ -410,6 +410,7 @@ class CommandHandler:
         # Victory: the defeated enemy is already removed from the room (via
         # ENEMY_DEFEATED), so the Core is clear if the Overlord just fell.
         if victory:
+            self.flags.flush_checkpoint()
             self.flow.check_game_completion()
 
     def on_kill(self, enemy_id):
@@ -421,6 +422,7 @@ class CommandHandler:
         """
         current_room = self.player.current_room
         self.loot.award_once(enemy_id, current_room)
+        self.flags.on_enemy_defeated(enemy_id)
 
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)

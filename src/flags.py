@@ -29,6 +29,7 @@ class FlagService:
         self._hints_asked: dict[str, int] = {}
         self._idle = 0
         self._nudged_room: str | None = None
+        self._checkpoint_pending = False
 
     def flag_for(self, room_id: str) -> Any:
         room = self.world.get_room(room_id)
@@ -115,6 +116,48 @@ class FlagService:
         if flag is not None and flag.clue and not self.world.flag_captured(room_id):
             self.output.write(f"[italic cyan]{flag.clue}[/italic cyan]")
 
+    def rogue_process(self) -> tuple[int, str] | None:
+        """The current room's rogue as (pid, process), while it is still
+        hiding: flag uncaptured and the enemy not already out (or fled)."""
+        room_id = self.player.current_room
+        flag = self.flag_for(room_id)
+        if flag is None or flag.via != "kill" or self.world.flag_captured(room_id):
+            return None
+        if flag.enemy in self.world.enemy_locations:
+            return None
+        if flag.enemy in self.world.fled_enemies.get(room_id, []):
+            return None
+        return int(flag.pid), str(flag.process)
+
+    def release_rogue(self) -> str | None:
+        """kill hit the rogue's PID: it comes out to fight. Returns its enemy
+        id, or None if there is no hiding rogue here."""
+        if self.rogue_process() is None:
+            return None
+        flag = self.flag_for(self.player.current_room)
+        self.world.enemy_locations[flag.enemy] = self.player.current_room
+        return str(flag.enemy)
+
+    def on_enemy_defeated(self, enemy_id: str) -> bool:
+        """A kill/defeat flag's enemy fell: capture now, save when the fight
+        is over (never mid-combat)."""
+        room_id = self.player.current_room
+        flag = self.flag_for(room_id)
+        if (
+            flag is None or flag.via not in ("kill", "defeat")
+            or flag.enemy != enemy_id or self.world.flag_captured(room_id)
+        ):
+            return False
+        self.output.write("[bold]The dying process dumps its memory…[/bold]")
+        self._capture(room_id, flag, save=False)
+        self._checkpoint_pending = True
+        return True
+
+    def flush_checkpoint(self) -> None:
+        if self._checkpoint_pending:
+            self._checkpoint_pending = False
+            self.checkpoint()
+
     def checkpoint(self) -> None:
         try:
             self._save()
@@ -164,6 +207,12 @@ class FlagService:
                 "This file is hundreds of lines long — too long to read. "
                 "[bold]grep[/bold] searches a file for a word and prints only the "
                 f"lines that contain it. Type {flag.command}."
+            )
+        if flag.via == "kill" and not self._technique_known("kill"):
+            return (
+                "Something here doesn't belong. [bold]ps[/bold] lists the processes "
+                "running in this directory — look for the odd one out, then end it "
+                f"with [bold]kill[/bold] and its PID number. Type {flag.command}."
             )
         return ""
 
