@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from engine.events import EventType
 from src.ui.endings import FinaleReveal, build_recap
+from src.ui.screens.settings_screen import SettingsScreen
 from src.ui.textual_ui import TextualGameUI
 
 
@@ -34,7 +36,7 @@ def test_menu_arrows_move_the_highlight_and_enter_emits_the_choice() -> None:
             await pilot.pause()
             assert menu.state == "menu_ready"
             assert menu.handle_key("down") and menu.index == 1
-            assert menu.handle_key("up") and menu.handle_key("up") and menu.index == 2
+            assert menu.handle_key("up") and menu.handle_key("up") and menu.index == 3
             assert "▶  EXIT  ◀" in str(app.output_content)
             assert not menu.handle_key("x")  # unrelated keys fall through
             assert menu.handle_key("enter")
@@ -109,3 +111,33 @@ def test_skipping_the_finale_dumps_the_rest_and_stops_the_timers() -> None:
     assert not finale.revealing
     finale.skip()  # a second key is a no-op
     assert len(out.shown) == 4
+
+
+def test_settings_opens_from_the_menu_and_esc_returns_to_it(tmp_path: Path) -> None:
+    commands: list[str] = []
+    app = TextualGameUI()
+    app._settings_manager._path = str(tmp_path / "user_settings.json")  # never the real file
+    app.bus.subscribe(EventType.COMMAND_ENTERED, lambda e: commands.append(e.data["command"]))
+
+    async def scenario() -> None:
+        async with app.run_test(size=(120, 40)) as pilot:
+            menu = app._title_menu
+            menu.show(skip_typewriter=True)
+            await pilot.pause()
+            menu.handle_key("down")
+            menu.handle_key("down")
+            assert "▶  SETTINGS  ◀" in str(app.output_content)
+
+            assert menu.handle_key("enter")
+            await pilot.pause()
+            assert isinstance(app.screen, SettingsScreen)
+            assert commands == []  # SETTINGS is UI-only
+
+            await pilot.press("escape")
+            await pilot.pause()
+            assert not isinstance(app.screen, SettingsScreen)
+            assert menu.state == "menu_ready" and menu.index == 2
+            assert "▶  SETTINGS  ◀" in str(app.output_content)
+            assert commands == []  # the Esc that closed Settings did not quit
+
+    _run(scenario())

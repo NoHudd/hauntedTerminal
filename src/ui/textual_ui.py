@@ -44,6 +44,7 @@ from config.settings_manager import SettingsManager
 
 import logging
 import os
+from collections.abc import Callable
 import threading
 from dataclasses import replace
 from typing import Optional
@@ -609,6 +610,10 @@ class TextualGameUI(App):
             )
             return
 
+        # A modal (Settings, a picker) owns the keys while it is up.
+        if len(self.screen_stack) > 1:
+            return
+
         # Main menu: arrow-key navigation; any other key fast-forwards typewriter
         if self.state_manager.current_state == GameState.MENU:
             if self._title_menu.handle_key(event.key):
@@ -666,9 +671,19 @@ class TextualGameUI(App):
         terminal on the way out."""
         self.exit()
 
+    def open_settings(self, on_close: Callable[[], None] | None = None) -> None:
+        """Open the settings modal: SETTINGS on the title menu, Ctrl+P anywhere."""
+        if any(isinstance(screen, SettingsScreen) for screen in self.screen_stack):
+            return
+        self.push_screen(SettingsScreen(self._settings_manager, on_close=on_close))
+
     def action_open_settings(self) -> None:
-        """Open the settings modal."""
-        self.push_screen(SettingsScreen(self._settings_manager))
+        """Ctrl+P. On the title, closing it redraws the menu."""
+        on_title = (
+            self.state_manager.current_state == GameState.MENU
+            and self._title_menu.state == "menu_ready"
+        )
+        self.open_settings(on_close=self._title_menu.render if on_title else None)
 
     def action_toggle_log_viewer(self) -> None:
         """Toggle the log viewer modal."""

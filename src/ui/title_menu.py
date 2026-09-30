@@ -21,6 +21,15 @@ logger = logging.getLogger(__name__)
 class TitleMenu:
     """Owns the intro/menu state; renders into the app's output panel."""
 
+    # (label, command the engine expects). None = a UI-only entry that the
+    # engine never hears about.
+    ENTRIES: tuple[tuple[str, str | None], ...] = (
+        ("NEW GAME", "1"),
+        ("LOAD GAME", "2"),
+        ("SETTINGS", None),
+        ("EXIT", "3"),
+    )
+
     def __init__(self, app: TextualGameUI) -> None:
         self._app = app
         self.index = 0
@@ -132,8 +141,7 @@ Succeed, and the filesystem breathes again.
 
         if self.state == "menu_ready":
             out.append("\n")
-            labels = ["NEW GAME", "LOAD GAME", "EXIT"]
-            for i, label in enumerate(labels):
+            for i, (label, _command) in enumerate(self.ENTRIES):
                 if i == self.index:
                     line = Text(f"  ▶  {label}  ◀  \n", style="reverse bold green", justify="center")
                 else:
@@ -150,7 +158,12 @@ Succeed, and the filesystem breathes again.
         """Confirm the highlighted main-menu option."""
         if self.state != "menu_ready":
             return
-        choice = ["1", "2", "3"][self.index]
+        _label, choice = self.ENTRIES[self.index]
+        if choice is None:
+            # SETTINGS: a modal over the title. Closing it redraws the menu
+            # with SETTINGS still highlighted; the intro does not replay.
+            self._app.open_settings(on_close=self.render)
+            return
         self._app.remove_class("intro-mode")
         self.state = "idle"
         try:
@@ -172,11 +185,11 @@ Succeed, and the filesystem breathes again.
             return True
         if self.state == "menu_ready":
             if key == "up":
-                self.index = (self.index - 1) % 3
+                self.index = (self.index - 1) % len(self.ENTRIES)
                 self.render()
                 return True
             if key == "down":
-                self.index = (self.index + 1) % 3
+                self.index = (self.index + 1) % len(self.ENTRIES)
                 self.render()
                 return True
             if key in ("enter", "return"):
