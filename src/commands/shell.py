@@ -252,7 +252,7 @@ class TreeCommand(Command):
 
         children = [
             child for child in room_paths.children_of(path)
-            if ctx.world.is_discovered(child)
+            if ctx.world.is_discovered(child) and ctx.world.door_visible(child)
         ]
         if is_root:
             child_prefix = prefix

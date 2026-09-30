@@ -79,6 +79,8 @@ def _exit_names(ctx: "CommandHandler", room_id: str) -> list[str]:
         # Hidden rooms stay hidden: a typo must not reveal what `ls -a` guards.
         if not ctx.world.is_discovered(exit_id):
             continue
+        if not ctx.world.door_visible(exit_id):
+            continue
         names.append(room_paths.basename(room_paths.room_path(exit_id)))
         names.append(exit_id)
     return names
@@ -279,6 +281,10 @@ class LsCommand(Command):
         revealed: list[str] = []
         visible: list[str] = []
         for child in children:
+            # A locked door stays out of sight (even to ls -a) until its key
+            # reveals it.
+            if not ctx.world.door_visible(child):
+                continue
             if ctx.world.is_discovered(child):
                 visible.append(child)
             elif show_all and self._may_discover(ctx, child):

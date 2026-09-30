@@ -121,7 +121,10 @@ class TutorialCoach:
     def _visible_directories(self):
         """Discovered rooms directly below the player's current directory."""
         here = room_paths.room_path(self.player.current_room)
-        return [c for c in room_paths.children_of(here) if self.world.is_discovered(c)]
+        return [
+            c for c in room_paths.children_of(here)
+            if self.world.is_discovered(c) and self.world.door_visible(c)
+        ]
 
     def _active(self):
         return not self.player.tutorial_state.get("completed", False)

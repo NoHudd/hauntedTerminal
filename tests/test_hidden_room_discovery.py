@@ -38,6 +38,7 @@ def test_ls_a_discovery_refreshes_room_view():
             if rid != "usr_share_games"
         }
         assert h.world.get_room_state("cowsay_secret")["hidden"] is True
+        h.world.reveal_doors("lib_key")  # /usr above it is a keyed door
 
         room_updates = _capture_room_entered(s.bus, lambda: s.submit("ls -a"))
 

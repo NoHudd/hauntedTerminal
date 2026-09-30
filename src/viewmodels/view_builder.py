@@ -134,6 +134,10 @@ class ViewBuilder:
                     state = get_room_state(exit_id) or {}
                     if state.get('hidden', False):
                         continue
+                # Locked doors stay out of sight until their key reveals them.
+                door_visible = getattr(world, 'door_visible', None)
+                if door_visible is not None and not door_visible(exit_id):
+                    continue
                 path = ROOM_ID_TO_PATH.get(exit_id, exit_id)
                 is_cleared = getattr(world, 'is_room_cleared', lambda r: False)(exit_id)
                 exit_commands.append(f"{path} ✓" if is_cleared else path)

@@ -24,6 +24,7 @@ def _ls(session: GameSession, args: str = "") -> str:
 
 def test_ls_lists_child_directories(session: GameSession) -> None:
     session.player.current_room = "root"
+    session.world.reveal_doors("lib_key")  # /usr is a keyed door
     out = _ls(session)
     for child in ("bin/", "home/", "var/", "usr/"):
         assert child in out, f"{child} missing from the listing of /"
@@ -48,6 +49,7 @@ def test_ls_a_reveals_a_hidden_child(session: GameSession) -> None:
     # combat gate.
     session.player.current_room = "root"
     assert session.world.get_room_state("ghost_hidden")["hidden"] is True
+    session.world.reveal_doors("system_badge")  # /root is also a keyed door
 
     assert "root/" not in _ls(session), "hidden child must not show without -a"
 
@@ -97,7 +99,9 @@ def test_ls_l_shows_permission_bits(session: GameSession) -> None:
 
 
 def test_sealed_directories_are_still_listed(session: GameSession) -> None:
-    """You can see that /usr exists; you just cannot go in. That is how a real
-    filesystem behaves, and it is what makes the key meaningful."""
+    """Once its key has revealed /usr you can see it exists even without the
+    key in hand; you just cannot go in. (Before that it is invisible — see
+    test_key_visibility.py.)"""
     session.player.current_room = "root"
+    session.world.reveal_doors("lib_key")
     assert "usr/" in _ls(session)
