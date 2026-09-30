@@ -4,6 +4,7 @@ from src import rng
 from utils.debug_tools import debug_log
 from engine.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
+from src.player import auto_revive_text, is_auto_revive
 
 class CombatSystem:
     """Handles all combat-related functionality with a unified approach."""
@@ -506,9 +507,15 @@ class CombatSession:
                 )
                 if is_combat_usable:
                     self._process_player_action("item", resolved)
+                elif is_auto_revive(item_data):
+                    # Not an error: the backup is already doing its job.
+                    self.output.write(auto_revive_text(item_data))
+                    self._request_player_action()
                 else:
-                    item_label = item_data.name
-                    self.output.write(f"[yellow]{item_label} cannot be used in combat.[/yellow]")
+                    self.output.write(
+                        f"[yellow]{item_data.name} can't be used mid-fight — "
+                        "try it after the battle.[/yellow]"
+                    )
                     self._request_player_action()
             else:
                 self.output.write(f"[red]Item '{item_input}' not found in inventory.[/red]")
@@ -711,10 +718,7 @@ class CombatSession:
             if revived_by is None:
                 self._end_combat(defeat=True)
                 return
-            self.output.write(
-                f"[bold green]✚ {revived_by} restores you from a snapshot — "
-                f"back at {self.player.health} HP![/bold green]"
-            )
+            self.output.write(self.player.revive_text(revived_by))
         
         # Continue combat
         combat_system.update_cooldowns(self.player)

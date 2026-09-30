@@ -170,10 +170,7 @@ class CommandHandler:
                 debug_log("Player is dead but not in game over mode - triggering game over screen")
                 self.flow.show_game_over_screen()
                 return
-            self.output.write(
-                f"[bold green]✚ {revived_by} restores you from a snapshot — "
-                f"back at {self.player.health} HP![/bold green]"
-            )
+            self.output.write(self.player.revive_text(revived_by))
 
         # Handle quit confirmation mode specially
         if self.flow.in_quit_confirmation:

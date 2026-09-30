@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from src.commands.base import Command
 from src.item_effects import class_restriction_text
+from src.player import auto_revive_text, is_auto_revive
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -58,11 +59,8 @@ class UseCommand(Command):
             )
             return
 
-        if any(e.get("type") == "auto_revive" for e in item.special_effects):
-            ctx.output.write(
-                f"[cyan]{item.name} works automatically: keep it in your "
-                "inventory and it revives you the moment you fall.[/cyan]"
-            )
+        if is_auto_revive(item):
+            ctx.output.write(auto_revive_text(item))
             return
 
         if not item.usable:

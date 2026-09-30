@@ -280,10 +280,7 @@ class ItemEffects:
                 if revived_by is None:
                     self.flow.game_over()
                 else:
-                    self.output.write(
-                        f"[bold green]✚ {revived_by} restores you from a snapshot — "
-                        f"back at {self.player.health} HP![/bold green]"
-                    )
+                    self.output.write(self.player.revive_text(revived_by))
 
         if "add_status_effect" in effect:
             status_data = effect["add_status_effect"]

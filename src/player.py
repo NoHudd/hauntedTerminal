@@ -15,6 +15,19 @@ def armor_mitigation_pct(defense: float) -> float:
     return min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT)
 
 
+def is_auto_revive(item) -> bool:
+    """A Legacy Backup-style item: it fires on death, never by `use`."""
+    return any(e.get("type") == "auto_revive" for e in (item.special_effects if item else []))
+
+
+def auto_revive_text(item) -> str:
+    """The answer to `use <backup>`, in or out of a fight."""
+    return (
+        f"[cyan]{item.name} works automatically: keep it in your "
+        "inventory and it revives you the moment you fall.[/cyan]"
+    )
+
+
 class Player:
     """Class representing the player in the game."""
 
@@ -361,6 +374,25 @@ class Player:
             debug_log(f"Revived by {key} at {self.health}/{self.max_health} HP")
             return item.name
         return None
+
+    def backups_left(self) -> int:
+        """How many auto-revive items the player still carries."""
+        return sum(1 for item in self.inventory.values() if is_auto_revive(item))
+
+    def revive_text(self, revived_by: str) -> str:
+        """What the player reads after a backup brings them back: the revive,
+        then that the backup is gone and how many are left."""
+        left = self.backups_left()
+        if left:
+            remaining = f"{left} backup{'s' if left != 1 else ''} left."
+        else:
+            remaining = "No backups left — the next fall ends the run."
+        return (
+            f"[bold green]✚ {revived_by} restores you from a snapshot — "
+            f"back at {self.health} HP![/bold green]\n"
+            f"[yellow]That {revived_by} is spent and gone from your inventory. "
+            f"{remaining}[/yellow]"
+        )
         
     def calculate_damage(self):
         """Calculate the player's total damage including weapon and status effects."""
