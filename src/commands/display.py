@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from rich.text import Text
 
+from src import room_paths
 from src.commands.base import Command
 from src.item_effects import STORY_FLAG_DESCRIPTIONS, STORY_FLAG_TITLES
 
@@ -30,6 +31,13 @@ class JournalCommand(Command):
         output = Text()
         output.append("📖 JOURNAL\n", style="bold cyan")
         output.append("=" * 50 + "\n", style="dim")
+        output.append(f"⚑ {ctx.flags.summary()}\n", style="bold yellow")
+        for room_id in sorted(ctx.world.rooms):
+            flag = ctx.flags.flag_for(room_id)
+            if flag is not None and ctx.world.flag_captured(room_id):
+                output.append(
+                    f"  {room_paths.room_path(room_id)}  {flag.text}\n", style="yellow"
+                )
 
         if not discovered:
             output.append(

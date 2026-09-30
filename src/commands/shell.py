@@ -175,7 +175,8 @@ class TreeCommand(Command):
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         out = Text()
-        out.append("Discovered filesystem\n\n", style="bold cyan")
+        out.append("Discovered filesystem\n", style="bold cyan")
+        out.append(f"⚑ {ctx.flags.summary()}\n\n", style="bold yellow")
         root_id = room_paths.room_at("/")
         if root_id is None:
             ctx.output.write("[red]tree: no root directory[/red]")
@@ -187,7 +188,7 @@ class TreeCommand(Command):
             out.append("\nKeys you carry: ", style="bold blue")
             out.append(", ".join(keys) + "\n", style="blue")
         out.append(
-            "\n🔒 sealed · ⚔ another class · ✓ cleared · ← you are here", style="dim"
+            "\n🔒 sealed · ⚑ flag captured · ✓ done · ← you are here", style="dim"
         )
         ctx.output.write(out)
 
@@ -210,6 +211,8 @@ class TreeCommand(Command):
                 marks.append(f"🔒 {key}" if key else "🔒")
         if ctx.world.is_room_cleared(room_id):
             marks.append("✓")
+        if ctx.flags.flag_for(room_id) is not None and ctx.world.flag_captured(room_id):
+            marks.append("⚑")
         here = room_id == ctx.player.current_room
 
         if is_root:
