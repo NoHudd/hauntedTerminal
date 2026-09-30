@@ -197,6 +197,8 @@ class CommandHandler:
         else:
             debug_log(f"Unknown command: '{cmd}'")
             self.handle_unknown_command(command)
+        if cmd != "hint":
+            self.flags.after_command(in_combat=self.current_combat_session is not None)
     
     def get_atmospheric_description(self, room_id):
         """Get enhanced atmospheric description for key locations"""
@@ -237,6 +239,7 @@ class CommandHandler:
             location_content += f"\n\n{atmospheric}"
         
         self.output.write(location_content)
+        self.flags.on_room_entered(room_id)
 
     def _checkpoint_save(self):
         from src.save import save_manager

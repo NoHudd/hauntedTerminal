@@ -72,3 +72,60 @@ class FlagService:
                 debug_log(f"Checkpoint save after flag in {room_id} failed: {e}")
                 self.output.write(f"[dim yellow]⚠ Checkpoint save failed: {e}[/dim yellow]")
         return True
+
+    def _guiding(self) -> bool:
+        return bool(self.player.tutorial_state.get("completed", False))
+
+    def on_room_entered(self, room_id: str) -> None:
+        """First visit to a room that teaches a technique: Echo gives the
+        lesson. Also resets the stuck counter."""
+        self._idle = 0
+        self._nudged_room = None
+        if not self._guiding():
+            return
+        flag = self.flag_for(room_id)
+        if (
+            flag is None or not flag.teach
+            or self.world.flag_captured(room_id) or self.world.flag_taught(room_id)
+        ):
+            return
+        self.world.mark_flag_taught(room_id)
+        self.output.write(f"{ECHO} {flag.teach}")
+
+    def hint(self) -> None:
+        """`hint`: a nudge first, then the exact command."""
+        room_id = self.player.current_room
+        flag = self.flag_for(room_id)
+        if flag is None:
+            self.output.write(
+                f"{ECHO} No flag hides in this directory. "
+                "[bold]tree[/bold] shows where you've found them."
+            )
+            return
+        if self.world.flag_captured(room_id):
+            self.output.write(
+                f"{ECHO} You already captured this room's flag. {self.summary()}"
+            )
+            return
+        asked = self._hints_asked.get(room_id, 0) + 1
+        self._hints_asked[room_id] = asked
+        if asked == 1:
+            self.output.write(f"{ECHO} {flag.nudge}")
+        else:
+            self.output.write(f"{ECHO} Type: [bold]{flag.command}[/bold]")
+
+    def after_command(self, in_combat: bool) -> None:
+        """Count commands spent in a room whose flag is still out there; nudge
+        once after STUCK_AFTER of them."""
+        if in_combat or not self._guiding():
+            return
+        room_id = self.player.current_room
+        flag = self.flag_for(room_id)
+        if flag is None or self.world.flag_captured(room_id) or self._nudged_room == room_id:
+            return
+        self._idle += 1
+        if self._idle >= STUCK_AFTER:
+            self._nudged_room = room_id
+            self.output.write(
+                f"{ECHO} {flag.nudge} [dim](Type [bold]hint[/bold] if you're stuck.)[/dim]"
+            )

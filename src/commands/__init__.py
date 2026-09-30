@@ -33,6 +33,7 @@ from src.commands.shell import (
     TreeCommand,
     WhoamiCommand,
 )
+from src.commands.hint import HintCommand
 from src.commands.system import QuitCommand, SaveCommand
 
 #: Command classes that have been migrated off CommandHandler. Add to this list
@@ -63,6 +64,7 @@ MIGRATED: tuple[type[Command], ...] = (
     CdCommand,
     UseCommand,
     AttackCommand,
+    HintCommand,
 )
 
 

@@ -31,6 +31,7 @@ _HELP_TEXT = """
         - [cyan]attack <enemy>[/cyan]: Start a fight
         - [cyan]inventory[/cyan] / [cyan]inv[/cyan]: What you are carrying
         - [cyan]journal[/cyan]: Story memories you have restored
+        - [cyan]hint[/cyan]: Help finding this directory's flag (ask twice for the exact command)
         - [cyan]keys[/cyan]: Key progression
         - [cyan]shortcuts[/cyan]: Item shortcuts and typing tips
         - [cyan]save[/cyan] · [cyan]quit[/cyan] / [cyan]exit[/cyan]

@@ -112,7 +112,7 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
 GAME_VERBS = {
     "take", "drop", "use", "equip", "examine", "talk", "attack", "flee",
     "inventory", "inv", "journal", "keys", "shortcuts", "save", "quit", "exit",
-    "help", "map",
+    "help", "map", "hint",
 }
 
 
