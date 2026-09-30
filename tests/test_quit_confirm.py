@@ -88,12 +88,15 @@ def combat(session: GameSession):
     return handler.current_combat_session
 
 
-def test_save_and_main_menu(session: GameSession) -> None:
+@pytest.mark.parametrize(("letter", "saves"), [("m", True), ("x", False)])
+def test_leaving_for_the_main_menu(session: GameSession, letter: str, saves: bool) -> None:
+    before = [(run.run_id, run.saved_at) for run in save_manager.list_runs()]
     session.submit("quit")
-    session.submit("m")
+    session.submit(letter)
     assert session.state == GameState.MENU
     assert session.ui.quit_requested is False
-    assert len(save_manager.list_runs()) == 1
+    after = [(run.run_id, run.saved_at) for run in save_manager.list_runs()]
+    assert (after != before) is saves
 
 
 def test_menu_command_with_progress_asks_first(session: GameSession) -> None:
@@ -149,7 +152,7 @@ def test_save_letters_are_refused_mid_fight(session: GameSession, combat) -> Non
 # --- the chooser itself ------------------------------------------------------
 
 def test_choices_map_onto_the_letters_the_domain_expects() -> None:
-    assert [letter for letter, *_ in LEAVE_CHOICES] == ["m", "y", "n", "c"]
+    assert [letter for letter, *_ in LEAVE_CHOICES] == ["m", "x", "y", "n", "c"]
     assert [letter for letter, *_ in MID_FIGHT_CHOICES] == ["c", "x", "n"]
 
 

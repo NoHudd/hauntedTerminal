@@ -288,14 +288,14 @@ class GameFlow:
         else:
             self.output.write(
                 "[bold white]Options:[/bold white] [cyan]m[/cyan] (save & main menu), "
-                "[green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), "
-                "[red]c[/red] (cancel)"
+                "[cyan]x[/cyan] (main menu without saving), [green]y[/green] (save & quit), "
+                "[yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)"
             )
 
     def handle_quit_confirmation(self, choice):
         """Handle the player's answer to request_leave."""
         choice = choice.lower().strip()
-        allowed = ("c", "x", "n") if self.leaving_mid_fight else ("m", "y", "n", "c")
+        allowed = ("c", "x", "n") if self.leaving_mid_fight else ("m", "x", "y", "n", "c")
         if choice not in allowed:
             self.output.write(f"[bold red]Invalid option: '{escape(choice)}'[/bold red]")
             self._write_leave_options()

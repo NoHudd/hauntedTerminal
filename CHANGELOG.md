@@ -19,8 +19,8 @@ new game.
   Beaten runs are marked ✓. When all 9 are taken, NEW GAME asks which run to replace.
 - Saves from the old single pool become one slot per hero; the original files
   are kept in `saves/legacy/`.
-- Leave a run for the main menu: `menu`, or **Save & main menu** on the quit
-  chooser (Ctrl+Q, Ctrl+C, `quit`). The game-over screen is now r (restore this
+- Leave a run for the main menu: `menu`, or **Save & main menu** / **Main menu
+  without saving** on the quit chooser (Ctrl+Q, Ctrl+C, `quit`). The game-over screen is now r (restore this
   run) / m (main menu) / q (quit).
 - Fixed: Ctrl+Q or `quit` during a fight said "command not found"; it now asks
   whether to keep fighting, go to the menu or quit.

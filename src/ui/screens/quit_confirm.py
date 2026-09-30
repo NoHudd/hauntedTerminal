@@ -23,6 +23,7 @@ Choice = tuple[str, str, str, str]  # (letter the domain expects, label, help li
 
 LEAVE_CHOICES: list[Choice] = [
     ("m", "Save and main menu", "Write a save file, then go to the title menu.", "cyan"),
+    ("x", "Main menu without saving", "Lose everything since your last save.", "magenta"),
     ("y", "Save and quit", "Write a save file, then leave.", "green"),
     ("n", "Quit without saving", "Lose everything since your last save.", "red"),
     ("c", "Keep playing", "Go back to where you were.", "yellow"),

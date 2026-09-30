@@ -40,7 +40,7 @@ one does in an actual terminal.
 - `hint` — a nudge toward this room's flag; ask again for the exact command
 - `shortcuts` — item shortcuts and typing tips
 - `save` — save your progress to this run's slot
-- `menu` — back to the title menu (offers to save first)
+- `menu` — back to the title menu (save first, or leave without saving)
 - `quit` / `exit` — exit the game (offers to save). Ctrl+Q, Ctrl+C and ESC do
   the same thing; mid-fight they offer keep fighting / main menu / quit, without saving
 
