@@ -15,6 +15,11 @@ hidden, and a sealed directory stays sealed until you have permission to enter
 it — including permission on every directory above it. Type `man cd` and the
 game tells you what `cd` does in an actual shell, not just in here.
 
+Every directory hides a flag. Some you just read with `cat`; some are buried in
+huge logs you'll need `grep` to search; some are rogue processes you find with
+`ps` and end with `kill`. Hold 11 of them and `/boot` — where the Daemon Overlord
+waits — opens. Stuck? Type `hint`.
+
 No prior command-line experience needed; the game teaches you as you go.
 
 ---

@@ -63,6 +63,10 @@ At the system's heart lurks the [red]Daemon Overlord[/red],
 a malignant process feeding on entropy,
 rewriting directories into its dominion of chaos.
 
+Every directory still guards a [yellow]flag[/yellow] — proof of what it once was.
+Find them with the commands you remember: ls, cat, grep, ps, kill.
+Hold enough of them, and the kernel at [bold]/boot[/bold] will let you in.
+
 Your mission: traverse the haunted filesystem,
 purge corrupted sectors, reclaim lost commands,
 and [bold]restore the root.[/bold]
