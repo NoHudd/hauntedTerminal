@@ -42,4 +42,4 @@ flag:
   file: system_err_log
   text: "FLAG{logs_remember_everything}"
   nudge: "The system keeps a hidden error log here."
-  command: "ls -a, then cat .system_err_log"
+  command: "[bold]ls -a[/bold], then [bold]cat .system_err_log[/bold]"

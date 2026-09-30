@@ -51,9 +51,10 @@ class FlagService:
         main_got, main_total, secret_got, secret_total = self.counts()
         return f"Flags {main_got}/{main_total} · Secrets {secret_got}/{secret_total}"
 
-    def on_file_read(self, item_id: str, already_saved: bool = False) -> bool:
+    def on_file_read(self, item_id: str, save: bool = True) -> bool:
         """A file was read in the current room. Capture its flag if it is the
-        room's flag file and not yet captured. Returns True on capture."""
+        room's flag file and not yet captured. Returns True on capture.
+        save=False leaves the checkpoint to the caller (see checkpoint())."""
         room_id = self.player.current_room
         flag = self.flag_for(room_id)
         if flag is None or flag.file != item_id or self.world.flag_captured(room_id):
@@ -66,14 +67,17 @@ class FlagService:
             f"{flag.text}[/bold yellow]\n"
             f"[dim]{self.summary()} · +{FLAG_XP} cycles[/dim]"
         )
-        if not already_saved:
-            try:
-                self._save()
-                self.output.write("[dim green]✓ Checkpoint saved.[/dim green]")
-            except Exception as e:
-                debug_log(f"Checkpoint save after flag in {room_id} failed: {e}")
-                self.output.write(f"[dim yellow]⚠ Checkpoint save failed: {e}[/dim yellow]")
+        if save:
+            self.checkpoint()
         return True
+
+    def checkpoint(self) -> None:
+        try:
+            self._save()
+            self.output.write("[dim green]✓ Checkpoint saved.[/dim green]")
+        except Exception as e:
+            debug_log(f"Checkpoint save after a flag capture failed: {e}")
+            self.output.write(f"[dim yellow]⚠ Checkpoint save failed: {e}[/dim yellow]")
 
     def _guiding(self) -> bool:
         return bool(self.player.tutorial_state.get("completed", False))
@@ -128,7 +132,7 @@ class FlagService:
         if asked == 1:
             self.output.write(f"{ECHO} {flag.nudge}")
         else:
-            self.output.write(f"{ECHO} Type: [bold]{flag.command}[/bold]")
+            self.output.write(f"{ECHO} Type {flag.command}")
 
     def after_command(self, in_combat: bool) -> None:
         """Count commands spent in a room whose flag is still out there; nudge

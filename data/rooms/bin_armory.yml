@@ -43,4 +43,4 @@ flag:
   file: ancient_manual_man
   text: "FLAG{man_pages_hold_answers}"
   nudge: "An old manual is hidden in here. Remember how you found your .bash_profile?"
-  command: "ls -a, then cat .ancient_manual_man"
+  command: "[bold]ls -a[/bold], then [bold]cat .ancient_manual_man[/bold]"

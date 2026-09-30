@@ -38,5 +38,5 @@ flag:
   file: motd
   text: "FLAG{cat_reads_files}"
   nudge: "There's a file here. cat prints a file's contents."
-  command: "cat motd"
+  command: "[bold]cat motd[/bold]"
   teach: "Every directory hides a flag. This one's easy: a file called [bold]motd[/bold] (message of the day). Type [bold]cat motd[/bold] to read it."

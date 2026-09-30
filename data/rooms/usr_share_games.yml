@@ -44,4 +44,4 @@ flag:
   file: cow_wisdom_log
   text: "FLAG{even_cows_have_wisdom}"
   nudge: "Somebody hid a log of cow wisdom here."
-  command: "ls -a, then cat .cow_wisdom_log"
+  command: "[bold]ls -a[/bold], then [bold]cat .cow_wisdom_log[/bold]"

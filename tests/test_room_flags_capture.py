@@ -64,3 +64,20 @@ def test_counts_split_main_and_secret(s: GameSession) -> None:
     s.submit("cat motd")
     assert flags.counts() == (1, 5, 0, 2)
     assert flags.summary() == "Flags 1/5 · Secrets 0/2"
+
+
+def test_story_flag_is_in_the_checkpoint_on_disk_and_not_recaptured(s: GameSession) -> None:
+    """The memory-restore autosave used to run before the flag was marked, so
+    the save on disk lacked it; reloading let the flag fire (and pay) again."""
+    s.player.current_room = "home_grove"
+    s.submit("cat .bash_profile")
+    cycles = s.player.harvesting_cycles
+    level = s.player.level
+
+    saved = save_manager.load_most_recent_save()
+    assert saved["world"]["room_states"]["home_grove"].get("flagCaptured") is True
+    assert (saved["player"]["level"], saved["player"]["harvesting_cycles"]) == (level, cycles)
+
+    s.engine._enter_loaded_run(saved)
+    s.player.current_room = "home_grove"
+    assert "Flag captured" not in _out(s, "cat .bash_profile")

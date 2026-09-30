@@ -74,3 +74,17 @@ def test_combat_commands_do_not_count_as_idle(s: GameSession) -> None:
     for _ in range(STUCK_AFTER):
         flags.after_command(in_combat=True)
     assert flags._idle == 0
+
+
+def test_exact_hint_bolds_each_command_on_its_own(s: GameSession) -> None:
+    """'ls -a, then cat .x' in one bold run reads as one line to type; a
+    beginner typing it literally runs only ls -a."""
+    s.player.current_room = "bin_armory"
+    s.world.enemy_locations = {
+        e: r for e, r in s.world.enemy_locations.items() if r != "bin_armory"
+    }
+    s.submit("hint")
+    second = _out(s, "hint")
+    assert "[bold]ls -a[/bold]" in second
+    assert "[bold]cat .ancient_manual_man[/bold]" in second
+    assert "[bold]ls -a, then" not in second

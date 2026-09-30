@@ -23,4 +23,4 @@ flag:
   file: flag
   text: "FLAG{root_sees_all}"
   nudge: "root keeps its flag hidden, like any dotfile."
-  command: "ls -a, then cat .flag"
+  command: "[bold]ls -a[/bold], then [bold]cat .flag[/bold]"

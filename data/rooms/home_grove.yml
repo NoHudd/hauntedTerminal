@@ -42,5 +42,5 @@ flag:
   file: bash_profile
   text: "FLAG{hidden_files_start_with_a_dot}"
   nudge: "Something here is hidden. Files whose names start with a dot only show up with ls -a."
-  command: "ls -a, then cat .bash_profile"
+  command: "[bold]ls -a[/bold], then [bold]cat .bash_profile[/bold]"
   teach: "Hidden files start with a dot. Type [bold]ls -a[/bold] to see them, then [bold]cat .bash_profile[/bold] to read yours."
