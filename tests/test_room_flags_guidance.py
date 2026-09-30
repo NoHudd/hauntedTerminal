@@ -53,6 +53,7 @@ def test_hint_where_there_is_nothing_to_find(s: GameSession) -> None:
 
 def test_idle_commands_bring_a_nudge_once(s: GameSession) -> None:
     s.player.current_room = "root"
+    s.world.mark_flag_taught("root")  # teleported in: the arrival lesson is not under test
     outs = [_out(s, "pwd") for _ in range(STUCK_AFTER)]
     assert "ECHO>" in outs[-1] and "hint" in outs[-1]
     assert all("ECHO>" not in o for o in outs[:-1])

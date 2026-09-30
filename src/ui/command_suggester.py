@@ -41,6 +41,7 @@ _VERB_SOURCE = {
     "cd": "exits",
     "talk": "npcs",
     "attack": "enemies",
+    "grep": "room_items",
 }
 
 
@@ -65,6 +66,8 @@ class CommandSuggester(Suggester):
 
         verb, _, partial = value.partition(" ")
         verb_lower = verb.lower()
+        if verb_lower == "grep":
+            return self._suggest_grep_file(verb, partial)
         source = _VERB_SOURCE.get(verb_lower)
         if source is None:
             return None
@@ -86,6 +89,20 @@ class CommandSuggester(Suggester):
         for candidate in candidates:
             if candidate.lower().startswith(partial_lower) and candidate.lower() != partial_lower:
                 return f"{verb} {candidate}"
+        return None
+
+    def _suggest_grep_file(self, verb: str, partial: str) -> Optional[str]:
+        """grep <word> <file>: complete the file, the last word typed."""
+        head, sep, last = partial.rpartition(" ")
+        if not sep or not last:
+            return None  # still typing the word to search for
+        player, world = self._get_player(), self._get_world()
+        if player is None or world is None:
+            return None
+        for candidate in self._room_item_candidates(player, world):
+            low = candidate.lower()
+            if low.startswith(last.lower()) and low != last.lower():
+                return f"{verb} {head} {candidate}"
         return None
 
     def _suggest_verb(self, partial: str) -> Optional[str]:

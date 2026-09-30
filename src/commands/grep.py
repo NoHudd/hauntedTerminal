@@ -1,6 +1,7 @@
 """grep: search a file for a word and print only the matching lines."""
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
 
 from rich.markup import escape
@@ -18,13 +19,24 @@ USAGE = (
 )
 
 
+def _shown(ctx: "CommandHandler", item_id: str) -> str:
+    """The name as ls -a shows it: hidden files keep their leading dot."""
+    item = ctx.world.get_item(item_id)
+    return f".{item_id}" if item is not None and item.hidden else item_id
+
+
 class GrepCommand(Command):
     name = "grep"
     MAX_SHOWN = 40
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        opts = "".join(a[1:] for a in args if a.startswith("-") and len(a) > 1)
-        rest = [a for a in args if not (a.startswith("-") and len(a) > 1)]
+        try:
+            # The command line arrives split on spaces; rejoin quoted phrases.
+            tokens = shlex.split(" ".join(args))
+        except ValueError:  # an unclosed quote
+            tokens = list(args)
+        opts = "".join(a[1:] for a in tokens if a.startswith("-") and len(a) > 1)
+        rest = [a for a in tokens if not (a.startswith("-") and len(a) > 1)]
         if len(rest) < 2:
             ctx.output.write(USAGE)
             return
@@ -39,6 +51,16 @@ class GrepCommand(Command):
             if inv_id:
                 item_id, item = inv_id, ctx.player.get_item_from_inventory(inv_id)
         if item is None or item_id is None:
+            swapped = ctx.resolver.find_in_list(
+                rest[0], ctx.world.get_items_in_room(room_id)
+            )
+            if swapped:
+                ctx.output.write(
+                    "[yellow]grep takes the word first, then the file. Try "
+                    f"[bold]grep {escape(name)} {escape(_shown(ctx, swapped))}[/bold]"
+                    "[/yellow]"
+                )
+                return
             show_not_found(
                 ctx,
                 f"[bold red]grep: {escape(name)}: No such file[/bold red]",
@@ -66,7 +88,8 @@ class GrepCommand(Command):
                 msg += (
                     "\n[yellow]grep is case-sensitive: that word is in there in "
                     "different capitals. Try "
-                    f"[bold]grep -i {escape(pattern)} {escape(item_id)}[/bold][/yellow]"
+                    f"[bold]grep -i {escape(pattern)} {escape(_shown(ctx, item_id))}[/bold]"
+                    "[/yellow]"
                 )
             ctx.output.write(msg)
             return

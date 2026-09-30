@@ -208,11 +208,18 @@ class CatCommand(Command):
                 or item.description
                 or "This file appears to be empty or corrupted."
             )
+        if item.log is not None:
+            # Logs never capture on cat; Echo's remark goes first, or 400
+            # lines of wall would push it off-screen.
+            ctx.flags.on_file_read(item_id, save=False)
         ctx.output.write(f"[bold]{item_name}[/bold]\n\n{content}")
         if item.on_read is not None:
             ctx.effects.execute_effect(item.on_read)
         # Capture before the story beat: its autosave must include the flag.
-        captured = ctx.flags.on_file_read(item_id, save=False)
+        captured = (
+            False if item.log is not None
+            else ctx.flags.on_file_read(item_id, save=False)
+        )
         story_beat = ctx.effects.trigger_story_flag(item)
         if captured and not story_beat:
             ctx.flags.checkpoint()

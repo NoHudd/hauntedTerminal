@@ -64,9 +64,11 @@ class FlagService:
             if self._guiding():
                 item = self.world.get_item(item_id)
                 count = len(log_lines(item)) if item is not None and item.log else 0
-                self.output.write(
-                    f"{ECHO} {count} lines — nobody reads all that. {flag.nudge}"
+                advice = (
+                    flag.nudge if self._technique_known("grep")
+                    else f"Search it instead: type {flag.command}"
                 )
+                self.output.write(f"{ECHO} {count} lines — nobody reads all that. {advice}")
             return False
         self._capture(room_id, flag, save)
         return True
@@ -88,6 +90,16 @@ class FlagService:
         flag line was among them."""
         room_id = self.player.current_room
         flag = self.flag_for(room_id)
+        if (
+            flag is not None and flag.via == "cat" and flag.file == item_id
+            and not self.world.flag_captured(room_id)
+            and any(flag.text in line for line in matched)
+        ):
+            self.output.write(
+                f"{ECHO} That's this room's flag — but it only counts when you "
+                f"read the file. Type {flag.command}"
+            )
+            return False
         if (
             flag is None or flag.via != "grep" or flag.file != item_id
             or self.world.flag_captured(room_id)
@@ -133,16 +145,45 @@ class FlagService:
                 f"{self.player.player_class}. +{TRIAL_BONUS} damage for "
                 f"{TRIAL_TURNS} turns.[/bold magenta]"
             )
+        self._teach_if_ready(room_id)
+
+    def _technique_known(self, via: str) -> bool:
+        """Has the player captured any flag that needed this technique?"""
+        return any(
+            getattr(room, "flag", None) is not None and room.flag.via == via
+            and self.world.flag_captured(rid)
+            for rid, room in self.world.rooms.items()
+        )
+
+    def _lesson(self, flag: Any) -> str:
+        if flag.teach:
+            return str(flag.teach)
+        if flag.via == "grep" and not self._technique_known("grep"):
+            # Whichever grep room comes first teaches grep, not only /mnt.
+            return (
+                "This file is hundreds of lines long — too long to read. "
+                "[bold]grep[/bold] searches a file for a word and prints only the "
+                f"lines that contain it. Type {flag.command}."
+            )
+        return ""
+
+    def _teach_if_ready(self, room_id: str) -> None:
+        """Give the room's lesson once — but only when nothing is fighting
+        here, or the arrival fight would bury it."""
         if not self._guiding():
             return
         flag = self.flag_for(room_id)
         if (
-            flag is None or not flag.teach
-            or self.world.flag_captured(room_id) or self.world.flag_taught(room_id)
+            flag is None or self.world.flag_captured(room_id)
+            or self.world.flag_taught(room_id)
+            or self.world.get_enemies_in_room(room_id)
         ):
             return
+        lesson = self._lesson(flag)
+        if not lesson:
+            return
         self.world.mark_flag_taught(room_id)
-        self.output.write(f"{ECHO} {flag.teach}")
+        self.output.write(f"{ECHO} {lesson}")
 
     def hint(self) -> None:
         """`hint`: a nudge first, then the exact command."""
@@ -172,6 +213,7 @@ class FlagService:
         if in_combat or not self._guiding():
             return
         room_id = self.player.current_room
+        self._teach_if_ready(room_id)
         flag = self.flag_for(room_id)
         if flag is None or self.world.flag_captured(room_id) or self._nudged_room == room_id:
             return
