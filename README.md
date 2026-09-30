@@ -34,6 +34,8 @@ _Exploring the Graveyard — pixel scene view, live panels, ECHO guiding your fi
 | Pokemon-style battles                     | Pick your difficulty                              |
 | ----------------------------------------- | ------------------------------------------------- |
 | ![Battle](./assets/screenshot-battle.svg) | ![Difficulty](./assets/screenshot-difficulty.svg) |
+| **Continue any run** — one save slot per run | **Settings** — right from the main menu        |
+| ![Save slots](./assets/screenshot-saves.svg) | ![Settings](./assets/screenshot-settings.svg)  |
 
 ---
 
