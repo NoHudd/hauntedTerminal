@@ -11,6 +11,20 @@ to it, so a screenshot or log names the build it came from.
 Saves from v0.1 do not load. The flag hunt changed what a save holds; start a
 new game.
 
+### New: main menu and save slots
+- The title menu has **SETTINGS** (palette, text speed, reduce motion, hints),
+  now arrow-driven: ↑/↓ picks a row, ←/→ changes it. Ctrl+P opens the same screen in-game.
+- Every run has its own save slot (up to 9). **LOAD GAME** lists them with the
+  class, difficulty, level and where you are; Enter continues, `d` deletes.
+  Beaten runs are marked ✓. When all 9 are taken, NEW GAME asks which run to replace.
+- Saves from the old single pool become one slot per hero; the original files
+  are kept in `saves/legacy/`.
+- Leave a run for the main menu: `menu`, or **Save & main menu** on the quit
+  chooser (Ctrl+Q, Ctrl+C, `quit`). The game-over screen is now r (restore this
+  run) / m (main menu) / q (quit).
+- Fixed: Ctrl+Q or `quit` during a fight said "command not found"; it now asks
+  whether to keep fighting, go to the menu or quit.
+
 ### New: capture the flag
 - Every directory hides a flag: 13 in the main tree, 5 more in secret
   directories. Read one with `cat`, search a huge log with `grep`, or find a

@@ -39,9 +39,10 @@ one does in an actual terminal.
 - `keys` — the keys you hold and the directories they open
 - `hint` — a nudge toward this room's flag; ask again for the exact command
 - `shortcuts` — item shortcuts and typing tips
-- `save` — save your progress
+- `save` — save your progress to this run's slot
+- `menu` — back to the title menu (offers to save first)
 - `quit` / `exit` — exit the game (offers to save). Ctrl+Q, Ctrl+C and ESC do
-  the same thing
+  the same thing; mid-fight they offer keep fighting / main menu / quit, without saving
 
 ### Combat
 
