@@ -261,6 +261,16 @@ def find_flag_problems(content: GameContent) -> list[str]:
             problems.append(f"room '{rid}': flag text has no FLAG{{...}}")
         if not flag.nudge.strip() or not flag.command.strip():
             problems.append(f"room '{rid}': flag needs both a nudge and a command")
+        if flag.via not in ("cat", "grep"):
+            problems.append(f"room '{rid}': flag via '{flag.via}' is not cat or grep")
+        if flag.via == "grep":
+            item = content.items.get(flag.file)
+            if item is None or item.log is None:
+                problems.append(f"room '{rid}': grep flag file '{flag.file}' has no log")
+            elif flag.text not in item.log.flag_line:
+                problems.append(
+                    f"room '{rid}': flag text is not in '{flag.file}''s log flag_line"
+                )
     return problems
 
 

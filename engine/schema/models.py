@@ -54,6 +54,10 @@ class RoomFlag(_Base):
     nudge: str
     command: str
     teach: str = ""
+    # How the flag is captured: "cat" (read the file) or "grep" (search it).
+    via: str = "cat"
+    # Said by any NPC in the room while the flag is still out there.
+    clue: str = ""
 
 
 class Room(_Base):
@@ -147,6 +151,14 @@ class Enemy(_Base):
         return "" if v is None else str(v)
 
 
+class LogSpec(_Base):
+    """A long generated log (src/logs.py): `lines` look-alike lines drawn from
+    `templates`, with `flag_line` once. Templates may use {ts} and {n}."""
+    lines: int = 300
+    templates: list[str]
+    flag_line: str
+
+
 class Item(_Base):
     id: ItemId = Field(default=ItemId(""))
     name: str
@@ -188,6 +200,8 @@ class Item(_Base):
     on_drop: dict[str, object] | str | None = None
     on_examine: dict[str, object] | str | None = None
     on_read: dict[str, object] | str | None = None
+    # A long generated log file; see LogSpec.
+    log: LogSpec | None = None
 
     @field_validator("rarity", mode="before")
     @classmethod
