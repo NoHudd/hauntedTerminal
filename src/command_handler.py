@@ -6,6 +6,7 @@ from src.combat import CombatSession
 from src.commands import build_registry
 from engine.events import EventType
 from src.game_flow import GameFlow
+from src.flags import FlagService
 from src.game_world import TUTORIAL_ENEMY
 from src.item_effects import ItemEffects
 from src.item_resolver import ItemResolver
@@ -64,6 +65,10 @@ class CommandHandler:
             self.flow, start_encounter=self.check_for_enemies,
         )
         self.loot = LootService(world, player, output, relist_room=self.relist_room)
+        self.flags = FlagService(
+            player, world, output,
+            save=lambda: self._checkpoint_save(),
+        )
 
         debug_log(f"Registered {len(self.command_registry)} commands")
 
@@ -232,6 +237,10 @@ class CommandHandler:
             location_content += f"\n\n{atmospheric}"
         
         self.output.write(location_content)
+
+    def _checkpoint_save(self):
+        from src.save import save_manager
+        save_manager.save_game(self.player, self.world.get_state())
 
     def relist_room(self):
         """Re-render the current room's contents, as if the player typed `ls`.

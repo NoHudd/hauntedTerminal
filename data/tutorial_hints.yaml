@@ -41,7 +41,7 @@
 "step_hidden": |-
   [bold green]ECHO>[/bold green] There — [bold].bash_profile[/bold], your own configuration file, hidden until now. The leading dot is what hides it. [bold]ls -a[/bold] reveals hidden files anywhere, so try it in every new place. Read this one: type [bold]cat .bash_profile[/bold] ([bold]cat .[/bold] then [bold]Tab[/bold] finishes it)
 "step_cat": |-
-  [bold green]ECHO>[/bold green] Feel that? A memory restored — and the system saved your progress. Every memory you recover with [bold]cat[/bold] is a checkpoint: if you fall, you resume from the last one. Keep reading what you find. Corrupted processes hide all over the system too — type: [bold]ps[/bold] to list what's running here.
+  [bold green]ECHO>[/bold green] Feel that? A memory restored — and your first [bold]flag[/bold] captured. Every directory hides one; [bold]tree[/bold] and [bold]journal[/bold] count them. The system saved your progress too. Every memory you recover with [bold]cat[/bold] is a checkpoint: if you fall, you resume from the last one. Keep reading what you find. Corrupted processes hide all over the system too — type: [bold]ps[/bold] to list what's running here.
 "step_ps": |-
   [bold green]ECHO>[/bold green] That's [bold]ps[/bold]: the processes running in this directory. Most belong to the system, but an odd one out can give away something hidden, so run it in new places. Now — do you know where you are? Type: [bold]pwd[/bold]
 "step_up": |-

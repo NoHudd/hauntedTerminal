@@ -206,6 +206,8 @@ class CatCommand(Command):
         if item.on_read is not None:
             ctx.effects.execute_effect(item.on_read)
         story_beat = ctx.effects.trigger_story_flag(item)
+        # A story beat already autosaved; the flag's checkpoint would duplicate it.
+        ctx.flags.on_file_read(item_id, already_saved=story_beat)
         ctx.tutorial.after_lore_read(story_beat)
         return story_beat
 
