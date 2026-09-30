@@ -60,3 +60,14 @@ def test_using_a_backup_mid_fight_explains_it_is_automatic(fight: GameSession) -
     assert "works automatically" in out
     assert fight.player.has_item("legacy_backup")
     assert fight.state == GameState.IN_COMBAT
+
+
+@pytest.mark.parametrize("typed", ["equip null_pointer", "take health_packet", "cd /bin"])
+def test_exploring_commands_mid_fight_say_why_not(fight: GameSession, typed: str) -> None:
+    _start(fight)
+    out = "\n".join(fight.submit(typed))
+    verb = typed.split()[0]
+    assert "command not found" not in out
+    assert f"{verb} works once the fight is over" in out
+    assert "1-9" in out and "flee" in out
+    assert fight.state == GameState.IN_COMBAT

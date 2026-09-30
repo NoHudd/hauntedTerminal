@@ -6,6 +6,15 @@ from engine.events import EventType
 from src.viewmodels.view_builder import ViewBuilder
 from src.player import auto_revive_text, is_auto_revive
 
+# Exploration commands that exist but can't run mid-fight. Typing one gets
+# "works once the fight is over" rather than "command not found".
+_EXPLORE_ONLY = frozenset({
+    "cat", "cd", "clear", "drop", "echo", "equip", "examine", "find", "grep",
+    "help", "hint", "inventory", "journal", "keys", "kill", "man", "ps", "pwd",
+    "save", "shortcuts", "take", "talk", "tree", "whoami",
+})
+
+
 class CombatSystem:
     """Handles all combat-related functionality with a unified approach."""
     
@@ -546,6 +555,15 @@ class CombatSession:
             else:
                 # Attack exists but somehow not in available_attacks - process it anyway
                 self._process_player_action("attack", cmd)
+
+        elif cmd in _EXPLORE_ONLY:
+            # A real command, just not now: say so instead of "not found",
+            # which reads like a typo to someone new to the shell.
+            self.output.write(
+                f"[yellow]{cmd} works once the fight is over. Right now: press "
+                "1-9 to attack, 0 to flee, or type use <item>.[/yellow]"
+            )
+            self._request_player_action()
 
         else:
             self.output.write(f"[red]bash: {command}: command not found[/red]")
