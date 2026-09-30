@@ -42,6 +42,7 @@ def test_room_with_enemies_present_is_not_cleared():
         s.new_game("t", "guardian")
         enemy_id = next(iter(s.world.enemy_locations))
         room_id = s.world.enemy_locations[enemy_id]
+        s.world.mark_flag_captured(room_id)  # isolate the enemy rule from the flag
         assert s.world.is_room_cleared(room_id) is False
     finally:
         s.close()
@@ -53,6 +54,7 @@ def test_room_with_all_enemies_defeated_is_cleared():
         s.new_game("t", "guardian")
         enemy_id = next(iter(s.world.enemy_locations))
         room_id = s.world.enemy_locations[enemy_id]
+        s.world.mark_flag_captured(room_id)  # isolate the enemy rule from the flag
         assert s.world.is_room_cleared(room_id) is False
         s.world.remove_enemy_from_room(enemy_id)
         assert s.world.is_room_cleared(room_id) is True
@@ -66,6 +68,7 @@ def test_fled_enemy_room_is_not_cleared_until_respawn_and_redefeat():
         s.new_game("t", "guardian")
         enemy_id = next(iter(s.world.enemy_locations))
         room_id = s.world.enemy_locations[enemy_id]
+        s.world.mark_flag_captured(room_id)  # isolate the enemy rule from the flag
         s.world.mark_enemy_as_fled(enemy_id, room_id)
         # Fled — enemy is gone from enemy_locations, but it will respawn.
         assert enemy_id not in s.world.enemy_locations
