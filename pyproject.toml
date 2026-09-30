@@ -1,3 +1,11 @@
+[project]
+name = "haunted-terminal"
+# The game's version, shown on the title screen and at the top of debug.log.
+# 0.MINOR.PATCH while playtesting: bump MINOR for each dev -> main release,
+# PATCH for a fix-only release. Tag main (vX.Y.Z) when it merges.
+version = "0.2.0"
+requires-python = ">=3.10"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
@@ -34,6 +42,7 @@ files = [
     "src/ui/panels/echo_panel.py",
     "src/ui/panels/inventory_panel.py",
     "src/ui/panels/stats_panel.py",
+    "src/version.py",
 ]
 strict = true
 plugins = ["pydantic.mypy"]

@@ -9,6 +9,7 @@ from rich.text import Text
 from textual.widgets import Input
 
 from engine.events import EventType
+from src.version import commit, version
 from utils.typewriter import TypewriterPresets, request_skip as request_typewriter_skip
 
 if TYPE_CHECKING:
@@ -80,6 +81,11 @@ Succeed, and the filesystem breathes again.
         self._app.add_class("intro-mode")
         self.index = 0
         self._title = Text(title_ascii, style="bold green", justify="center")
+        sha = commit()
+        self._title.append_text(Text(
+            f"\nv{version()}" + (f" · {sha}" if sha else ""),
+            style="dim", justify="center",
+        ))
         self._skip_hint = Text(
             "\n[press any key to skip intro]\n",
             style="dim italic", justify="center",

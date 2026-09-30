@@ -23,6 +23,9 @@ Stuck? Type `hint`.
 
 No prior command-line experience needed; the game teaches you as you go.
 
+What changed in each version: [CHANGELOG.md](CHANGELOG.md). The version you're
+running is on the title screen and on the first line of `debug.log`.
+
 ---
 
 ![Exploring the Graveyard](./assets/screenshot-explore.svg)

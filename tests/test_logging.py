@@ -51,4 +51,6 @@ def test_logs_rotate_before_the_game_modules_load() -> None:
     """Some modules log while importing (the combat system's attack table);
     rotating after the imports erased those lines from the new session."""
     source = Path(main.__file__).read_text()
-    assert source.index("rotate_logs(") < source.index("from src.")
+    rotation = source.index("rotate_logs(DEBUG_LOG_FILE")
+    assert rotation < source.index("from src.game_engine")
+    assert rotation < source.index("from src.ui")
