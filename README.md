@@ -28,14 +28,28 @@ running is on the title screen and on the first line of `debug.log`.
 
 ---
 
-![Exploring the Graveyard](./assets/screenshot-explore.svg)
-_Exploring the Graveyard — pixel scene view, live panels, ECHO guiding your first `ls`_
+<img src="./assets/screenshots/explore.svg" alt="Exploring the Graveyard" width="100%">
 
-| Pokemon-style battles                     | Pick your difficulty                              |
-| ----------------------------------------- | ------------------------------------------------- |
-| ![Battle](./assets/screenshot-battle.svg) | ![Difficulty](./assets/screenshot-difficulty.svg) |
-| **Continue any run** — one save slot per run | **Settings** — right from the main menu        |
-| ![Save slots](./assets/screenshot-saves.svg) | ![Settings](./assets/screenshot-settings.svg)  |
+_Exploring the Graveyard — pixel scene view, live panels, ECHO's quick reference_
+
+<table>
+  <tr>
+    <th width="50%">Pokemon-style battles</th>
+    <th width="50%">Pick your difficulty</th>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/battle.svg" alt="Battle" width="100%"></td>
+    <td><img src="./assets/screenshots/difficulty.svg" alt="Difficulty" width="100%"></td>
+  </tr>
+  <tr>
+    <th>Continue any run — one save slot per run</th>
+    <th>Settings — right from the main menu</th>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/saves.svg" alt="Save slots" width="100%"></td>
+    <td><img src="./assets/screenshots/settings.svg" alt="Settings" width="100%"></td>
+  </tr>
+</table>
 
 ---
 
