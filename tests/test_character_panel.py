@@ -67,3 +67,26 @@ def test_panel_is_in_the_sidebar_below_stats(monkeypatch: pytest.MonkeyPatch) ->
             assert ids == ["inventory-panel", "stats-panel", "character-panel"]
 
     asyncio.run(scenario())
+
+
+class _NarrowHost(App[None]):
+    CSS = "CharacterPanel { width: 34; }"
+
+    def compose(self) -> ComposeResult:
+        yield CharacterPanel(id="character-panel")
+
+
+def test_narrow_panel_puts_gear_under_the_sprite_uncut() -> None:
+    """Too narrow for side by side: gear goes below the sprite, names whole."""
+    async def scenario() -> None:
+        app = _NarrowHost()
+        async with app.run_test(size=(80, 40)) as pilot:
+            panel = app.query_one(CharacterPanel)
+            panel.update_character(_PLAYER, _GEAR, reduce_motion=True)
+            await pilot.pause()
+            console = Console(width=34, record=True, file=io.StringIO())
+            console.print(panel.content)
+            shown = console.export_text()
+            assert "Privilege Escalation Pike" in shown and "…" not in shown
+
+    asyncio.run(scenario())

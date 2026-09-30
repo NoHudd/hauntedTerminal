@@ -11,6 +11,8 @@ from __future__ import annotations
 import time
 
 from PIL import Image
+from rich.align import Align
+from rich.console import Group
 from rich.table import Table
 from rich.text import Text
 from textual.widgets import Static
@@ -21,7 +23,8 @@ from src.rarity import RaritySystem
 from src.scene.effects import BOB_PERIOD, bob_offset
 from src.scene.sprite_store import SpriteStore, to_renderable
 
-SPRITE_PX = 18      # figure box; half-block rendering draws it 9 rows tall
+SPRITE_PX = 26      # figure box; half-block rendering draws it 13 rows tall
+GEAR_MIN_WIDTH = 26  # narrower than this beside the sprite, gear goes below it
 
 
 def _equipped(inventory: InventoryView | None, kind: str) -> InventoryItemView | None:
@@ -104,16 +107,23 @@ class CharacterPanel(Static):
         canvas.paste(figure, (x, y), figure)
         return canvas
 
+    def on_resize(self) -> None:
+        self._render_panel()
+
     def _render_panel(self) -> None:
         if self._player is None:
+            return
+        sprite = to_renderable(self._sprite(self._player.player_class))
+        gear = Text.from_markup("\n".join(gear_lines(self._player, self._inventory)))
+        width = self.content_size.width
+        if width and width - SPRITE_PX - 2 < GEAR_MIN_WIDTH:
+            # Too narrow to share a row: gear below the sprite, names whole.
+            self.update(Group(Align.center(sprite, width=SPRITE_PX), Text(""), gear))
             return
         grid = Table.grid(padding=(0, 2))
         # Pixels doesn't report a width, so pin it (half-block: 1 px per
         # column) or the sprite column swallows the gear text.
         grid.add_column(width=SPRITE_PX, no_wrap=True)
         grid.add_column(ratio=1)
-        grid.add_row(
-            to_renderable(self._sprite(self._player.player_class)),
-            Text.from_markup("\n".join(gear_lines(self._player, self._inventory))),
-        )
+        grid.add_row(sprite, gear)
         self.update(grid)
