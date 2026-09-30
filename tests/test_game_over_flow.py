@@ -36,8 +36,9 @@ def test_final_screen_names_the_player_and_offers_only_working_choices() -> None
     plain = render(frame).plain
     assert "Mike" in plain
     assert "press any key" not in plain.lower()
-    for choice in ("r", "n", "q"):
+    for choice in ("r", "m", "q"):
         assert f"{choice} - " in plain or f"{choice} – " in plain
+    assert "n - " not in plain  # new game moved to the main menu
 
 
 class _RecordingUI:
@@ -94,9 +95,39 @@ def test_r_after_a_combat_death_restores_the_last_checkpoint(dead: GameSession) 
     assert dead.player.is_alive()
 
 
-def test_n_after_a_combat_death_starts_a_new_run(dead: GameSession) -> None:
-    dead.submit("n")
-    assert dead.engine.state_manager.current_state == GameState.WAITING_FOR_DIFFICULTY
+def test_m_after_a_combat_death_returns_to_the_main_menu(dead: GameSession) -> None:
+    dead.submit("m")
+    assert dead.engine.state_manager.current_state == GameState.MENU
+    assert save_manager.active_run_id is None
+
+
+def test_n_is_no_longer_a_game_over_choice(dead: GameSession) -> None:
+    out = "\n".join(str(x) for x in dead.submit("n"))
+    assert dead.engine.state_manager.current_state == GameState.GAME_OVER
+    assert "Invalid option" in out and "main menu" in out
+
+
+def test_r_restores_this_run_even_when_another_run_is_newer(dead: GameSession) -> None:
+    this_run = save_manager.active_run_id
+    other = GameSession()
+    try:
+        other.new_game("Other", "shaman")
+        save_manager.begin_run()
+        save_manager.save_game(other.player, other.world.get_state())
+    finally:
+        other.close()
+    save_manager.resume_run(this_run)
+
+    dead.submit("r")
+    assert dead.engine.state_manager.current_state == GameState.PLAYING
+    assert dead.player.name == "Mike"
+
+
+def test_r_with_no_save_for_this_run_goes_to_the_menu(dead: GameSession) -> None:
+    save_manager.delete_run(save_manager.active_run_id)
+    out = "\n".join(str(x) for x in dead.submit("r"))
+    assert dead.engine.state_manager.current_state == GameState.MENU
+    assert "No backup for this run" in out
 
 
 def test_anything_else_keeps_the_choices_on_screen(dead: GameSession) -> None:

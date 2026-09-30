@@ -105,7 +105,7 @@ def test_f5_restart_returns_to_the_title_without_a_game_over_card(
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("choice", ["n", "r"])
+@pytest.mark.parametrize("choice", ["m", "r"])
 def test_post_win_choices_do_not_show_a_game_over_card(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, choice: str,
 ) -> None:
@@ -126,6 +126,29 @@ def test_post_win_choices_do_not_show_a_game_over_card(
             await pilot.pause()
 
             assert calls == []
+            engine._cleanup()
+
+    asyncio.run(scenario())
+
+
+def test_main_menu_from_the_game_over_screen_shows_the_title(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = TextualGameUI()
+
+    async def scenario() -> None:
+        async with app.run_test(size=(120, 40)) as pilot:
+            engine = _new_game(app, monkeypatch)
+            await pilot.pause()
+            calls: list[str] = []
+            _record(monkeypatch, app, ["display_game_over", "_display_title_screen"], calls)
+
+            engine.cmd_handler.flow.in_game_over_mode = True
+            engine.cmd_handler.flow.handle_game_over_input("m")
+            await pilot.pause()
+
+            assert calls == ["_display_title_screen"]
+            assert app._title_menu.state == "menu_ready"  # no typewriter replay
             engine._cleanup()
 
     asyncio.run(scenario())

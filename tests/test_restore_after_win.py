@@ -60,7 +60,7 @@ def test_entering_a_room_with_an_enemy_starts_a_fight_after_restore(
     assert session is not None and session.enemy_id == TUTORIAL_ENEMY
 
 
-def test_a_failed_restore_falls_back_to_a_new_game(
+def test_a_failed_restore_falls_back_to_the_main_menu(
     restored: GameSession, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def broken(run_id: str) -> dict:
@@ -71,7 +71,7 @@ def test_a_failed_restore_falls_back_to_a_new_game(
     restored.engine._restart_from_save()
     out = "\n".join(restored.ui.drain())
     assert "Failed to load save" in out
-    assert restored.state == GameState.WAITING_FOR_DIFFICULTY
+    assert restored.state == GameState.MENU
 
 
 def test_the_tui_can_show_the_restore_failure() -> None:

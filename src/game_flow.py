@@ -85,19 +85,24 @@ class GameFlow:
     """Owns the modal end-of-run states and the input they capture."""
 
     def __init__(self, player, world, output, bus, save,
-                 start_new_game=None, restore_save=None):
-        """start_new_game() / restore_save() are the engine's, called directly
-        for the "n" / "r" choices on the game-over and post-win screen."""
+                 return_to_menu=None, restore_save=None):
+        """return_to_menu() / restore_save() are the engine's: the game-over and
+        post-win "m" / "r" choices, and the quit chooser's main-menu options."""
         self.player = player
         self.world = world
         self.output = output
         self.bus = bus
         self._save = save
-        self._start_new_game = start_new_game
+        self._return_to_menu = return_to_menu
         self._restore_save = restore_save
         self.in_game_over_mode = False  # Track if we're in game over screen mode
         self.game_won = False  # Set once the Daemon Overlord is beaten in /core
         self.in_quit_confirmation = False  # Track if we're confirming quit
+
+    def go_to_menu(self):
+        """Leave this run for the title menu."""
+        if self._return_to_menu is not None:
+            self._return_to_menu()
 
     # --- game over ----------------------------------------------------------
 
@@ -135,8 +140,8 @@ class GameFlow:
         result = self._handle_game_over_choice(command.strip())
         if result == "quit":
             self.bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")
-        elif result == "start_new_game" and self._start_new_game is not None:
-            self._start_new_game()
+        elif result == "main_menu":
+            self.go_to_menu()
         elif result == "restart_from_save" and self._restore_save is not None:
             self._restore_save()
 
@@ -160,20 +165,18 @@ class GameFlow:
                     # Signal to restart with save data
                     self.output.write("[bold green]System restored from backup![/bold green]\n")
                     return "restart_from_save"
-                self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
-                return self._handle_game_over_choice('n')
+                self.output.write("[bold red]No backup for this run. Returning to the main menu...[/bold red]")
+                return self._handle_game_over_choice('m')
             except Exception as e:
                 debug_log(f"Failed to load save: {e}")
-                self.output.write("[bold red]Backup corrupted. Starting new game instead...[/bold red]")
-                return self._handle_game_over_choice('n')
+                self.output.write("[bold red]Backup corrupted. Returning to the main menu...[/bold red]")
+                return self._handle_game_over_choice('m')
 
-        elif choice == 'n':
-            # Start new game
-            debug_log("Player chose to start new game")
-            self.output.write("\n[bold cyan]Initializing new system...[/bold cyan]")
-            self.output.write("[green]Creating fresh filesystem...[/green]")
+        elif choice == 'm':
+            debug_log("Player chose the main menu")
+            self.output.write("\n[bold cyan]Returning to the main menu...[/bold cyan]")
             self.in_game_over_mode = False
-            return "start_new_game"
+            return "main_menu"
 
         elif choice == 'q':
             # Quit game
@@ -185,7 +188,7 @@ class GameFlow:
         else:
             # Invalid choice
             self.output.write(f"\n[bold red]Invalid option: '{choice}'[/bold red]")
-            self.output.write("[bold white]Please choose:[/bold white] [green]r[/green] (restart), [yellow]n[/yellow] (new game), or [red]q[/red] (quit)")
+            self.output.write("[bold white]Please choose:[/bold white] [green]r[/green] (restore), [cyan]m[/cyan] (main menu), or [red]q[/red] (quit)")
             return None
 
     # --- victory ------------------------------------------------------------
@@ -239,12 +242,19 @@ class GameFlow:
             "secrets": secrets,
             "secrets_total": secrets_total,
         }
+        # The run keeps its slot, marked cleared; its last save stays as it is.
+        from src.save import save_manager
+        try:
+            save_manager.mark_cleared()
+        except Exception as e:
+            debug_log(f"Could not mark the run cleared: {e}")
+
         self.bus.emit_event(
             EventType.GAME_WON,
             {"ending_id": choice, "sections": sections, "stats": stats},
             "CommandHandler",
         )
-        # Reuse the post-game input flow (r/n/q) instead of hard-exiting the app.
+        # Reuse the post-game input flow (r/m/q) instead of hard-exiting the app.
         self.in_game_over_mode = True
 
     # --- quit ---------------------------------------------------------------

@@ -132,21 +132,26 @@ class ImprovedGameEngine:
         self.bus.subscribe(EventType.UI_READY, self._on_ui_ready)
         self.bus.subscribe(EventType.GAME_RESTART_REQUESTED, self._on_restart_requested)
 
-    def restart_game(self):
-        """Restart game state without closing UI - reloads all game data."""
-        logger.info("Restarting game")
+    def restart_game(self, reason: str = "restart"):
+        """Back to the title without closing the UI: F5 ("restart") or leaving
+        a run for the main menu ("menu"). Reloads all game data; no run is
+        being played afterwards."""
+        logger.info(f"Returning to the title ({reason})")
+        save_manager.end_run()
 
         # Reinitialize all game components (player, world, data)
         self._initialize_game_components()
 
-        # Emit event to UI to reset display
+        # The UI resets and shows the title (skipping the intro for "menu").
         self.bus.emit_event(
             EventType.GAME_OVER,
-            {"reason": "restart", "message": "Game restarted. Welcome back!"},
+            {"reason": reason, "message": "Game restarted. Welcome back!"},
             "GameEngine",
         )
 
-        logger.info("Game restart complete")
+    def _return_to_menu(self):
+        """Leave the run for the title menu (game-over "m", the quit chooser)."""
+        self.restart_game(reason="menu")
 
     #: Where the world's content lives; tests point this at a scratch copy.
     DATA_DIR = "data"
@@ -259,7 +264,7 @@ class ImprovedGameEngine:
             self.player, self.world, self.output, self.bus,
             on_combat_start=self._combat_started,
             on_combat_end=self._combat_ended,
-            on_new_game=self._new_game_after_game_over,
+            on_return_to_menu=self._return_to_menu,
             on_restore_save=self._restart_from_save,
         )
 
@@ -305,15 +310,6 @@ class ImprovedGameEngine:
 
         self._update_ui_panels()
     
-    def _new_game_after_game_over(self):
-        """The game-over / post-win screen's "n": a new run re-offers difficulty
-        and class (the old shortcut restarted as a default guardian on the same
-        difficulty)."""
-        logger.info("Player chose to start new game - full setup flow")
-        self.state_manager.set_state(GameState.MENU, emit_event=False)
-        self.bus.clear_history()
-        self._start_new_game()
-
     def _on_restart_requested(self, event):
         """Handle game restart request from UI (F5 key)."""
         logger.info("Game restart requested from UI")
@@ -331,9 +327,8 @@ class ImprovedGameEngine:
             save_data = save_manager.load_run(run_id) if run_id else None
 
             if not save_data:
-                logger.warning("No save data found, starting new game instead")
-                self.state_manager.set_state(GameState.MENU, emit_event=False)
-                self._start_new_game()
+                logger.warning("No save data found, returning to the main menu")
+                self._return_to_menu()
                 return
 
             self._enter_loaded_run(save_data)
@@ -341,9 +336,8 @@ class ImprovedGameEngine:
 
         except Exception as e:
             logger.error(f"Failed to restart from save: {e}")
-            self.ui.display_message(f"[bold red]Failed to load save: {e}. Starting new game instead...[/bold red]")
-            self.state_manager.set_state(GameState.MENU, emit_event=False)
-            self._start_new_game()
+            self.ui.display_message(f"[bold red]Failed to load save: {e}. Returning to the main menu...[/bold red]")
+            self._return_to_menu()
 
     def _enter_loaded_run(self, save_data, welcome=False):
         """Rebuild the run from a save and start playing it.

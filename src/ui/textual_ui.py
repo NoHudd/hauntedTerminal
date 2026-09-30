@@ -278,13 +278,13 @@ class TextualGameUI(App):
 
     def _on_game_over(self, event):
         """A death drains the scene and shows the GAME OVER card; a restart
-        goes back to the title."""
+        (F5) or leaving for the main menu goes back to the title."""
         reason = event.data.get("reason")
         player_view = self._player_view
         self._reset_ui_state(leave_battle=reason != "defeat")
 
-        if reason == "restart":
-            self._display_title_screen()
+        if reason in ("restart", "menu"):
+            self._display_title_screen(skip_typewriter=reason == "menu")
             return
         if reason != "defeat":
             return

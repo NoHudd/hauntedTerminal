@@ -36,13 +36,13 @@ def test_invalid_choice_reprompts_and_stays_on_the_screen(session: GameSession) 
     assert session.engine.cmd_handler.flow.in_game_over_mode is True
 
 
-def test_new_game_choice_returns_to_the_difficulty_picker(session: GameSession) -> None:
+def test_main_menu_choice_returns_to_the_title(session: GameSession) -> None:
     seen: list[dict] = []
     session.bus.subscribe(EventType.GAME_OVER, lambda e: seen.append(e.data))
     _die(session)
-    session.submit("n")
-    assert seen == []  # a direct engine call now, not a GAME_OVER event
-    assert session.state == GameState.WAITING_FOR_DIFFICULTY
+    session.submit("m")
+    assert session.state == GameState.MENU
+    assert [data["reason"] for data in seen] == ["menu"]  # the UI shows the title
 
 
 def test_quit_choice_asks_the_frontend_to_stop(session: GameSession) -> None:

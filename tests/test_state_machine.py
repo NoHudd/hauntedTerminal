@@ -79,3 +79,12 @@ def test_load_from_the_menu(
     fresh.submit(f"pick {run_id}")
     assert fresh.state == GameState.PLAYING
     assert fresh.player.name == "Tess"
+
+
+def test_f5_ends_the_run(fresh: GameSession) -> None:
+    from src.save import save_manager
+    fresh.new_game("Tess", "guardian")
+    fresh.submit("save")
+    assert save_manager.active_run_id is not None
+    fresh.engine.restart_game()
+    assert save_manager.active_run_id is None

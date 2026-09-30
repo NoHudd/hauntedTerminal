@@ -21,7 +21,7 @@ class CommandHandler:
     """Handles processing of player commands"""
     
     def __init__(self, player, world, output, bus, on_combat_start=None, on_combat_end=None,
-                 on_new_game=None, on_restore_save=None):
+                 on_return_to_menu=None, on_restore_save=None):
         """Initialize with player, world, a GameOutput sink and the engine's EventBus.
 
         Phase 2b: the handler no longer holds a UI reference — it writes to
@@ -30,8 +30,9 @@ class CommandHandler:
 
         on_combat_start() / on_combat_end(outcome) let the engine update the
         game state as a fight begins and ends, in a fixed place in the sequence.
-        on_new_game() / on_restore_save() are the engine's, for the game-over
-        screen's "n" and "r" choices.
+        on_return_to_menu() / on_restore_save() are the engine's, for the
+        game-over screen's "m" and "r" choices and the quit chooser's
+        main-menu options.
         """
         debug_log("Initializing CommandHandler")
         self.player = player
@@ -57,7 +58,7 @@ class CommandHandler:
         self.flow = GameFlow(
             player, world, output, bus,
             save=lambda: self.command_registry["save"].execute(self, []),
-            start_new_game=on_new_game,
+            return_to_menu=on_return_to_menu,
             restore_save=on_restore_save,
         )
         self.effects = ItemEffects(

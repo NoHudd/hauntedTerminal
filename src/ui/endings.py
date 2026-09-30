@@ -97,5 +97,5 @@ def build_recap(stats: dict[str, Any]) -> str:
         f"rank: [bold]{rank}[/bold]\n"
         f"difficulty: {stats.get('difficulty', '?')}\n"
         "──────────────────────────────────────\n"
-        "[green]n[/green] new run · [red]q[/red] quit"
+        "[green]r[/green] restore · [cyan]m[/cyan] main menu · [red]q[/red] quit"
     )

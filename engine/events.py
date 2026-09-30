@@ -33,9 +33,9 @@ class EventType(Enum):
     # Data: basic game start info
 
     GAME_OVER = auto()
-    # Emitted by: game_engine.py (death in combat, F5 restart)
+    # Emitted by: game_engine.py (death in combat, F5 restart, leaving a run for the main menu)
     # Subscribed by: textual_ui.py
-    # Data: {"reason": "defeat" | "restart", "message": str (optional)}
+    # Data: {"reason": "defeat" | "restart" | "menu", "message": str (optional)}
     # The UI shows the GAME OVER card only for reason == "defeat". Nothing in the
     # game listens to it: the game-over screen's choices call the engine directly.
 

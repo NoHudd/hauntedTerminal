@@ -200,8 +200,8 @@ class GameOverAnimation:
 [italic cyan]Even the greatest sysadmins must sometimes face corruption...[/italic cyan]
 
 [bold white]Type a letter and press Enter:[/bold white]
-  [bold green]r[/bold green] - Restart from your last checkpoint (your last restored memory or save)
-  [bold yellow]n[/bold yellow] - Start a new game
+  [bold green]r[/bold green] - Restore this run's last save
+  [bold cyan]m[/bold cyan] - Main menu
   [bold red]q[/bold red] - Quit to shell"""
 
     def __init__(self, width: int = 75, height: int = 22, player_name: str | None = None):
