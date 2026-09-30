@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class GameOutput:
     """A text sink that either forwards live or accumulates."""
 
-    def __init__(self, forward: Callable[[Any], None] | None = None) -> None:
+    def __init__(self, forward: Callable[..., None] | None = None) -> None:
         self._forward = forward
         self.messages: list[str] = []
 
@@ -43,6 +43,14 @@ class GameOutput:
         """
         if self._forward is not None:
             self._forward(content)
+        else:
+            self.messages.append(str(content))
+
+    def replace(self, content: Any) -> None:
+        """Emit content that replaces the panel rather than appending to it,
+        for animation frames written long after their command started."""
+        if self._forward is not None:
+            self._forward(content, replace=True)
         else:
             self.messages.append(str(content))
 

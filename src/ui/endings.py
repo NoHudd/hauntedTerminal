@@ -73,13 +73,3 @@ def build_recap(stats: dict[str, Any]) -> str:
         "──────────────────────────────────────\n"
         "[green]n[/green] new run · [red]q[/red] quit"
     )
-
-
-def game_over_text(player_name: str) -> str:
-    return f"""[bold red]GAME OVER[/bold red]
-
-[bold]System Critical Failure[/bold]
-
-Brave sysadmin {player_name}, your session has been terminated.
-
-[yellow]Press any key to return to the main menu...[/yellow]"""

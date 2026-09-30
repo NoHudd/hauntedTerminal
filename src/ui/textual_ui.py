@@ -37,7 +37,7 @@ from src.ui.screens.settings_screen import SettingsScreen
 from src.ui.combat_log import render_combat_output
 from src.ui.command_input import CommandInput
 from src.ui.command_suggester import CommandSuggester
-from src.ui.endings import FinaleReveal, game_over_text
+from src.ui.endings import FinaleReveal
 from src.ui.title_menu import TitleMenu
 from config.settings_manager import SettingsManager
 
@@ -293,7 +293,7 @@ class TextualGameUI(App):
         )
 
         # CommandHandler triggers the particle animation (2.5s).
-        # Defer the static game-over screen so it doesn't get overwritten by animation frames.
+        # Focus the input once the animation's final frame (the choices) is up.
         # Dynamic read — settings_manager mutates dev_cfg.DISABLE_ANIMATIONS at runtime.
         import config.dev_config as _dev_cfg
         delay = 0.0 if _dev_cfg.DISABLE_ANIMATIONS else 2.6
@@ -877,13 +877,11 @@ class TextualGameUI(App):
         self.message_history.clear()
 
     def display_game_over(self) -> None:
-        """Show the game over screen."""
+        """Hand the keyboard back for the game-over choices. The screen itself
+        is the animation's final frame (GameFlow); writing a second card here
+        raced it and contradicted its r / n / q."""
         if self.ui_state != UIState.READY:
             return
-
-        self.clear_console()
-        player_name = self._player_view.player_name if self._player_view else 'Unknown Sysadmin'
-        self.update_output(game_over_text(player_name))
         self.query_one("#input-field").focus()
 
     def _show_combat_ui(self):

@@ -209,14 +209,9 @@ class ImprovedGameEngine:
                 self._handle_class_input(command)
             elif game_state == GameState.TUTORIAL_NAME_INPUT:
                 self._handle_tutorial_name_input(command)
-            elif game_state == GameState.GAME_OVER:
-                # Any keypress from game over screen → return to main menu
-                logger.debug("GAME_OVER state: transitioning to MENU")
-                self.state_manager.set_state(GameState.MENU)
-                if hasattr(self.ui, '_display_title_screen'):
-                    self.ui._display_title_screen()
-                else:
-                    self.ui.update_output("\n1. New Game\n2. Load Game\n3. Exit\n\nEnter your choice: ")
+            elif game_state == GameState.GAME_OVER and self.cmd_handler:
+                # The game-over screen's r / n / q; anything else re-asks.
+                self.cmd_handler.flow.handle_game_over_input(command)
             else:
                 logger.debug(f"No specific handler for state {game_state}, defaulting to menu handler")
                 self._handle_menu_command(command)
@@ -224,7 +219,7 @@ class ImprovedGameEngine:
             logger.error(f"Error handling command '{command}': {e}")
             self.ui.update_output(f"Error: {e}")
 
-    def _forward_output(self, content):
+    def _forward_output(self, content, replace=False):
         """Render one line from the domain output sink to the UI (Phase 2b).
 
         The FIRST write of a command replaces the output panel; subsequent
@@ -235,7 +230,7 @@ class ImprovedGameEngine:
         Thread-safe: the game-over animation writes from a background thread, so
         use Textual's call_from_thread when the UI provides it.
         """
-        first = getattr(self, "_fresh_command_output", True)
+        first = getattr(self, "_fresh_command_output", True) or replace
         self._fresh_command_output = False
         sink = self.ui.update_output
         if not first and hasattr(self.ui, "append_output"):
@@ -325,6 +320,9 @@ class ImprovedGameEngine:
         """Restart the game from the most recent save."""
         try:
             logger.info("Restarting from most recent save")
+            # Game over only leads to the menu; a run restarts from there.
+            if self.state_manager.current_state == GameState.GAME_OVER:
+                self.state_manager.set_state(GameState.MENU, emit_event=False)
             
             from src.save import load_most_recent_save
             save_data = load_most_recent_save()

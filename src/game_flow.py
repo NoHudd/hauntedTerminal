@@ -109,12 +109,14 @@ class GameFlow:
         self.in_game_over_mode = True
 
         # Create the animation
-        animation = GameOverAnimation(width=78, height=20)
+        animation = GameOverAnimation(
+            width=78, height=20, player_name=getattr(self.player, "name", None)
+        )
 
         def run_animation():
             """Run the particle animation in a background thread."""
             def update_display(content: str):
-                self.output.write(content)
+                self.output.replace(content)
 
             animation.run_animation(update_display, duration=2.5, fps=12)
             debug_log("Game over animation completed, waiting for player choice")

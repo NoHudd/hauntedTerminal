@@ -33,6 +33,11 @@ _ATTACKS = [
 
 
 def _fired_after_pressing(key: str) -> list[str]:
+    import src.ui.textual_ui as tui
+
+    # The title typewriter focuses the command box when it finishes; under load
+    # that can land after combat starts and swallow the keypress as typing.
+    skip_intro, tui.SKIP_INTRO = tui.SKIP_INTRO, True
     app = TextualGameUI()
     fired: list[str] = []
     app.bus.subscribe(
@@ -58,10 +63,14 @@ def _fired_after_pressing(key: str) -> list[str]:
                 if key in app._bound_combat_keys:
                     break
                 await pilot.pause(0.02)
+            app.set_focus(None)
             await pilot.press(key)
             await pilot.pause()
 
-    asyncio.run(scenario())
+    try:
+        asyncio.run(scenario())
+    finally:
+        tui.SKIP_INTRO = skip_intro
     return fired
 
 

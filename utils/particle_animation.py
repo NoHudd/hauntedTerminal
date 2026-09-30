@@ -11,6 +11,8 @@ import random
 import math
 from typing import Callable, List, Tuple
 from dataclasses import dataclass
+
+from rich.markup import escape
 import config.dev_config as _dev_cfg
 
 
@@ -161,11 +163,11 @@ class ParticleSystem:
                 if overlay_row and col_idx < len(overlay_row):
                     overlay_char = overlay_row[col_idx]
                     if overlay_char != ' ':
-                        line_parts.append(f'[{overlay_color}]{overlay_char}[/{overlay_color}]')
+                        line_parts.append(f'[{overlay_color}]{escape(overlay_char)}[/{overlay_color}]')
                         continue
 
                 if char != ' ':
-                    line_parts.append(f'[{color}]{char}[/{color}]')
+                    line_parts.append(f'[{color}]{escape(char)}[/{color}]')
                 else:
                     line_parts.append(' ')
 
@@ -197,14 +199,13 @@ class GameOverAnimation:
 [dim]The digital void echoes with the sound of your defeat.[/dim]
 [italic cyan]Even the greatest sysadmins must sometimes face corruption...[/italic cyan]
 
-[bold white]Options:[/bold white]
-  [bold green]r[/bold green] - Restart from your last save
+[bold white]Type a letter and press Enter:[/bold white]
+  [bold green]r[/bold green] - Restart from your last checkpoint (your last restored memory or save)
   [bold yellow]n[/bold yellow] - Start a new game
-  [bold red]q[/bold red] - Quit to shell
+  [bold red]q[/bold red] - Quit to shell"""
 
-[bold white]What would you like to do?[/bold white] """
-
-    def __init__(self, width: int = 75, height: int = 22):
+    def __init__(self, width: int = 75, height: int = 22, player_name: str | None = None):
+        self.player_name = player_name
         self.width = width
         self.height = height
         self.particle_system = ParticleSystem(width, height)
@@ -300,7 +301,15 @@ class GameOverAnimation:
 ║                                                                          ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 [/bold red]
-{self.OPTIONS_TEXT}"""
+{self._farewell()}{self.OPTIONS_TEXT}"""
+
+    def _farewell(self) -> str:
+        if not self.player_name:
+            return ""
+        return (
+            f"\n[bold]Brave sysadmin {escape(self.player_name)}, "
+            "your session has been terminated.[/bold]\n"
+        )
 
     def stop(self):
         """Stop the animation early."""
