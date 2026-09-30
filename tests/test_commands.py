@@ -82,7 +82,7 @@ def test_inventory_shows_starter_items(session: GameSession) -> None:
 
 def test_keys_shows_progression(session: GameSession) -> None:
     out = _text(session.submit("keys"))
-    assert "KEY PROGRESSION" in out
+    assert "KEYS" in out
     assert "lib_key" in out
 
 

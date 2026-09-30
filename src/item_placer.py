@@ -122,7 +122,9 @@ class ItemPlacer:
         if nothing on the way to it is locked without a held key. Hidden rooms
         count as reachable — `ls -a` in the (reachable) parent reveals them.
         Class-restricted rooms never count: two thirds of players cannot enter
-        them, so nothing required for progression may live there.
+        them, so nothing required for progression may live there. Nor do rooms
+        behind a flag gate (/boot): a key placed there would be needed to earn
+        the very flags that open it.
         """
         from src.room_paths import ancestors, room_at, room_path
 
@@ -136,6 +138,9 @@ class ItemPlacer:
                     continue
                 room = self.world.get_room(rid)
                 if getattr(room, "class_restriction", "") or "":
+                    ok = False
+                    break
+                if getattr(room, "flags_required", 0):
                     ok = False
                     break
                 state = self.world.room_states.get(rid, {})
@@ -808,14 +813,18 @@ class ItemPlacer:
 
     def _starts_open(self, room_id) -> bool:
         """Can a new player walk in with no keys? Nothing on the path, the room
-        included, starts locked. (Class restrictions don't count: an open room
-        is open to someone.)"""
+        included, starts locked or flag-gated. (Class restrictions don't count:
+        an open room is open to someone.)"""
         from src.room_paths import ancestors, room_at, room_path
 
         target = room_path(room_id)
         for path in ancestors(target) + [target]:
             rid = room_at(path)
-            if rid is not None and self.world.room_states.get(rid, {}).get("locked", False):
+            if rid is None:
+                continue
+            if self.world.room_states.get(rid, {}).get("locked", False):
+                return False
+            if getattr(self.world.get_room(rid), "flags_required", 0):
                 return False
         return True
 

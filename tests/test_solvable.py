@@ -21,7 +21,10 @@ CLASSES = ["guardian", "weaver", "shaman"]
 # seed exposes, not a rare unlucky roll — a wide grid bought repetition, not
 # coverage. Widen this temporarily if you ever change _place_keys.
 SEEDS = list(range(4))
-GOAL = "core"          # the boss room; reaching it is the win condition
+# /boot's flag gate can strand a run when a key lands behind it (about 1 run in
+# 10 before the fix), so the flag test samples far more seeds.
+FLAG_SEEDS = list(range(30))
+GOAL = "core"          # the boss room, gated by flags_required
 
 _ITEMS = {str(k): v for k, v in load_items("data").items()}
 
@@ -38,14 +41,35 @@ def _fresh_world(player_class: str, seed: int) -> GameWorld:
     return world
 
 
+def _behind_flag_gate(world: GameWorld, room_id: str) -> bool:
+    """Is room_id at or under a room that needs flags to enter? Computed here,
+    not by the placer, so a placer that forgets the gate cannot hide it."""
+    target = room_paths.room_path(room_id)
+    for path in room_paths.ancestors(target) + [target]:
+        rid = room_paths.room_at(path)
+        room = world.get_room(rid) if rid else None
+        if room is not None and getattr(room, "flags_required", 0):
+            return True
+    return False
+
+
+def _open_rooms(world: GameWorld, held: set[str]) -> set[str]:
+    """Rooms walkable with `held` keys before the flag gate opens."""
+    return {
+        r for r in ItemPlacer(world).rooms_reachable_with(held)
+        if not _behind_flag_gate(world, r)
+    }
+
+
 def _keys_obtainable(world: GameWorld) -> set[str]:
-    """Keys the player can actually collect, by repeatedly sweeping everywhere
-    currently reachable and taking whatever is there — including boss rewards."""
+    """Keys the player can actually collect before /boot, by repeatedly
+    sweeping everywhere currently reachable and taking whatever is there —
+    including boss rewards."""
     held: set[str] = set()
-    boss_rewards = {"core": "system_badge", "mirror_sector": "sudo_privileges_badge"}
+    boss_rewards = {"mirror_sector": "sudo_privileges_badge"}
 
     for _ in range(len(world.rooms) + 2):     # bounded: reachability only grows
-        reachable = set(ItemPlacer(world).rooms_reachable_with(held))
+        reachable = _open_rooms(world, held)
         found = {
             item_id for item_id, room in world.item_locations.items()
             if room in reachable and ItemPlacer(world).is_key(item_id)
@@ -60,14 +84,23 @@ def _keys_obtainable(world: GameWorld) -> set[str]:
 
 
 @pytest.mark.parametrize("player_class", CLASSES)
-@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize("seed", FLAG_SEEDS)
 def test_run_is_completable(player_class: str, seed: int) -> None:
+    """/boot opens with flags_required main flags from elsewhere: that many
+    flag rooms must be reachable with the keys the run yields before /boot."""
     world = _fresh_world(player_class, seed)
     held = _keys_obtainable(world)
-
-    assert GOAL in ItemPlacer(world).rooms_reachable_with(held), (
-        f"{player_class} seed {seed}: the boss room is unreachable with every "
-        f"key the run can yield ({sorted(held)})"
+    reachable = _open_rooms(world, held)
+    flag_rooms = {
+        rid for rid, room in world.rooms.items()
+        if room.flag is not None and not room.hidden and rid != GOAL
+    }
+    needed = world.get_room(GOAL).flags_required
+    got = len(flag_rooms & reachable)
+    assert got >= needed, (
+        f"{player_class} seed {seed}: only {got} of the {needed} flags /boot "
+        f"needs are reachable before it (keys: {sorted(held)}; key spots: "
+        f"{ {k: v for k, v in world.item_locations.items() if ItemPlacer(world).is_key(k)} })"
     )
 
 

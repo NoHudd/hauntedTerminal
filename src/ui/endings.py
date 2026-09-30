@@ -69,19 +69,23 @@ FULL_CLEAR_EPILOGUE = (
 
 
 def rank_for(flags: int, flags_total: int, secrets: int, secrets_total: int) -> str:
+    """A win holds at least 12 of 13 main flags (11 open /boot, the Overlord
+    drops the 12th), so the ladder starts at Sysadmin."""
+    if not flags_total:
+        return "—"
     if flags >= flags_total and secrets >= secrets_total:
         return "root"
     if flags >= flags_total:
         return "Sysadmin Supreme"
-    if flags >= flags_total - 1:
-        return "Sysadmin"
-    return "Operator"
+    return "Sysadmin"
 
 
 def build_recap(stats: dict[str, Any]) -> str:
     flags, flags_total = stats.get("flags", 0), stats.get("flags_total", 0)
     secrets, secrets_total = stats.get("secrets", 0), stats.get("secrets_total", 0)
     rank = rank_for(flags, flags_total, secrets, secrets_total)
+    if secrets_total and secrets >= secrets_total and rank != "root":
+        rank += " · Keeper of Secrets"
     return (
         "── YOUR RUN ──────────────────────────\n"
         f"[bold]{stats.get('player_name', '?')}[/bold] · "

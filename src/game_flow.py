@@ -160,7 +160,11 @@ class GameFlow:
                     self.output.write("[bold green]System restored from backup![/bold green]\n")
                     return "restart_from_save"
                 else:
-                    self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
+                    from src.save import save_manager, skipped_saves_notice
+                    if save_manager.last_skipped:
+                        self.output.write(skipped_saves_notice(save_manager.last_skipped))
+                    else:
+                        self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
                     return self._handle_game_over_choice('n')
             except Exception as e:
                 debug_log(f"Failed to load save: {e}")

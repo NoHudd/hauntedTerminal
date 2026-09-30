@@ -22,6 +22,15 @@ MIN_SUPPORTED_VERSION = 5
 MAX_SAVE_FILES = 20
 
 
+def skipped_saves_notice(count: int) -> str:
+    """What to tell a player whose only saves are too old to load."""
+    noun = "save is" if count == 1 else "saves are"
+    return (
+        f"[bold yellow]{count} {noun} from before room flags and can't be "
+        "loaded. Starting a new game instead...[/bold yellow]"
+    )
+
+
 class IncompatibleSaveError(Exception):
     """Raised when a save predates a world change that cannot be migrated."""
 
@@ -72,6 +81,8 @@ class SaveManager:
     def __init__(self, save_dir="saves"):
         """Initialize the save manager with the save directory."""
         self.save_dir = save_dir
+        # How many saves the last get_save_files() refused as too old.
+        self.last_skipped = 0
         # Ensure the save directory exists
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -207,6 +218,7 @@ class SaveManager:
                     # Skip corrupt save files
                     continue
 
+        self.last_skipped = skipped
         if skipped:
             logger.info(
                 f"Ignored {skipped} save(s) from an older, incompatible format"

@@ -108,60 +108,35 @@ class KeysCommand(Command):
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         output = Text()
-        output.append("🔑 KEY PROGRESSION SYSTEM\n", style="bold cyan")
+        output.append("🔑 KEYS\n", style="bold cyan")
         output.append("=" * 50 + "\n", style="dim")
 
-        key_info = {
-            "lib_key": {
-                "name": "Library Key",
-                "found_in": "usr_lib_arcane",
-                "unlocks": ["var_dungeon"],
-                "description": "Unlocks the Variable Dungeon",
-            },
-            "opt_key": {
-                "name": "Optional Key",
-                "found_in": "var_dungeon",
-                "unlocks": ["opt_mage_tower", "srv_warrior_tomb"],
-                "description": "Unlocks class-restricted areas",
-            },
-        }
-
-        output.append("📋 PROGRESSION STATUS:\n", style="bold yellow")
-
-        for key_id, info in key_info.items():
+        keys = sorted(
+            (iid, item) for iid, item in ctx.world.items.items()
+            if str(item.type).lower() == "key"
+        )
+        for key_id, item in keys:
             has_key = ctx.player.has_item(key_id)
-            key_symbol = "✅" if has_key else "❌"
+            doors = ", ".join(room_paths.room_path(r) for r in item.unlocks) or "—"
             output.append(
-                f"\n{key_symbol} {info['name']} ({key_id})\n",
+                f"\n{'✅' if has_key else '❌'} {item.name} ({key_id})\n",
                 style="bold" if has_key else "dim",
             )
-            output.append(
-                f"   📍 Found in: {info['found_in']}\n",
-                style="green" if has_key else "dim",
-            )
-            output.append(
-                f"   🚪 Unlocks: {', '.join(info['unlocks'])}\n",
-                style="blue" if has_key else "dim",
-            )
-            output.append(f"   💡 {info['description']}\n", style="italic")
+            output.append(f"   🚪 Opens: {doors}\n", style="blue" if has_key else "dim")
 
-        player_keys = ctx.resolver.player_keys()
-        if player_keys:
-            output.append("\n🎒 KEYS IN INVENTORY:\n", style="bold green")
-            for key in player_keys:
-                output.append(f"  • {key}\n", style="green")
-        else:
-            output.append("\nNo keys currently in inventory.\n", style="dim")
-
-        output.append("\n💡 PROGRESSION HINTS:\n", style="bold magenta")
+        output.append("\n💡 HOW DOORS OPEN:\n", style="bold magenta")
         output.append(
-            "1. Start by exploring usr_lib_arcane to find the lib_key\n", style="dim"
-        )
-        output.append(
-            "2. Use lib_key to unlock var_dungeon and explore deeper\n", style="dim"
-        )
-        output.append(
-            "3. Find opt_key while exploring to access class-restricted areas\n",
+            "Keys open locked directories, and turn up in different places each run.\n",
             style="dim",
         )
+        for room_id, room in ctx.world.rooms.items():
+            if getattr(room, "flags_required", 0):
+                have = ctx.world.flag_counts(exclude=room_id)[0]
+                output.append(
+                    f"{room_paths.room_path(room_id)} takes no key: it opens once you "
+                    f"hold {room.flags_required} flags (you have {have}). "
+                    "tree shows where they hide.\n",
+                    style="dim",
+                )
+        output.append("Stuck in a room? Type hint.\n", style="dim")
         ctx.output.write(output)

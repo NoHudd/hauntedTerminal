@@ -23,17 +23,17 @@ unlocks_room: core
 dialogue:
   greeting:
     - "HALT. This directory is READ-ONLY. State your authorization level."
-    - "I am the Firewall Knight. I permit no unauthorized access to /boot/kernel."
-    - "The chmod Key grants passage. Without it, you are DENIED."
+    - "I am the Firewall Knight. I guard the way to /boot, and the kernel trusts only proof."
+    - "Flags are proof. Hold eleven, and /boot will open to you."
 
   without_key:
-    - "Permission Denied. You lack the chmod Key. Seek it in the Memory Banks."
+    - "Permission Denied — by the kernel, not by me. Count your flags: tree shows them."
     - "The rules are clear: No key, no access. This is not negotiable."
     - "Many have tried to bypass me with exploits and buffer overflows. All have failed."
 
   with_key:
-    - "The chmod Key... you possess it. Very well. Access GRANTED."
-    - "The Core awaits beyond this gate. The Daemon Overlord resides there. Prepare yourself."
+    - "Your chmod Key opened /etc. /boot is different: it answers to flags, not keys."
+    - "Eleven flags, and the kernel lets you through. The Daemon Overlord waits beyond. Prepare yourself."
     - "You have proven worthy. The iptables shall open. May your packets find their destination."
 
   lore:
@@ -46,7 +46,7 @@ dialogue:
     - "The gate shall remain open for your return passage. Safe travels."
 
 interaction_hints:
-  - "The Firewall Knight blocks access to the Core until you present the chmod_key."
+  - "The Firewall Knight explains how /boot opens: hold eleven flags."
   - "This is a gate guardian - not hostile, but absolute in enforcing access rules."
 
 

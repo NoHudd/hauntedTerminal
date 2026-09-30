@@ -430,7 +430,11 @@ class ImprovedGameEngine:
             save_files = save_manager.get_save_files()
             logger.debug(f"Found {len(save_files)} save files")
             if not save_files:
-                self.ui.update_output("[bold yellow]No save files found. Starting new game instead...[/bold yellow]\n")
+                from src.save import skipped_saves_notice
+                if save_manager.last_skipped:
+                    self.ui.update_output(skipped_saves_notice(save_manager.last_skipped) + "\n")
+                else:
+                    self.ui.update_output("[bold yellow]No save files found. Starting new game instead...[/bold yellow]\n")
                 self._start_new_game()
                 return
             

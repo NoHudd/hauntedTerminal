@@ -26,7 +26,6 @@ def _won(s: GameSession) -> dict:
 
 
 def test_rank_ladder() -> None:
-    assert rank_for(11, 13, 0, 5) == "Operator"
     assert rank_for(12, 13, 0, 5) == "Sysadmin"
     assert rank_for(13, 13, 4, 5) == "Sysadmin Supreme"
     assert rank_for(13, 13, 5, 5) == "root"
