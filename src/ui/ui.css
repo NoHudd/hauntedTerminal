@@ -15,11 +15,13 @@
 }
 
 #sidebar {
-    /* Vertical flow: inventory fills the top and scrolls; Stats and
-       Character sit below it, each sized to its own content. */
+    /* Vertical flow: inventory, Stats, Character, each sized to its content.
+       On a very short terminal the sidebar scrolls instead of clipping. */
     layout: vertical;
     height: 100%;
     width: 1fr;
+    overflow-y: auto;
+    scrollbar-size-vertical: 1;
 }
 
 /* =============================================================================
@@ -87,10 +89,11 @@
 #inventory-panel {
     border: round $warning;
     padding: 1 2;
-    /* Takes whatever Stats and Character leave, and scrolls past that, so
-       the two panels below always stay whole on screen. */
-    height: 1fr;
-    min-height: 6;
+    /* Sized to its items, capped at 35% of the sidebar and scrolling past
+       that, so Stats and Character below stay whole on a long inventory
+       and a short one leaves no empty box. */
+    height: auto;
+    max-height: 35%;
     overflow-y: auto;
     scrollbar-size-vertical: 1;
 }
