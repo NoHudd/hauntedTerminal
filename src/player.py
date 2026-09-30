@@ -1,11 +1,31 @@
 from utils.debug_tools import debug_log
-from src.data_loader import load_class_data, load_consumable_data
+from engine.schema import Item
+from src.data_loader import load_class_data, load_item
+from src.item_resolver import name_key
 
 # Armor mitigation: defense -> capped percent damage reduction.
 ARMOR_MITIGATION_CAP = 33       # max % damage reduced, so a tank can't become unkillable
 ARMOR_DEFENSE_TO_PCT = 1.5      # each point of armor `defense` = this many % mitigation
                                 # (low factor + this cap lets guardian's def-20/22 pieces
                                 #  out-mitigate weaver/shaman def-15 instead of all capping equal)
+
+
+def armor_mitigation_pct(defense: float) -> float:
+    """% of incoming damage an armor piece with this `defense` stops (capped)."""
+    return min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT)
+
+
+def is_auto_revive(item) -> bool:
+    """A Legacy Backup-style item: it fires on death, never by `use`."""
+    return any(e.get("type") == "auto_revive" for e in (item.special_effects if item else []))
+
+
+def auto_revive_text(item) -> str:
+    """The answer to `use <backup>`, in or out of a fight."""
+    return (
+        f"[cyan]{item.name} works automatically: keep it in your "
+        "inventory and it revives you the moment you fall.[/cyan]"
+    )
 
 
 class Player:
@@ -49,11 +69,15 @@ class Player:
             "first_ls": False,          # Step 1 gate
             "found_weapon": False,      # Step 2 (ls revealed weapon)
             "took_weapon": False,       # Step 2 gate
-            "equipped_weapon": False,   # Step 3 gate (also triggers enemy spawn)
+            "equipped_weapon": False,   # Step 3 gate
+            "equipped_armor": False,    # armor step gate (weapon + armor starts the fight)
             "combat_action_taken": False,  # Step 4 gate (player landed an attack)
-            "navigation_ls": False,     # Step 6 gate (typed ls post-combat)
-            "navigation_moved": False,  # Step 6 gate (moved to new room)
-            "completed": False          # Step 7 — tutorial fully done
+            "ps_used": False,           # Step 5 gate (ran ps after the fight)
+            "pwd_used": False,          # Step 6 gate (ran pwd)
+            "went_up": False,           # Step 7 gate (moved somewhere with directories)
+            "navigation_ls": False,     # Step 8 gate (ls showed directories)
+            "navigation_moved": False,  # Step 9 gate (cd into one of them)
+            "completed": False          # tutorial fully done
         }
 
         # Harvesting Cycles (XP System)
@@ -65,6 +89,10 @@ class Player:
         self.story_flags = {
             "identity_retrieved": False,
             "typo_discovered": False,
+            "manual_recovered": False,
+            "bovine_prophecy": False,
+            "moo_heard": False,
+            "corruption_witnessed": False,
             "sudo_trial_complete": False,
             "mirror_confronted": False,
             "ending_chosen": None,
@@ -106,9 +134,9 @@ class Player:
     def _add_starter_items(self):
         """Give the player starter consumables to help survive early game."""
         # Give 1 health packet to start
-        health_packet = load_consumable_data("health_packet")
+        health_packet = load_item("health_packet")
         if health_packet:
-            self.inventory["health_packet_1"] = health_packet.copy()
+            self.inventory["health_packet_1"] = health_packet
             debug_log("Starter items added: 1x Health Packet")
         else:
             debug_log("WARNING: Could not load health_packet for starter items")
@@ -140,12 +168,12 @@ class Player:
         if item_id in self.inventory:
             # Unequip previous weapon bonus if any
             if self.equipped_weapon and self.equipped_weapon in self.inventory:
-                old_bonus = self.inventory[self.equipped_weapon].get("damage", 0)
+                old_bonus = self.inventory[self.equipped_weapon].damage
                 self.total_damage -= old_bonus
                 
             # Equip new weapon
             self.equipped_weapon = item_id
-            weapon_bonus = self.inventory[item_id].get("damage", 0)
+            weapon_bonus = self.inventory[item_id].damage
             self.total_damage += weapon_bonus
             debug_log(f"Equipped weapon {item_id}, total_damage now {self.total_damage}.")
             return True
@@ -156,8 +184,8 @@ class Player:
         if item_id not in self.inventory:
             return False
         self.equipped_armor = item_id
-        defense = self.inventory[item_id].get("defense", 0) or 0
-        self.armor_mitigation = min(ARMOR_MITIGATION_CAP, defense * ARMOR_DEFENSE_TO_PCT) / 100.0
+        defense = self.inventory[item_id].defense
+        self.armor_mitigation = armor_mitigation_pct(defense) / 100.0
         debug_log(f"Equipped armor {item_id}, mitigation now {self.armor_mitigation:.0%}.")
         return True
         
@@ -188,14 +216,26 @@ class Player:
             return None
 
         keys = list(self.inventory.keys())
-        lower = name.lower()
+        lower = name_key(name)
+        if not lower:
+            return None
 
         # Exact match
         if name in self.inventory:
             return name
 
+        # Same id, then same display name, any spelling (case, _, -, spaces,
+        # camelCase). Ids first: every numbered copy shares the display name.
+        for k in keys:
+            if name_key(k) == lower:
+                return k
+        for k in keys:
+            item = self.inventory[k]
+            if item is not None and name_key(item.name) == lower:
+                return k
+
         # Prefix match (suffixed instance keys like health_packet_1)
-        prefix_matches = [k for k in keys if k.lower().startswith(lower)]
+        prefix_matches = [k for k in keys if name_key(k).startswith(lower)]
         if len(prefix_matches) == 1:
             return prefix_matches[0]
 
@@ -218,7 +258,7 @@ class Player:
                 # Try exact then prefix
                 if target in self.inventory:
                     return target
-                target_matches = [k for k in keys if k.lower().startswith(target.lower())]
+                target_matches = [k for k in keys if name_key(k).startswith(name_key(target))]
                 if target_matches:
                     return target_matches[0]
 
@@ -230,7 +270,7 @@ class Player:
             return prefix_matches[0]
 
         # Substring fallback
-        substring_matches = [k for k in keys if lower in k.lower()]
+        substring_matches = [k for k in keys if lower in name_key(k)]
         if substring_matches:
             return substring_matches[0]
 
@@ -238,11 +278,8 @@ class Player:
     
     def can_use_item(self, item):
         """Check if the player can use this item based on class restrictions."""
-        if "allowed_classes" in item:
-            allowed_classes = item["allowed_classes"]
-            if isinstance(allowed_classes, str):
-                allowed_classes = [allowed_classes]
-            return self.player_class.lower() in [c.lower() for c in allowed_classes]
+        if item.allowed_classes:
+            return self.player_class.lower() in [c.lower() for c in item.allowed_classes]
         return True
 
     def apply_status_effect(self, effect_id, effect_data):
@@ -316,6 +353,46 @@ class Player:
     def is_alive(self):
         """Check if the player is alive."""
         return self.health > 0
+
+    def revive_from_backup(self):
+        """If dead and carrying an auto-revive item (Legacy Backup), spend it
+        and come back at its share of max HP. Returns the item's name, or None
+        when there is nothing to revive with."""
+        if self.is_alive():
+            return None
+        for key, item in list(self.inventory.items()):
+            revive = next(
+                (e for e in (item.special_effects if item else [])
+                 if e.get("type") == "auto_revive"),
+                None,
+            )
+            if revive is None:
+                continue
+            percent = int(str(revive.get("revive_hp_percent", 50)))
+            self.remove_from_inventory(key)
+            self.health = max(1, self.max_health * percent // 100)
+            debug_log(f"Revived by {key} at {self.health}/{self.max_health} HP")
+            return item.name
+        return None
+
+    def backups_left(self) -> int:
+        """How many auto-revive items the player still carries."""
+        return sum(1 for item in self.inventory.values() if is_auto_revive(item))
+
+    def revive_text(self, revived_by: str) -> str:
+        """What the player reads after a backup brings them back: the revive,
+        then that the backup is gone and how many are left."""
+        left = self.backups_left()
+        if left:
+            remaining = f"{left} backup{'s' if left != 1 else ''} left."
+        else:
+            remaining = "No backups left — the next fall ends the run."
+        return (
+            f"[bold green]✚ {revived_by} restores you from a snapshot — "
+            f"back at {self.health} HP![/bold green]\n"
+            f"[yellow]That {revived_by} is spent and gone from your inventory. "
+            f"{remaining}[/yellow]"
+        )
         
     def calculate_damage(self):
         """Calculate the player's total damage including weapon and status effects."""
@@ -409,8 +486,7 @@ class Player:
         """Return only items with persistence: 'persistent' tag."""
         persistent = {}
         for item_id, item_data in self.inventory.items():
-            persistence = item_data.get("persistence", "persistent")  # Default to persistent for backwards compatibility
-            if persistence == "persistent":
+            if item_data.persistence == "persistent":
                 persistent[item_id] = item_data
         return persistent
 
@@ -418,8 +494,7 @@ class Player:
         """Remove ephemeral items on death."""
         ephemeral_items = []
         for item_id, item_data in list(self.inventory.items()):
-            persistence = item_data.get("persistence", "persistent")
-            if persistence == "ephemeral":
+            if item_data.persistence == "ephemeral":
                 ephemeral_items.append(item_id)
 
         # Remove all ephemeral items
@@ -457,10 +532,19 @@ class Player:
         player.permanent_damage_boost = data.get("permanent_damage_boost", 0)
         player.previous_room = data.get("previous_room", None)  # Load previous room
         player.spells = data.get("spells", [])
-        player.inventory = data.get("inventory", {})
+        player.inventory = {
+            item_id: Item.model_validate(body)
+            for item_id, body in data.get("inventory", {}).items()
+        }
         player.run_stats = data.get("runStats", {"kills": 0, "items_found": 0})
         player.met_npcs = set(data.get("metNpcs", []))
         player.equipped_weapon = data.get("equipped_weapon", None)
+        # Mitigation is derived from the armor's defense, so re-equip rather
+        # than trust a stored number. v3 saves have no armor: none equipped.
+        armor = data.get("equipped_armor")
+        if armor:
+            player.equip_armor(armor)
+        player.status_effects = data.get("status_effects", {})
         # Restore player_id if it exists, otherwise keep the generated one
         if "player_id" in data:
             player.player_id = data["player_id"]
@@ -487,8 +571,13 @@ class Player:
             "permanent_health_boost": self.permanent_health_boost,
             "permanent_damage_boost": self.permanent_damage_boost,
             "spells": self.spells,
-            "inventory": self.inventory,
+            "inventory": {
+                item_id: item.model_dump(exclude_unset=True)
+                for item_id, item in self.inventory.items()
+            },
             "equipped_weapon": self.equipped_weapon,
+            "equipped_armor": self.equipped_armor,
+            "status_effects": self.status_effects,
             "current_room": self.current_room,
             "previous_room": self.previous_room,  # Save previous room
             "player_id": self.player_id,

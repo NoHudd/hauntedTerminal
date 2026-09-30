@@ -1,6 +1,6 @@
 """GAME_WON: emitted with sections + stats; headless UI logs the text."""
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from engine.events import EventType
 
 
 def test_win_game_emits_sections_and_stats():
@@ -11,11 +11,11 @@ def test_win_game_emits_sections_and_stats():
     def on_won(event):
         got.append(event.data)
 
-    event_bus.subscribe(EventType.GAME_WON, on_won)
+    s.bus.subscribe(EventType.GAME_WON, on_won)
     try:
-        s.engine.cmd_handler.win_game()
+        s.engine.cmd_handler.flow.win_game()
     finally:
-        event_bus.unsubscribe(EventType.GAME_WON, on_won)
+        s.bus.unsubscribe(EventType.GAME_WON, on_won)
     assert len(got) == 1
     data = got[0]
     assert data["ending_id"] == "restore"
@@ -31,7 +31,7 @@ def test_headless_ui_receives_ending_text():
     s = GameSession()
     s.new_game("t", "guardian")
     s.ui.drain()
-    s.engine.cmd_handler.win_game()
+    s.engine.cmd_handler.flow.win_game()
     text = "\n".join(str(x) for x in s.ui.drain())
     assert "THANK YOU FOR PLAYING" in text
     s.close()

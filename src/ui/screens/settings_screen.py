@@ -1,14 +1,25 @@
 """
-SettingsScreen — modal for palette, text speed, and reduce motion settings.
-Opens via Ctrl+P, closes with ESC.
-"""
-import logging
-from textual.app import ComposeResult
-from textual.screen import ModalScreen
-from textual.containers import Container
-from textual.widgets import Static, RadioSet, RadioButton, Switch, Label
+SettingsScreen — one row per setting: ↑/↓ choose a row, ←/→ change its value.
 
-from config.settings_manager import SettingsManager, PALETTE_DISPLAY_NAMES
+Changes apply live (the palette recolors as you cycle); Esc writes
+config/user_settings.json and closes. Opened from the title menu's SETTINGS
+entry and from Ctrl+P in-game.
+"""
+from __future__ import annotations
+
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Vertical
+from textual.css.query import NoMatches
+from textual.screen import ModalScreen
+from textual.widgets import Static
+
+from config.settings_manager import PALETTE_DISPLAY_NAMES, SettingsManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,115 +28,131 @@ PALETTE_KEYS = ["default", "neon", "amber", "vscode-dark", "pastel", "yonce"]
 SPEED_KEYS = ["normal", "fast", "off"]
 
 
-class SettingsScreen(ModalScreen):
-    """Full-screen modal for user settings."""
+@dataclass(frozen=True)
+class SettingRow:
+    """One setting: where it lives, what it offers, and how to apply a value."""
+    key: str                  # key in SettingsManager.settings
+    label: str
+    description: str
+    values: tuple[Any, ...]
+    names: tuple[str, ...]    # display name for each value
+    apply: Callable[[SettingsManager, Any], None]
 
-    BINDINGS = [("escape", "dismiss", "Close")]
+
+ROWS: tuple[SettingRow, ...] = (
+    SettingRow(
+        "theme", "Color palette", "Recolor the whole interface.",
+        tuple(PALETTE_KEYS), tuple(PALETTE_DISPLAY_NAMES[k] for k in PALETTE_KEYS),
+        SettingsManager.apply_theme,
+    ),
+    SettingRow(
+        "text_speed", "Text speed", "How fast story text types out.",
+        tuple(SPEED_KEYS), ("Normal", "Fast", "Off"),
+        SettingsManager.set_text_speed,
+    ),
+    SettingRow(
+        "reduce_motion", "Reduce motion", "Skip the intro and all animations.",
+        (False, True), ("Off", "On"),
+        SettingsManager.set_reduce_motion,
+    ),
+    SettingRow(
+        "hints", "In-game hints",
+        "Show take/cat/cd hints while exploring and a heal reminder when HP is low.",
+        (True, False), ("On", "Off"),
+        SettingsManager.set_hints,
+    ),
+)
+
+
+class SettingsScreen(ModalScreen):
+    """Arrow-row settings modal."""
+
+    BINDINGS = [
+        Binding("up", "move(-1)", "Up", show=False),
+        Binding("k", "move(-1)", "Up", show=False),
+        Binding("down", "move(1)", "Down", show=False),
+        Binding("j", "move(1)", "Down", show=False),
+        Binding("left", "change(-1)", "Previous value", show=False),
+        Binding("h", "change(-1)", "Previous value", show=False),
+        Binding("right", "change(1)", "Next value", show=False),
+        Binding("l", "change(1)", "Next value", show=False),
+        Binding("escape", "close", "Back", show=False),
+    ]
 
     CSS = """
     SettingsScreen {
         align: center middle;
     }
     #settings-content {
-        width: 52;
+        width: 60;
         height: auto;
         border: round $warning;
         background: $surface;
         padding: 1 2;
     }
-    #settings-title {
-        text-align: center;
-        text-style: bold;
-        padding-bottom: 1;
-        border-bottom: solid $panel;
-    }
-    .settings-label {
-        color: $text-muted;
-        text-style: bold;
-        padding-top: 1;
-        padding-bottom: 0;
-    }
-    #settings-hint {
-        text-align: center;
-        color: $text-disabled;
-        padding-top: 1;
-        border-top: solid $panel;
-    }
-    .settings-disabled {
-        color: $text-disabled;
-        opacity: 0.4;
-    }
     """
 
-    def __init__(self, manager: SettingsManager):
+    def __init__(self, manager: SettingsManager,
+                 on_close: Callable[[], None] | None = None):
         super().__init__()
         self._manager = manager
+        self._on_close = on_close
+        self._index = 0
 
     def compose(self) -> ComposeResult:
-        s = self._manager.settings
-        current_theme = s.get("theme", "default")
-        current_speed = s.get("text_speed", "normal")
-        current_motion = s.get("reduce_motion", False)
-        current_hints = s.get("hints", True)
+        with Vertical(id="settings-content"):
+            yield Static(id="settings-body")
 
-        with Container(id="settings-content"):
-            yield Static("⚙  Settings", id="settings-title")
+    def on_mount(self) -> None:
+        self._draw()
 
-            yield Label("🎨 Color Palette", classes="settings-label")
-            yield RadioSet(
-                *[
-                    RadioButton(PALETTE_DISPLAY_NAMES[key], value=(key == current_theme))
-                    for key in PALETTE_KEYS
-                ],
-                id="palette-radio",
-            )
+    # -- rendering ------------------------------------------------------------
 
-            yield Label("⌨  Text Animation Speed", classes="settings-label")
-            yield RadioSet(
-                RadioButton("Normal", value=(current_speed == "normal")),
-                RadioButton("Fast",   value=(current_speed == "fast")),
-                RadioButton("Off",    value=(current_speed == "off")),
-                id="speed-radio",
-            )
+    def _value_index(self, row: SettingRow) -> int:
+        current = self._manager.settings.get(row.key, row.values[0])
+        try:
+            return row.values.index(current)
+        except ValueError:
+            return 0
 
-            yield Label("Reduce Motion", classes="settings-label")
-            yield Static("[dim]Skip intro & all animations[/dim]")
-            yield Switch(value=current_motion, id="reduce-motion-switch")
+    def value_name(self, row: SettingRow) -> str:
+        return row.names[self._value_index(row)]
 
-            yield Label("In-game hints", classes="settings-label")
-            yield Static("[dim]Show → take/cat/cd command hints while exploring[/dim]")
-            yield Switch(value=current_hints, id="hints-switch")
+    def _draw(self) -> None:
+        lines = ["[bold]⚙  Settings[/bold]", ""]
+        for i, row in enumerate(ROWS):
+            name = self.value_name(row)
+            if i == self._index:
+                lines.append(f"[reverse bold] ▶ {row.label:<16} ◀ {name} ▶ [/reverse bold]")
+            else:
+                lines.append(f"[dim]   {row.label:<16}   {name}[/dim]")
+        lines += [
+            "",
+            f"[dim italic]{ROWS[self._index].description}[/dim italic]",
+            "",
+            "[dim]↑/↓ choose · ←/→ change · esc back[/dim]",
+        ]
+        try:
+            self.query_one("#settings-body", Static).update("\n".join(lines))
+        except NoMatches:
+            # Not mounted yet (or under unit test): on_mount draws again.
+            pass
 
-            yield Static(
-                "[dim]🔊 Sound Volume — coming soon[/dim]",
-                classes="settings-disabled",
-            )
-            yield Static(
-                "Space/Enter select  ·  Tab navigate  ·  ESC close",
-                id="settings-hint",
-            )
+    # -- actions --------------------------------------------------------------
 
-    # ------------------------------------------------------------------
-    # Event handlers
-    # ------------------------------------------------------------------
+    def action_move(self, delta: int) -> None:
+        self._index = (self._index + delta) % len(ROWS)
+        self._draw()
 
-    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
-        """Handle palette or speed selection."""
-        if event.radio_set.id == "palette-radio":
-            key = PALETTE_KEYS[event.index]
-            self._manager.apply_theme(key)
-        elif event.radio_set.id == "speed-radio":
-            key = SPEED_KEYS[event.index]
-            self._manager.set_text_speed(key)
+    def action_change(self, delta: int) -> None:
+        row = ROWS[self._index]
+        value = row.values[(self._value_index(row) + delta) % len(row.values)]
+        row.apply(self._manager, value)
+        self._draw()
 
-    def on_switch_changed(self, event: Switch.Changed) -> None:
-        """Handle toggles."""
-        if event.switch.id == "reduce-motion-switch":
-            self._manager.set_reduce_motion(event.value)
-        elif event.switch.id == "hints-switch":
-            self._manager.set_hints(event.value)
-
-    def action_dismiss(self) -> None:
-        """ESC closes and saves."""
+    def action_close(self) -> None:
+        """Esc writes the settings file and goes back."""
         self._manager.save()
         self.dismiss()
+        if self._on_close is not None:
+            self._on_close()

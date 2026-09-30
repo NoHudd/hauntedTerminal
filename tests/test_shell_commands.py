@@ -66,6 +66,7 @@ def test_tree_shows_hierarchy_and_your_position(session: GameSession) -> None:
 
 
 def test_tree_marks_sealed_directories(session: GameSession) -> None:
+    session.world.reveal_doors("lib_key")  # seen, but the key is not held
     out = _text(session.submit("tree"))
     assert "🔒" in out, "a locked directory should be marked as sealed"
     assert "lib_key" in out, "and should name the key that opens it"

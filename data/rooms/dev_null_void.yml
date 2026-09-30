@@ -22,7 +22,8 @@ detailed_description: |
   You can feel yourself being pulled toward the center. Without protection, you will be de-allocated.
 exits:
   - bin_armory
-items: []
+items:
+  - kern_log
 # Epic and legendary items spawn here - highest tier loot
 enemy_tier: 3
 enemy_count: 1
@@ -40,3 +41,11 @@ story_beats:
 # Navigation: canonical path + everything a player may type to get here.
 path: "/dev"
 aliases: ["/dev", "/dev/null", "dev", "null", "void"]
+
+flag:
+  file: kern_log
+  via: grep
+  text: "FLAG{even_the_void_logs}"
+  nudge: "The kernel log is mostly noise. Search it."
+  command: "[bold]grep FLAG kern_log[/bold]"
+  clue: "Even the void keeps a kernel log. Search it for the word FLAG."

@@ -1,45 +1,69 @@
-# Tutorial hint text, keyed by step id. Rendered by
-# CommandHandler.show_tutorial_hint, which formats {player_name} and
-# {weapon_name} before writing. Rich markup is allowed.
+# Tutorial hint text, keyed by step id. Rendered by TutorialCoach.show_hint,
+# which formats {player_name}, {weapon_name}, {armor_name}, {location} (the player's current
+# path) and {example_dir} (the first directory below it) before emitting it.
+# Rich markup is allowed.
 #
 # Steps fire in this order, each gated on player.tutorial_state:
 #   step1        first ls
 #   step2        take the weapon      (weapon_name = the one actually on the floor)
 #   step3        equip it
+#   step_armor   take + equip the starter armor (weapon + armor on opens the fight)
 #   step4        combat opens
+#   step4_fled   fled the tutorial fight (it waits in the room for `attack`)
 #   step5        after the first landed hit
-#   step5_postcombat  after the fight
-#   step6/step6b navigation
+#   step5_postcombat  after the fight: run ls -a
+#   step_hidden  ls -a revealed the hidden lore file: cat it
+#   step_cat     the cat fired a memory restore (checkpoint): run ps
+#   step_ps      after ps: run pwd
+#   step_up      after pwd, in a room with nothing below it: cd ..
+#   step6        after moving somewhere new: ls
+#   step6b       ls listed directories (the UI flashes them): cd into one
 #   completed    cheat sheet, sets tutorial_state["completed"]
 #   skip_summary shown instead of everything above if the player skips
 "skip_summary": |-
-  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use [item][/bold] instead. [bold]help[/bold] if stuck, [bold]man[/bold] to look a command up. Good luck.
+  [bold green]ECHO>[/bold green] Got it. Quick reference: [bold]ls[/bold] scans a room, [bold]take/equip[/bold] grab and ready items; [bold]Tab[/bold] finishes a name you've started. Combat opens in Selection Mode automatically — press [bold]1-9[/bold] to attack, [bold]0[/bold] to flee. Press [bold]TAB[/bold] to type [bold]use <item>[/bold] instead. [bold]pwd[/bold] shows where you are, [bold]cd[/bold] moves ([bold]cd ..[/bold] goes up), [bold]ps[/bold] lists running processes, [bold]ls -a[/bold] reveals hidden files. [bold]cat[/bold] reads a file — restoring a memory saves a checkpoint you resume from if you fall. The goal: every directory hides a [bold]flag[/bold]. Read it with [bold]cat[/bold], search a long file with [bold]grep FLAG <file>[/bold], or end a rogue process with [bold]kill <PID>[/bold]. Some flags hand you a key, and a new directory appears. Hold [bold]11[/bold] flags and [bold]/boot[/bold] opens. Type [bold]hint[/bold] when stuck in a room, [bold]man[/bold] to look a command up. Good luck.
 "step1": |-
   [bold green]ECHO>[/bold green] You're in /home — a stable part of the filesystem. The rest is corrupted and needs clearing. Let's start simple. Type: [bold]ls[/bold] and press Enter to see what's here.
 "step2": |-
-  [bold green]ECHO>[/bold green] Good — that's everything in this directory. See that weapon? Type: [bold]take {weapon_name}[/bold] to pick it up. Items you carry appear in the Inventory panel on the right.
+  [bold green]ECHO>[/bold green] Good — that's everything in this directory. See that weapon? Type: [bold]take {weapon_name}[/bold] to pick it up. Items you carry appear in the Inventory panel on the right. Tip: type the first few letters and press [bold]Tab[/bold] — it finishes the name for you, like a real shell.
 "step3": |-
   [bold green]ECHO>[/bold green] You're carrying it, but it's not active yet. Type: [bold]equip {weapon_name}[/bold] to ready it. Equipping means it'll be used in combat.
+"step_armor": |-
+  [bold green]ECHO>[/bold green] A weapon hits; armor keeps you standing. Your [bold]{armor_name}[/bold] is lying here too. Type: [bold]take {armor_name}[/bold], then [bold]equip {armor_name}[/bold] — and watch [bold]Defense[/bold] in the Stats panel.
 "step4": |-
   [bold green]ECHO>[/bold green] A corrupted process just spawned — this is combat, and you're already in Selection Mode. Press [bold]1[/bold] to attack.
+"step4_fled": |-
+  [bold green]ECHO>[/bold green] You got away — [bold]0[/bold] (or [bold]flee[/bold]) escapes any fight. This process is still here, though, and it can't hurt you much. Type: [bold]attack[/bold] to face it again.
 "step5": |-
-  [bold green]ECHO>[/bold green] Nice hit. One more should finish it. Need to use an item or flee instead? Press [bold]TAB[/bold] to type [bold]use [item][/bold] or [bold]flee[/bold] — TAB again to get back to Selection Mode.
+  [bold green]ECHO>[/bold green] Nice hit. One more should finish it. Need to use an item or flee instead? Press [bold]TAB[/bold] to type [bold]use <item>[/bold] or [bold]flee[/bold] — TAB again to get back to Selection Mode.
 "step5_postcombat": |-
-  [bold green]ECHO>[/bold green] You won. [bold]use [item][/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] lets you escape a losing fight. When you're ready, [bold]ls[/bold] to see where you can go.
+  [bold green]ECHO>[/bold green] You won. [bold]use <item>[/bold] uses something mid-fight, [bold]flee[/bold] or [bold]0[/bold] escapes a losing one. Now — this directory holds more than plain [bold]ls[/bold] admits. Files whose names start with a dot stay hidden. Type: [bold]ls -a[/bold] to list everything.
+"step_hidden": |-
+  [bold green]ECHO>[/bold green] There — [bold].bash_profile[/bold], your own configuration file, hidden until now. The leading dot is what hides it. [bold]ls -a[/bold] reveals hidden files anywhere, so try it in every new place. Read this one: type [bold]cat .bash_profile[/bold] ([bold]cat .[/bold] then [bold]Tab[/bold] finishes it)
+"step_cat": |-
+  [bold green]ECHO>[/bold green] Feel that? A memory restored — and your first [bold]flag[/bold] captured. Every directory hides one; [bold]tree[/bold] and [bold]journal[/bold] count them. Some flags hand you a key, and a new directory appears. Hold 11 and [bold]/boot[/bold] opens. The system saved your progress too. Every memory you recover with [bold]cat[/bold] is a checkpoint: if you fall, you resume from the last one. Keep reading what you find. Corrupted processes hide all over the system too — type: [bold]ps[/bold] to list what's running here.
+"step_ps": |-
+  [bold green]ECHO>[/bold green] That's [bold]ps[/bold]: the processes running in this directory. Most belong to the system, but an odd one out can give away something hidden, so run it in new places. Now — do you know where you are? Type: [bold]pwd[/bold]
+"step_up": |-
+  [bold green]ECHO>[/bold green] You're in [bold]{location}[/bold] — [bold]pwd[/bold] prints that any time. Every room is a directory, and nothing sits below this one (that's why [bold]ls[/bold] showed no Directories). Go up one level: type [bold]cd ..[/bold]
 "step6": |-
-  [bold green]ECHO>[/bold green] Let's move. Type: [bold]ls[/bold] again — the [bold]Directories[/bold] section lists where you can go from here.
+  [bold green]ECHO>[/bold green] You're in [bold]{location}[/bold] now. Type: [bold]ls[/bold] to see what's here — look for the [bold]Directories[/bold] section.
 "step6b": |-
-  [bold green]ECHO>[/bold green] See those directories? Type [bold]cd[/bold] and one — like [bold]cd /var[/bold] — and you'll move there. [bold]cd ..[/bold] goes back up. That's how the whole filesystem works.
+  [bold green]ECHO>[/bold green] Those flashing [bold]Directories[/bold] are the places you can go from [bold]{location}[/bold]. Pick one and [bold]cd[/bold] into it — for example [bold]cd {example_dir}[/bold]. [bold]cd ..[/bold] always takes you back up.
 "completed": |-
   [bold green]ECHO> Tutorial complete, {player_name}.[/bold green]
   Quick reminder:
     • [bold]ls[/bold] — scan a room
-    • [bold]cd /path[/bold] — move (e.g. cd /var)
-    • [bold]cat[/bold] — read a file
+    • [bold]pwd[/bold] — where am I?
+    • [bold]cd name[/bold] — move into a directory; [bold]cd ..[/bold] goes up
+    • [bold]ps[/bold] — list running processes (odd ones hide secrets)
+    • [bold]ls -a[/bold] — reveal hidden files and directories
+    • [bold]cat[/bold] — read a file; restoring a memory saves a checkpoint
     • [bold]take / equip[/bold] — grab and ready items
+    • [bold]Tab[/bold] — finish a name you've started typing
     • [bold]1-9[/bold] in combat — attack (Selection Mode, opens automatically)
     • [bold]0[/bold] in combat — flee
-    • [bold]TAB[/bold] in combat — type 'use [item]' instead
+    • [bold]TAB[/bold] in combat — type 'use <item>' instead
     • [bold]help[/bold] — if you get stuck
-    • [bold]man [command][/bold] — what a command really does, outside this place
+    • [bold]man <command>[/bold] — what a command really does, outside this place
   Good luck out there.

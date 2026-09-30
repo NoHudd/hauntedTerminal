@@ -1,6 +1,17 @@
+[project]
+name = "haunted-terminal"
+# The game's version, shown on the title screen and at the top of debug.log.
+# 0.MINOR.PATCH while playtesting: bump MINOR for each dev -> main release,
+# PATCH for a fix-only release. Tag main (vX.Y.Z) when it merges.
+version = "0.2.0"
+requires-python = ">=3.10"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "rejects_transition: the test provokes a rejected state transition on purpose",
+]
 
 [tool.ruff]
 line-length = 100
@@ -13,13 +24,41 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.11"
-# Scope strict typing to the new engine; legacy src/ is untyped and out of scope.
-files = ["engine"]
+# Strict typing covers engine/ plus the src/ modules listed here. Grow the list
+# one module at a time as src/ gains annotations; everything else in src/ stays
+# unchecked (see the src.* override below).
+files = [
+    "engine",
+    "src/difficulty.py",
+    "src/game_output.py",
+    "src/game_states.py",
+    "src/item_icons.py",
+    "src/rarity.py",
+    "src/rng.py",
+    "src/room_paths.py",
+    "src/state_manager.py",
+    "src/ui/combat_log.py",
+    "src/ui/endings.py",
+    "src/ui/panels/echo_panel.py",
+    "src/ui/panels/inventory_panel.py",
+    "src/ui/panels/stats_panel.py",
+    "src/version.py",
+    "src/move_info.py",
+]
 strict = true
 plugins = ["pydantic.mypy"]
+# src/ has no __init__.py; name its files src.<module> (as the imports do)
+# rather than as top-level modules.
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = "yaml"
+ignore_missing_imports = true
+
+# Optional local dev flags, gitignored (copied from settings.example.py);
+# config/dev_config.py falls back to defaults when it is absent.
+[[tool.mypy.overrides]]
+module = "config.settings"
 ignore_missing_imports = true
 
 # Legacy game code is untyped and out of scope for strict checking. Treat it as
@@ -28,3 +67,28 @@ ignore_missing_imports = true
 module = "src.*"
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# The typed src/ modules (keep in step with `files` above) must see each
+# other's real types; a module-specific section wins over the src.* wildcard.
+[[tool.mypy.overrides]]
+module = [
+    "src.difficulty",
+    "src.game_output",
+    "src.game_states",
+    "src.item_icons",
+    "src.rarity",
+    "src.rng",
+    "src.room_paths",
+    "src.state_manager",
+    "src.ui.combat_log",
+    "src.ui.endings",
+    "src.ui.panels.echo_panel",
+    "src.ui.panels.inventory_panel",
+    "src.ui.panels.stats_panel",
+]
+follow_imports = "normal"
+
+# utils/ is untyped; read it for signatures but don't report errors inside it.
+[[tool.mypy.overrides]]
+module = "utils.*"
+follow_imports = "silent"

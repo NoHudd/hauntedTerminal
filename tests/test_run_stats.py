@@ -13,7 +13,6 @@ def test_take_increments_items_found():
 
 
 def test_kill_increments_kills():
-    from src.events import EventType, event_bus
     s = GameSession()
     s.new_game("t", "guardian")
     world = s.world
@@ -25,7 +24,7 @@ def test_kill_increments_kills():
     assert enemy_id, "expected some room with an enemy"
     s.player.current_room = room_id
     before = s.player.run_stats["kills"]
-    event_bus.emit_event(EventType.ENEMY_DEFEATED, {"enemy_id": enemy_id}, "test")
+    s.engine.cmd_handler.on_kill(enemy_id)
     assert s.player.run_stats["kills"] == before + 1
     s.close()
 

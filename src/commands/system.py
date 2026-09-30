@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""System commands: save, quit/exit.
+"""System commands: save, quit/exit, menu.
 
 quit sets confirmation state handled by CommandHandler's mode-gate helpers
 (_handle_quit_confirmation / _perform_quit), which remain on the handler. The
@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.commands.base import Command
-from src.events import EventType, event_bus
 from utils.debug_tools import debug_log
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -35,29 +34,32 @@ class SaveCommand(Command):
             ctx.output.write(f"[bold red]✗ Failed to save game: {e}[/bold red]")
 
 
+def _has_progress(ctx: "CommandHandler") -> bool:
+    return bool(
+        ctx.player.health != ctx.player.max_health
+        or ctx.player.current_room != "home_grove"
+        or len(ctx.player.inventory) > 0
+        or ctx.player.equipped_weapon is not None
+    )
+
+
 class QuitCommand(Command):
     name = "quit"
     aliases = ("exit",)
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
-        has_progress = (
-            ctx.player.health != ctx.player.max_health
-            or ctx.player.current_room != "home_grove"
-            or len(ctx.player.inventory) > 0
-            or ctx.player.equipped_weapon is not None
-        )
-
-        if has_progress:
-            ctx.output.write("[bold yellow]You have unsaved progress![/bold yellow]")
-            ctx.output.write("Would you like to save before quitting?")
-            ctx.output.write(
-                "[bold white]Options:[/bold white] [green]y[/green] (save & quit), "
-                "[yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)"
-            )
-            ctx._in_quit_confirmation = True
-            # A frontend that can do better than three typed letters shows a
-            # chooser; one that cannot (headless) ignores this and reads the
-            # text above. Either way the answer arrives as y/n/c.
-            event_bus.emit_event(EventType.QUIT_CONFIRM_REQUESTED, {}, "QuitCommand")
+        if _has_progress(ctx):
+            ctx.flow.request_leave(in_combat=False)
         else:
-            ctx._perform_quit()
+            ctx.flow.perform_quit()
+
+
+class MenuCommand(Command):
+    """Back to the title menu (to switch runs or open Settings)."""
+    name = "menu"
+
+    def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
+        if _has_progress(ctx):
+            ctx.flow.request_leave(in_combat=False)
+        else:
+            ctx.flow.go_to_menu()

@@ -28,7 +28,7 @@ def get_rng() -> _random.Random:
 
 
 # Thin pass-throughs mirroring the stdlib random API used across gameplay.
-def shuffle(seq: list) -> None:
+def shuffle(seq: list[Any]) -> None:
     _rng.shuffle(seq)
 
 
@@ -37,7 +37,7 @@ def choice(seq: Sequence[Any]) -> Any:
 
 
 def choices(population: Sequence[Any], weights: Sequence[float] | None = None,
-            k: int = 1) -> list:
+            k: int = 1) -> list[Any]:
     return _rng.choices(population, weights=weights, k=k)
 
 
@@ -49,5 +49,5 @@ def random() -> float:
     return _rng.random()
 
 
-def sample(population: Sequence[Any], k: int) -> list:
+def sample(population: Sequence[Any], k: int) -> list[Any]:
     return _rng.sample(list(population), k)

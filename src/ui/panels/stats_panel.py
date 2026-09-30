@@ -2,38 +2,41 @@
 StatsPanel widget — renders player stats in the sidebar.
 """
 
+from __future__ import annotations
+
 from textual.widgets import Static
 
 from src.ui.panels import class_icon, create_health_bar
+from engine.view_models import CombatView, StatsView
 
 
 class StatsPanel(Static):
     """Sidebar panel that displays player stats."""
 
-    def update_stats(self, player_view: dict) -> None:
-        """Render exploration-mode stats from a StatsView dict."""
-        if not player_view:
+    def update_stats(self, player_view: StatsView | None) -> None:
+        """Render exploration-mode stats."""
+        if player_view is None:
             return
 
         stats_lines = []
 
-        player_name = player_view.get('player_name', 'Unknown')
-        player_class = player_view.get('player_class', 'Unknown')
+        player_name = player_view.player_name
+        player_class = player_view.player_class
         stats_lines.append(
             f"[bold green]{class_icon(player_class)}  {player_name.upper()}[/bold green]"
         )
         stats_lines.append(f"Class: {player_class.title()}")
 
-        level = player_view.get('level', 1)
-        cycles = player_view.get('cycles', 0)
-        to_next = player_view.get('cycles_to_next', 0)
+        level = player_view.level
+        cycles = player_view.cycles
+        to_next = player_view.cycles_to_next
         if to_next:
             stats_lines.append(f"[yellow]Lvl {level}[/] [dim]· {cycles}/{to_next} cycles[/]")
         else:
             stats_lines.append(f"[yellow]Lvl {level}[/]")
 
-        health = player_view.get('health', 0)
-        max_health = player_view.get('max_health', 100)
+        health = player_view.health
+        max_health = player_view.max_health
 
         if max_health > 0:
             health_percent = health / max_health
@@ -47,42 +50,42 @@ class StatsPanel(Static):
                 health_bar,
             ])
 
-        damage = player_view.get('damage', 0)
+        damage = player_view.damage
         stats_lines.extend([
             "",
             f"[cyan]Attack: {damage}[/]",
         ])
-        defense_pct = player_view.get('defense_pct', 0)
+        defense_pct = player_view.defense_pct
         if defense_pct:
             stats_lines.append(f"[cyan]Defense: -{defense_pct}% dmg taken[/]")
 
         self.update("\n".join(stats_lines))
 
-    def refresh_combat(self, player_view: dict, combat_view: dict) -> None:
+    def refresh_combat(self, player_view: StatsView | None, combat_view: CombatView | None) -> None:
         """Render combat-mode stats."""
-        if not player_view:
+        if player_view is None:
             return
 
         stats_lines = []
 
-        player_name = player_view.get('player_name', 'Unknown')
-        player_class = player_view.get('player_class', 'Unknown')
+        player_name = player_view.player_name
+        player_class = player_view.player_class
         stats_lines.append(
             f"[bold green]{class_icon(player_class)}  {player_name.upper()}[/bold green]"
         )
         stats_lines.append(f"Class: {player_class.title()}")
 
-        level = player_view.get('level', 1)
-        cycles = player_view.get('cycles', 0)
-        to_next = player_view.get('cycles_to_next', 0)
+        level = player_view.level
+        cycles = player_view.cycles
+        to_next = player_view.cycles_to_next
         if to_next:
             stats_lines.append(f"[yellow]Lvl {level}[/] [dim]· {cycles}/{to_next} cycles[/]")
         else:
             stats_lines.append(f"[yellow]Lvl {level}[/]")
 
-        if combat_view:
-            health = combat_view.get('player_health', 0)
-            max_health = combat_view.get('player_max_health', 100)
+        if combat_view is not None:
+            health = combat_view.player_health
+            max_health = combat_view.player_max_health
 
             if max_health > 0:
                 health_percent = health / max_health
@@ -105,12 +108,12 @@ class StatsPanel(Static):
                     enhanced_health_bar,
                 ])
 
-        base_attack = player_view.get('damage', 0)
+        base_attack = player_view.damage
         stats_lines.extend([
             "",
             f"[cyan]Base ATK: {base_attack}[/]",
         ])
-        defense_pct = player_view.get('defense_pct', 0)
+        defense_pct = player_view.defense_pct
         if defense_pct:
             stats_lines.append(f"[cyan]Defense: -{defense_pct}% dmg taken[/]")
 
@@ -120,7 +123,7 @@ class StatsPanel(Static):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _create_health_bar(self, current, maximum, color, bar_length=10) -> str:
+    def _create_health_bar(self, current: int, maximum: int, color: str, bar_length: int = 10) -> str:
         """Create an ASCII health bar with customizable length."""
         if maximum <= 0:
             empty_bar = "▒" * bar_length

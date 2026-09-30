@@ -1,0 +1,14 @@
+name: zombie_tmpwatch.sh
+short_description: A cleanup script that died and kept running
+description: tmpwatch was meant to sweep /var/tmp. It died mid-sweep and never noticed.
+health: 20
+damage: 2
+is_boss: false
+auto_attack: true
+dialogue: "sweeping... sweeping... sweeping..."
+drops: []
+on_defeat:
+  message: The zombie script is finally reaped.
+tier: 1
+pool_excluded: true  # rogue process: only `kill 2048` in /var/tmp brings it out
+experience: 8

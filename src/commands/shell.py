@@ -50,7 +50,7 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
         "1", "print the working directory", "pwd",
         "Prints the absolute path of the directory you are currently in.\n"
         "Short for 'print working directory'.",
-        "Your location is always a real path — /home, /var/backups, /usr/games.",
+        "Your location is always a real path — /home, /var, /var/tmp.",
     ),
     "cat": (
         "1", "concatenate and print files", "cat [file]",
@@ -97,6 +97,23 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
         "the display is reset.",
         "Clears the output panel.",
     ),
+    "grep": (
+        "1", "print lines that match a pattern", "grep [-i] [-n] <pattern> <file>",
+        "Searches a file and prints only the lines that contain the pattern. The\n"
+        "rest of the file is skipped, which is why grep beats reading.\n\n"
+        "  -i   ignore case: FLAG, flag and Flag all match\n"
+        "  -n   show each matching line's number\n\n"
+        "Case matters without -i: 'flag' does not match 'FLAG'.",
+        "Logs here run to hundreds of lines. Don't read them. grep them.",
+    ),
+    "kill": (
+        "1", "terminate a process", "kill <pid>",
+        "Sends a signal to the process with the given PID, asking it to stop.\n"
+        "Find PIDs with ps. Some processes refuse politely-worded signals.\n\n"
+        "PID 1 is init; killing it would take the whole system down, so the\n"
+        "kernel does not let you.",
+        "Rogue processes hide in ps. Their PIDs are how you drag them out.",
+    ),
     "man": (
         "1", "display the manual for a command", "man [command]",
         "Displays the manual page for a command: what it does, how it is invoked,\n"
@@ -112,7 +129,7 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
 GAME_VERBS = {
     "take", "drop", "use", "equip", "examine", "talk", "attack", "flee",
     "inventory", "inv", "journal", "keys", "shortcuts", "save", "quit", "exit",
-    "help", "map",
+    "help", "map", "hint",
 }
 
 
@@ -162,7 +179,7 @@ class ManCommand(Command):
             purpose = MANPAGES[name][1]
             out.append(f"  {name:<8}", style="cyan")
             out.append(f"{purpose}\n")
-        out.append("\n[dim]Try: man ls[/dim]\n")
+        out.append("\nTry: man ls\n", style="dim")
         ctx.output.write(out)
 
 
@@ -175,19 +192,20 @@ class TreeCommand(Command):
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         out = Text()
-        out.append("Discovered filesystem\n\n", style="bold cyan")
+        out.append("Discovered filesystem\n", style="bold cyan")
+        out.append(f"⚑ {ctx.flags.summary()}\n\n", style="bold yellow")
         root_id = room_paths.room_at("/")
         if root_id is None:
             ctx.output.write("[red]tree: no root directory[/red]")
             return
         self._branch(ctx, out, root_id, prefix="", is_last=True, is_root=True)
 
-        keys = ctx._get_player_keys()
+        keys = ctx.resolver.player_keys()
         if keys:
             out.append("\nKeys you carry: ", style="bold blue")
             out.append(", ".join(keys) + "\n", style="blue")
         out.append(
-            "\n[dim]🔒 sealed · ⚔ another class · ✓ cleared · ← you are here[/dim]"
+            "\n🔒 sealed · ⚑ flag captured · ✓ done · ← you are here", style="dim"
         )
         ctx.output.write(out)
 
@@ -205,11 +223,16 @@ class TreeCommand(Command):
         if not allowed and denial:
             if denial["reason"] == "class":
                 marks.append("⚔")
+            elif denial["reason"] == "flags" and denial["room_id"] == room_id:
+                need = denial["flags_required"]
+                marks.append(f"🔒 {need} flags ({denial['flags_have']}/{need})")
             elif denial["room_id"] == room_id:
                 key = ctx.world.get_room_state(room_id).get("key_required")
                 marks.append(f"🔒 {key}" if key else "🔒")
         if ctx.world.is_room_cleared(room_id):
             marks.append("✓")
+        if ctx.flags.flag_for(room_id) is not None and ctx.world.flag_captured(room_id):
+            marks.append("⚑")
         here = room_id == ctx.player.current_room
 
         if is_root:
@@ -229,7 +252,7 @@ class TreeCommand(Command):
 
         children = [
             child for child in room_paths.children_of(path)
-            if ctx.world.is_discovered(child)
+            if ctx.world.is_discovered(child) and ctx.world.door_visible(child)
         ]
         if is_root:
             child_prefix = prefix

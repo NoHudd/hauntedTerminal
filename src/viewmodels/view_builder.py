@@ -10,14 +10,13 @@ from typing import List
 import logging
 
 from src.room_paths import ROOM_ID_TO_PATH
-from src.viewmodels.view_models import (
+from engine.view_models import (
     StatsView,
     InventoryItemView,
     InventoryView,
     RoomView,
     AttackView,
     CombatView,
-    EnemyView
 )
 
 logger = logging.getLogger(__name__)
@@ -28,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 class ViewBuilder:
     """Static methods to build view models from backend objects."""
+
+    #: When False (the game), a failed build is logged and a placeholder view
+    #: is returned so a panel degrades instead of crashing. The test suite
+    #: sets it True (tests/conftest.py) so the failure is seen.
+    raise_errors: bool = False
 
     @staticmethod
     def build_stats_view(player) -> StatsView:
@@ -56,6 +60,8 @@ class ViewBuilder:
                 defense_pct=round(getattr(player, 'armor_mitigation', 0.0) * 100),
             )
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building stats view: {e}", exc_info=True)
             # Return safe default
             return StatsView(
@@ -84,23 +90,39 @@ class ViewBuilder:
 
             items = []
             for item_id, item_data in inventory.items():
-                if not isinstance(item_data, dict):
-                    continue
-
+                healing, heal_turns = ViewBuilder._heal_info(item_data)
                 items.append(InventoryItemView(
                     id=item_id,
-                    name=item_data.get('name', item_id),
-                    item_type=item_data.get('type', 'unknown'),
-                    rarity=item_data.get('rarity', 'common'),
+                    name=item_data.name,
+                    item_type=item_data.type,
+                    rarity=item_data.rarity,
                     is_equipped=(item_id in (equipped_weapon, equipped_armor)),
-                    damage=item_data.get('damage'),
-                    healing=item_data.get('healing')
+                    damage=item_data.damage or None,
+                    healing=healing,
+                    healTurns=heal_turns,
                 ))
 
             return InventoryView(items=items)
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building inventory view: {e}", exc_info=True)
             return InventoryView(items=[])
+
+    @staticmethod
+    def _heal_info(item) -> tuple[int | None, int]:
+        """(HP restored, turns it takes) as `use` actually applies it — read in
+        the same order as combat: combat_effects, then `healing`, then on_use.
+        Heal-over-time rounds per turn like the status effect does."""
+        effects = item.combat_effects or {}
+        instant = effects.get("player_heal") or item.healing or (item.on_use or {}).get("heal")
+        if instant:
+            return int(instant), 0
+        if "player_heal_over_time" in effects:
+            turns = int(effects.get("duration_turns", 3))
+            per_turn = max(1, int(effects["player_heal_over_time"]) // turns)
+            return per_turn * turns, turns
+        return None, 0
 
     @staticmethod
     def build_room_view(world, room_id: str) -> RoomView:
@@ -129,6 +151,10 @@ class ViewBuilder:
                     state = get_room_state(exit_id) or {}
                     if state.get('hidden', False):
                         continue
+                # Locked doors stay out of sight until their key reveals them.
+                door_visible = getattr(world, 'door_visible', None)
+                if door_visible is not None and not door_visible(exit_id):
+                    continue
                 path = ROOM_ID_TO_PATH.get(exit_id, exit_id)
                 is_cleared = getattr(world, 'is_room_cleared', lambda r: False)(exit_id)
                 exit_commands.append(f"{path} ✓" if is_cleared else path)
@@ -144,7 +170,9 @@ class ViewBuilder:
                 nid for nid in getattr(world, 'get_npcs_in_room', lambda r: [])(room_id)
                 if nid in getattr(world, 'npcs', {})
             ]
-            npc_names = [world.npcs.get(nid, {}).get('name', nid) for nid in npc_ids]
+            npc_names = [
+                world.npcs[nid].name if nid in world.npcs else nid for nid in npc_ids
+            ]
 
             return RoomView(
                 name=room_data.name or room_id,
@@ -158,6 +186,8 @@ class ViewBuilder:
                 npc_ids=npc_ids,
             )
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building room view for {room_id}: {e}", exc_info=True)
             return RoomView(
                 name=room_id,
@@ -166,14 +196,14 @@ class ViewBuilder:
             )
 
     @staticmethod
-    def build_combat_view(player, enemy_data: dict, enemy_health: int,
+    def build_combat_view(player, enemy_data, enemy_health: int,
                          combat_system, enemy_id: str = "") -> CombatView:
         """
         Build combat view from player, enemy, and combat system.
 
         Args:
             player: Player object
-            enemy_data: Dict with enemy information
+            enemy_data: the fight's Enemy model
             enemy_health: Current enemy health
             combat_system: CombatSystem instance for attacks
 
@@ -188,25 +218,22 @@ class ViewBuilder:
             usable_items = []
             inventory = getattr(player, 'inventory', {})
             for item_id, item_data in inventory.items():
-                if not isinstance(item_data, dict):
-                    continue
-
-                item_type = item_data.get('type', '')
+                item_type = item_data.type
                 if item_type in ['consumable', 'spell']:
                     usable_items.append(InventoryItemView(
                         id=item_id,
-                        name=item_data.get('name', item_id),
+                        name=item_data.name,
                         item_type=item_type,
-                        rarity=item_data.get('rarity', 'common'),
+                        rarity=item_data.rarity,
                         is_equipped=False,
-                        damage=item_data.get('damage'),
-                        healing=item_data.get('healing')
+                        damage=item_data.damage or None,
+                        healing=item_data.healing
                     ))
 
             return CombatView(
-                enemy_name=enemy_data.get('name', 'Unknown Enemy'),
+                enemy_name=enemy_data.name,
                 enemy_health=enemy_health,
-                enemy_max_health=enemy_data.get('health', enemy_health),
+                enemy_max_health=enemy_data.health,
                 player_health=getattr(player, 'health', 0),
                 player_max_health=getattr(player, 'max_health', 100),
                 enemy_id=enemy_id,
@@ -214,6 +241,8 @@ class ViewBuilder:
                 usable_items=usable_items
             )
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building combat view: {e}", exc_info=True)
             # Return minimal combat view
             return CombatView(
@@ -224,38 +253,6 @@ class ViewBuilder:
                 player_max_health=getattr(player, 'max_health', 100),
                 available_attacks=[],
                 usable_items=[]
-            )
-
-    @staticmethod
-    def build_enemy_view(enemy_id: str, enemy_data: dict) -> EnemyView:
-        """
-        Build enemy view from enemy data.
-
-        Args:
-            enemy_id: Enemy identifier
-            enemy_data: Dict with enemy information
-
-        Returns:
-            EnemyView with enemy display data
-        """
-        try:
-            return EnemyView(
-                id=enemy_id,
-                name=enemy_data.get('name', enemy_id),
-                health=enemy_data.get('health', 50),
-                max_health=enemy_data.get('health', 50),
-                damage=enemy_data.get('damage', 10),
-                description=enemy_data.get('description', 'A hostile entity.')
-            )
-        except Exception as e:
-            logger.error(f"Error building enemy view for {enemy_id}: {e}", exc_info=True)
-            return EnemyView(
-                id=enemy_id,
-                name=enemy_id,
-                health=50,
-                max_health=50,
-                damage=10,
-                description='A hostile entity.'
             )
 
     @staticmethod
@@ -300,10 +297,15 @@ class ViewBuilder:
                     cooldown=attack.get('cooldown', 0),
                     cooldown_remaining=cooldown_remaining,
                     on_cooldown=on_cooldown,
-                    accuracy=attack.get('accuracy', 100)
+                    accuracy=attack.get('accuracy', 100),
+                    healing=attack.get('healing', 0),
+                    weaken=attack.get('enemy_damage_reduction', 0.0),
+                    kind=attack.get('type', ''),
                 )
                 attack_views.append(attack_view)
             return attack_views
         except Exception as e:
+            if ViewBuilder.raise_errors:
+                raise
             logger.error(f"Error building attack list: {e}", exc_info=True)
             return []

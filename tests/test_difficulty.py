@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 
+from engine.schema import Enemy
 from src import difficulty
 
 
@@ -19,7 +20,7 @@ def _reset_mode():
 
 def _enemy_hp(mode: str) -> int:
     difficulty.set_mode(mode)
-    return difficulty.scale_enemy({"health": 100, "damage": 10})["health"]
+    return difficulty.scale_enemy(Enemy(name="x", health=100, damage=10)).health
 
 
 def test_enemy_hp_is_ordered_easy_medium_hard() -> None:
@@ -43,9 +44,9 @@ def test_easy_is_not_tougher_than_hard() -> None:
 
 def test_scale_enemy_does_not_mutate_input() -> None:
     difficulty.set_mode("hard")
-    original = {"health": 100, "damage": 10}
+    original = Enemy(name="x", health=100, damage=10)
     difficulty.scale_enemy(original)
-    assert original == {"health": 100, "damage": 10}
+    assert (original.health, original.damage) == (100, 10)
 
 
 def test_get_enemy_applies_difficulty() -> None:
@@ -56,9 +57,9 @@ def test_get_enemy_applies_difficulty() -> None:
         s.new_game("T", "guardian")
         eid = next(iter(s.world.enemies))
         difficulty.set_mode("easy")
-        easy = s.world.get_enemy(eid, "guardian")["health"]
+        easy = s.world.get_enemy(eid, "guardian").health
         difficulty.set_mode("hard")
-        hard = s.world.get_enemy(eid, "guardian")["health"]
+        hard = s.world.get_enemy(eid, "guardian").health
         assert hard > easy
     finally:
         difficulty.set_mode("medium")

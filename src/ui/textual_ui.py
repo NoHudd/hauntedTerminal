@@ -16,29 +16,39 @@ from textual.binding import Binding
 from textual.widgets import Footer, Static, Input
 from textual.containers import Container, VerticalScroll, Horizontal, Vertical
 from textual.reactive import var
+from textual.screen import ModalScreen
 from rich.text import Text
 
 from src.ui.ui_interface import UIInitializationError, UIStateError
-from src.events import event_bus, EventType
+from engine.events import EventBus, EventType
 from src.game_states import GameState, UIState
-from src.state_manager import state_manager
-from utils.typewriter import TypewriterPresets, request_skip as request_typewriter_skip
+from src.state_manager import StateManager
+from engine.view_models import AttackView, CombatView, InventoryView, RoomView, StatsView
 from config.dev_config import SKIP_INTRO
 
+from src.ui.panels.echo_panel import EchoPanel
 from src.ui.panels.inventory_panel import InventoryPanel
 from src.ui.panels.stats_panel import StatsPanel
+from src.ui.panels.character_panel import CharacterPanel
 from src.ui.panels.scene_view import SceneView
 from src.ui.screens.combat_hint import CombatModeHintScreen
 from src.ui.screens.log_viewer import LogViewerScreen
-from src.ui.screens.quit_confirm import QuitConfirmScreen
+from src.ui.screens.quit_confirm import MID_FIGHT_CHOICES, QuitConfirmScreen
+from src.ui.screens.save_picker import SavePickerScreen
 from src.ui.screens.selection_screen import SelectionCard, SelectionScreen
 from src.ui.screens.settings_screen import SettingsScreen
+from src.ui.combat_log import render_combat_output
+from src.ui.command_input import CommandInput
 from src.ui.command_suggester import CommandSuggester
+from src.ui.endings import FinaleReveal
+from src.ui.title_menu import TitleMenu
 from config.settings_manager import SettingsManager
 
 import logging
 import os
+from collections.abc import Callable
 import threading
+from dataclasses import replace
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -57,6 +67,8 @@ class TextualGameUI(App):
         Binding("ctrl+c", "request_quit", "Quit", show=False, priority=True),
         Binding("ctrl+p", "open_settings", "Settings", key_display="ctrl + p"),
         Binding("l", "toggle_log_viewer", "Show/Hide Logs", key_display="L"),
+        # Priority, so it reaches the app even while the command box has focus.
+        Binding("f12", "toggle_log_viewer", "Logs", show=False, priority=True),
         Binding("f5", "restart_game", "Restart Game", key_display="F5"),
     ]
 
@@ -66,32 +78,37 @@ class TextualGameUI(App):
 
     def __init__(self, *args, **kwargs):
         # Initialize state BEFORE calling super().__init__()
-        # Note: Game state is now managed by StateManager singleton
         # Store view data (dicts) instead of backend objects
         self._settings_manager = SettingsManager()
         self._settings_manager.load()
-        self._player_view = {}  # StatsView dict
-        self._inventory_view = {}  # InventoryView dict
-        self._room_view = {}  # RoomView dict
-        self._combat_view = {}  # CombatView dict
+        self._player_view: Optional[StatsView] = None
+        self._inventory_view: Optional[InventoryView] = None
+        self._room_view: Optional[RoomView] = None
+        self._combat_view: Optional[CombatView] = None
         self._combat_log = []  # Store recent combat actions
         self._bound_combat_keys = []  # Track bound combat keys
-        self._available_attacks = []  # Attack list from combat view data
+        self._available_attacks: list[AttackView] = []
         self._combat_hint_shown = False  # Track if selection mode hint was shown
         self._player_ref = None  # Set by game engine after player creation; used for tutorial checks
         self._world_ref = None   # Set by game engine; used by autocomplete suggester
-        self._room_aliases_ref: dict = {}  # Populated from CommandHandler for cd autocomplete
 
-        # Intro / main-menu state (arrow-key navigation)
-        self._menu_index = 0
-        self._menu_state = "idle"  # "typing" | "menu_ready" | "idle"
-        self._intro_title: Optional[Text] = None
-        self._intro_skip_hint: Optional[Text] = None
-        self._intro_story_text = ""
-        self._intro_full_story = ""
+        self._title_menu = TitleMenu(self)
+        self._finale = FinaleReveal(self)
 
         super().__init__(*args, **kwargs)
         self.ui_state = UIState.INITIALIZING
+        # A private bus until the engine hands over its own via attach_bus;
+        # lets the app run standalone (e.g. under Pilot) with nothing listening.
+        bus = EventBus()
+        self.bus = bus
+        self.state_manager = StateManager(bus)
+        self._setup_event_subscriptions()
+
+    def attach_bus(self, bus: EventBus, state_manager: StateManager) -> None:
+        """Move this UI's subscriptions onto the owning engine's bus."""
+        self._teardown_event_subscriptions()
+        self.bus = bus
+        self.state_manager = state_manager
         self._setup_event_subscriptions()
 
     _EVENT_HANDLERS = [
@@ -101,7 +118,6 @@ class TextualGameUI(App):
         (EventType.PLAYER_STATS_CHANGED, "_on_player_stats_changed"),
         (EventType.PLAYER_INVENTORY_CHANGED, "_on_player_inventory_changed"),
         (EventType.ROOM_ENTERED, "_on_room_entered"),
-        (EventType.DELAYED_ROOM_REFRESH, "_on_delayed_room_refresh"),
         (EventType.UI_STATE_CHANGED, "_on_ui_state_changed"),
         (EventType.COMBAT_STARTED, "_on_combat_started"),
         (EventType.COMBAT_FRAME_UPDATED, "_on_combat_frame_updated"),
@@ -111,12 +127,18 @@ class TextualGameUI(App):
         (EventType.GAME_WON, "_on_game_won"),
         (EventType.GAME_QUIT, "_on_game_quit"),
         (EventType.QUIT_CONFIRM_REQUESTED, "_on_quit_confirm_requested"),
+        (EventType.SAVE_PICKER_REQUESTED, "_on_save_picker_requested"),
+        (EventType.TUTORIAL_HINT, "_on_tutorial_hint"),
     ]
 
     def _setup_event_subscriptions(self):
         """Subscribe to relevant game events."""
         for event_type, handler_name in self._EVENT_HANDLERS:
-            event_bus.subscribe(event_type, getattr(self, handler_name))
+            self.bus.subscribe(event_type, getattr(self, handler_name))
+
+    def _teardown_event_subscriptions(self):
+        for event_type, handler_name in self._EVENT_HANDLERS:
+            self.bus.unsubscribe(event_type, getattr(self, handler_name))
 
     def compose(self) -> ComposeResult:
         """Create the main UI layout."""
@@ -129,8 +151,10 @@ class TextualGameUI(App):
             with Container(id="sidebar"):
                 yield InventoryPanel(id="inventory-panel")
                 yield StatsPanel(id="stats-panel")
+                yield CharacterPanel(id="character-panel")
+        yield EchoPanel(id="echo-panel")
         yield Footer()
-        yield Input(placeholder="Enter command...", id="input-field")
+        yield CommandInput(placeholder="Enter command...", id="input-field")
 
     def on_mount(self) -> None:
         """Initialize the UI when mounted."""
@@ -138,7 +162,9 @@ class TextualGameUI(App):
             # Store panel references
             self._inv_panel = self.query_one("#inventory-panel", InventoryPanel)
             self._stats_panel = self.query_one("#stats-panel", StatsPanel)
+            self._character_panel = self.query_one("#character-panel", CharacterPanel)
             self._scene_view = self.query_one("#scene-view", SceneView)
+            self._echo_panel = self.query_one("#echo-panel", EchoPanel)
 
             # Set panel titles
             self._inv_panel.border_title = "📦 Inventory"
@@ -154,22 +180,21 @@ class TextualGameUI(App):
             self._settings_manager.set_text_speed(self._settings_manager.settings["text_speed"])
             self._settings_manager.set_reduce_motion(self._settings_manager.settings["reduce_motion"])
             self._settings_manager.set_hints(self._settings_manager.settings["hints"])
-            self._settings_manager.set_difficulty(self._settings_manager.settings["difficulty"])
             self._update_all_panels_to_defaults()
 
             # Attach context-aware autocomplete to the input field (always)
-            input_widget = self.query_one("#input-field", Input)
+            input_widget = self.query_one("#input-field", CommandInput)
             input_widget.suggester = CommandSuggester(
                 get_player=lambda: self._player_ref,
                 get_world=lambda: self._world_ref,
-                get_aliases=lambda: self._room_aliases_ref,
             )
+            input_widget.can_complete = lambda: not self.state_manager.is_in_combat()
 
             # Display title screen with arrow-key main menu.
             # SKIP_INTRO bypasses the typewriter but keeps the navigable menu.
             self._display_title_screen(skip_typewriter=SKIP_INTRO)
 
-            event_bus.emit_event(EventType.UI_READY, {}, "TextualGameUI")
+            self.bus.emit_event(EventType.UI_READY, {}, "TextualGameUI")
             logger.info("TextualGameUI mounted successfully")
         except Exception as e:
             self.ui_state = UIState.ERROR
@@ -180,8 +205,7 @@ class TextualGameUI(App):
         """Clean shutdown of UI resources."""
         try:
             self.ui_state = UIState.SHUTTING_DOWN
-            for event_type, handler_name in self._EVENT_HANDLERS:
-                event_bus.unsubscribe(event_type, getattr(self, handler_name))
+            self._teardown_event_subscriptions()
             logger.info("TextualGameUI shutdown complete")
         except Exception as e:
             logger.error(f"Error during UI shutdown: {e}")
@@ -217,28 +241,35 @@ class TextualGameUI(App):
         # State is managed by StateManager, not UI
         # Extract view data from event
         if 'stats' in event.data:
-            self._player_view = event.data['stats']
+            self._player_view = StatsView.from_dict(event.data['stats'])
         if 'inventory' in event.data:
-            self._inventory_view = event.data['inventory']
+            self._inventory_view = InventoryView.from_dict(event.data['inventory'])
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
 
-    def _reset_ui_state(self):
-        """Reset all UI state - called when game starts or restarts."""
+    def _reset_ui_state(self, leave_battle: bool = True):
+        """Reset all UI state - called when game starts or restarts.
+
+        leave_battle=False keeps the fight on the scene: after a death the
+        scene drains from the battle straight to black, never via the room.
+        """
         logger.debug("Resetting UI state")
 
         # Clear all view data
-        self._player_view = {}
-        self._inventory_view = {}
-        self._room_view = {}
-        self._combat_view = {}
+        self._player_view = None
+        self._inventory_view = None
+        self._room_view = None
+        self._combat_view = None
 
         # Clear combat data
         self._combat_log.clear()
         self._available_attacks = []
 
-        # Remove combat UI styling and leave battle mode
+        self._echo_panel.clear()
+
         self.remove_class("combat-active")
-        self._scene_view.end_battle()
+        if leave_battle:
+            self._scene_view.end_battle()
 
         # Unbind any combat hotkeys
         self._unbind_combat_hotkeys()
@@ -249,12 +280,26 @@ class TextualGameUI(App):
         logger.debug("UI state reset complete")
 
     def _on_game_over(self, event):
-        """Handle game over event."""
-        # Reset UI state on game over/restart
-        self._reset_ui_state()
+        """A death drains the scene and shows the GAME OVER card; a restart
+        (F5) or leaving for the main menu goes back to the title."""
+        reason = event.data.get("reason")
+        player_view = self._player_view
+        self._reset_ui_state(leave_battle=reason != "defeat")
+
+        if reason in ("restart", "menu"):
+            self._display_title_screen(skip_typewriter=reason == "menu")
+            return
+        if reason != "defeat":
+            return
+
+        # The card names the player; the reset above cleared the view it reads.
+        self._player_view = player_view
+        self._scene_view.play_death(
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
+        )
 
         # CommandHandler triggers the particle animation (2.5s).
-        # Defer the static game-over screen so it doesn't get overwritten by animation frames.
+        # Focus the input once the animation's final frame (the choices) is up.
         # Dynamic read — settings_manager mutates dev_cfg.DISABLE_ANIMATIONS at runtime.
         import config.dev_config as _dev_cfg
         delay = 0.0 if _dev_cfg.DISABLE_ANIMATIONS else 2.6
@@ -263,31 +308,39 @@ class TextualGameUI(App):
         else:
             self.display_game_over()
 
+    def _refresh_character(self):
+        """Redraw the Character panel from the latest stats and inventory."""
+        self._character_panel.update_character(
+            self._player_view,
+            self._inventory_view,
+            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False)),
+        )
+
     def _on_player_created(self, event):
         """Handle player created event."""
-        # Event data is now StatsView dict
-        self._player_view = event.data
+        self._player_view = StatsView.from_dict(event.data)
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
 
     def _on_player_stats_changed(self, event):
         """Handle player stats changed event."""
-        # Event data is now StatsView dict
-        self._player_view = event.data
+        self._player_view = StatsView.from_dict(event.data)
         self._stats_panel.update_stats(self._player_view)
-        if state_manager.is_in_combat():
+        self._refresh_character()
+        if self.state_manager.is_in_combat():
             self._update_combat_panels()
 
     def _on_player_inventory_changed(self, event):
         """Handle player inventory changed event."""
-        # Event data is now InventoryView dict
-        self._inventory_view = event.data
+        self._inventory_view = InventoryView.from_dict(event.data)
         self._inv_panel.update_inventory(self._inventory_view)
+        self._refresh_character()
 
     def _on_room_entered(self, event):
         """Handle room entered event with enhanced theming."""
         if 'room' in event.data:
-            self._room_view = event.data['room']
-            room_name = self._room_view.get('name', '')
+            self._room_view = RoomView.from_dict(event.data['room'])
+            room_name = self._room_view.name
             self._scene_view.show_explore(self._room_view)
 
             # Apply dynamic room theming using room view data
@@ -296,27 +349,13 @@ class TextualGameUI(App):
             # Apply exploring game state
             self._apply_game_state_styling("exploring")
 
-    _DELAYED_RELIST_SECONDS = 2.0
-
-    def _on_delayed_room_refresh(self, event):
-        """After a story-beat `cat`, re-list the room a beat later so the
-        '✦ Memory restored / ✓ saved' message is readable first."""
-        self.set_timer(self._DELAYED_RELIST_SECONDS, self._deferred_relist)
-
-    def _deferred_relist(self):
-        event_bus.emit_event(
-            EventType.COMMAND_ENTERED,
-            {"command": "ls", "game_state": state_manager.current_state},
-            "TextualGameUI",
-        )
-
     # States where the player is picking difficulty/class/name — the game panels
     # (scene, inventory, stats, combat) carry no information yet, so the output
     # panel takes the whole screen (input stays for typing the choice).
     _SELECTION_STATES = {
         "waiting_for_difficulty",
         "waiting_for_class",
-        "waiting_for_name",
+        "waiting_for_save",
         "tutorial_name_input",
     }
 
@@ -337,13 +376,13 @@ class TextualGameUI(App):
 
     # -- art-card pickers -------------------------------------------------------
 
-    _picker: SelectionScreen | None = None
+    _picker: ModalScreen | None = None
 
     def _open_picker(self, heading: str, cards: list) -> None:
         def on_pick(card: SelectionCard) -> None:
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": card.command, "game_state": state_manager.current_state},
+                {"command": card.command},
                 "SelectionScreen",
             )
 
@@ -362,6 +401,29 @@ class TextualGameUI(App):
             except Exception as e:
                 logger.debug(f"Picker dismiss failed: {e}")
             self._picker = None
+
+    def _on_save_picker_requested(self, event) -> None:
+        """LOAD GAME / slots-full NEW GAME: show (or refresh, after a delete)
+        the save picker. Its answers go back as typed commands."""
+        data = event.data or {}
+
+        def send(command: str) -> None:
+            self.bus.emit_event(
+                EventType.COMMAND_ENTERED, {"command": command}, "SavePickerScreen",
+            )
+
+        self._close_picker()
+        reduce_motion = bool(self._settings_manager.settings.get("reduce_motion", False))
+        self._picker = SavePickerScreen(
+            str(data.get("mode", "continue")),
+            list(data.get("runs", [])),
+            int(data.get("legacyCount", 0)),
+            send,
+            reduce_motion=reduce_motion,
+        )
+        # Deferred for the same reason as _open_picker: the Enter that chose
+        # LOAD GAME must not also answer the picker.
+        self.call_after_refresh(self.push_screen, self._picker)
 
     @staticmethod
     def _difficulty_cards() -> list:
@@ -385,19 +447,18 @@ class TextualGameUI(App):
     @staticmethod
     def _class_cards() -> list:
         from src.data_loader import load_class_data
+        from src.move_info import class_move_lines, stat_lines
         accents = {"guardian": "cyan", "weaver": "magenta", "shaman": "green"}
         cards = []
         for i, (class_id, data) in enumerate(load_class_data().items(), 1):
-            # data is a typed CharacterClass model; display carries labeled stats
-            tagline = (getattr(data, "description", "") or "").split(" - ")[0]
-            disp = getattr(data, "display", None)
-            if disp is not None:
-                stats = f"{disp.hp_label}\n{disp.dmg_label}\n⚔ {disp.weapon_name}"
-            else:
-                stats = f"HP {getattr(data, 'base_health', '?')} · DMG {getattr(data, 'base_damage', '?')}"
+            # data is a typed CharacterClass model; display carries the labels
+            tagline = (data.description or "").split(" - ")[0]
+            hp, dmg = stat_lines(data)
+            moves = "\n".join(class_move_lines(data))
+            stats = f"{hp}\n{dmg}\n⚔ {data.display.weapon_name}\n\nMoves:\n{moves}"
             cards.append(SelectionCard(
                 command=str(i),
-                title=getattr(data, "name", class_id),
+                title=data.name,
                 subtitle=f"{tagline}\n\n{stats}",
                 art_key=f"class_{class_id}",
                 accent=accents.get(class_id, "white"),
@@ -406,8 +467,8 @@ class TextualGameUI(App):
 
     def _on_combat_started(self, event):
         """Handle combat started — one-shot initialization of combat UI."""
-        self._combat_view = event.data
-        self._available_attacks = event.data.get('available_attacks', [])
+        self._combat_view = CombatView.from_dict(event.data)
+        self._available_attacks = self._combat_view.available_attacks
         self._bind_combat_hotkeys()
         self.query_one("#input-field", Input).blur()
         self._apply_game_state_styling("in_combat")
@@ -415,8 +476,8 @@ class TextualGameUI(App):
 
     def _on_combat_frame_updated(self, event):
         """Handle per-turn combat frame update — refresh health and cooldowns."""
-        self._combat_view = event.data
-        self._available_attacks = event.data.get('available_attacks', [])
+        self._combat_view = CombatView.from_dict(event.data)
+        self._available_attacks = self._combat_view.available_attacks
         self._update_combat_panels()
 
     def _on_combat_action_result(self, event):
@@ -439,73 +500,70 @@ class TextualGameUI(App):
                 self._show_floating_number(healing, "heal", actor)
 
             # Use StateManager to check combat state
-            if state_manager.is_in_combat():
+            if self.state_manager.is_in_combat():
                 self._update_combat_panels()
+
+    def _on_tutorial_hint(self, event):
+        """Pin the current tutorial step; the closing summary goes to the output."""
+        data = event.data or {}
+        if data.get("final"):
+            self._ui_call(self._echo_panel.clear)
+            self._ui_call(self.append_output, "\n" + data.get("text", ""))
+            return
+        self._ui_call(
+            self._echo_panel.show_hint,
+            data.get("text", ""), data.get("step"), data.get("total", 0),
+            bool(self._settings_manager.settings.get("reduce_motion", False)),
+        )
+        if data.get("highlight"):
+            self._ui_call(self._flash_section, data["highlight"])
+
+    _FLASH_PULSES = 3
+    _FLASH_SECONDS = 0.35
+
+    def _flash_section(self, label: str) -> None:
+        """Pulse the "<label>:" section of the current output so the player can
+        find what Echo is pointing at, then leave it lit."""
+        base = self.output_content
+        if not isinstance(base, Text):
+            return
+        start = base.plain.find(f"{label}:")
+        if start < 0:
+            return
+        end = base.plain.find("\n\n", start)
+        lit = base.copy()
+        lit.stylize("bold black on yellow", start, len(base.plain) if end < 0 else end)
+
+        if self._settings_manager.settings.get("reduce_motion", False):
+            self.output_content = lit
+            return
+
+        frames = [lit, base] * self._FLASH_PULSES + [lit]
+
+        def next_frame() -> None:
+            # The player typed something else: the section is gone, stop.
+            if not frames or (self.output_content is not base and self.output_content is not lit):
+                timer.stop()
+                return
+            self.output_content = frames.pop(0)
+
+        timer = self.set_interval(self._FLASH_SECONDS, next_frame)
+        next_frame()
 
     def _on_enemy_defeated(self, event):
         """Enemy died: scene drains its HP bar to zero and removes the sprite.
         Needed for one-tap kills — no combat frame update follows the killing blow."""
+        if self._combat_view is not None:
+            self._combat_view = replace(self._combat_view, enemy_health=0)
         self._scene_view.defeat_enemy()
 
     # -- victory finale ---------------------------------------------------------
 
-    _FINALE_SECTION_SECONDS = 2.5
-
     def _on_game_won(self, event):
         """Victory: scene brightens; epilogue arrives in beats; recap card last."""
-        data = event.data or {}
         reduce_motion = bool(self._settings_manager.settings.get("reduce_motion", False))
         self._scene_view.play_finale(reduce_motion=reduce_motion)
-
-        parts = list(data.get("sections", [])) + [self._build_recap(data.get("stats", {}))]
-        self._finale_queue = parts
-        self._finale_timers = []
-
-        first = self._finale_queue.pop(0)
-        if reduce_motion:
-            self.update_output(first)
-            for part in self._finale_queue:
-                self.append_output(part)
-            self._finale_queue = []
-            return
-        self.update_output(first)
-        for i, part in enumerate(self._finale_queue, 1):
-            self._finale_timers.append(
-                self.set_timer(self._FINALE_SECTION_SECONDS * i,
-                               lambda p=part: self._finale_step(p))
-            )
-
-    def _finale_step(self, part: str) -> None:
-        if part in getattr(self, "_finale_queue", []):
-            self._finale_queue.remove(part)
-        self.append_output(part)
-        if not self._finale_queue:
-            self._finale_timers = []
-
-    def _skip_finale(self) -> None:
-        """Any key during the reveal: dump everything remaining at once."""
-        if not getattr(self, "_finale_timers", None):
-            return
-        for t in self._finale_timers:
-            t.stop()
-        self._finale_timers = []
-        for part in self._finale_queue:
-            self.append_output(part)
-        self._finale_queue = []
-
-    @staticmethod
-    def _build_recap(stats: dict) -> str:
-        return (
-            "── YOUR RUN ──────────────────────────\n"
-            f"[bold]{stats.get('player_name', '?')}[/bold] · "
-            f"{str(stats.get('player_class', '?')).title()} · "
-            f"ending: [cyan]{str(stats.get('ending', '?')).upper()}[/cyan]\n"
-            f"Level {stats.get('level', 1)} · {stats.get('cycles', 0)} cycles harvested\n"
-            f"{stats.get('kills', 0)} enemies purged · {stats.get('items_found', 0)} items recovered\n"
-            f"difficulty: {stats.get('difficulty', '?')}\n"
-            "──────────────────────────────────────\n"
-            "[green]n[/green] new run · [red]q[/red] quit"
-        )
+        self._finale.start(event.data or {}, reduce_motion)
 
     def _on_combat_ended(self, event):
         """Handle combat ended event with styling reset."""
@@ -513,11 +571,11 @@ class TextualGameUI(App):
 
         # Reset to exploring game state styling and hide combat UI
         self._apply_game_state_styling("exploring")
-        self._hide_combat_ui()
+        self._hide_combat_ui(leave_battle=not event.data.get("defeat", False))
 
         # Clear combat data immediately (state is managed by StateManager)
         logger.debug("Clearing combat data")
-        self._combat_view = {}
+        self._combat_view = None
         self._combat_log.clear()
         self._available_attacks = []
 
@@ -548,17 +606,17 @@ class TextualGameUI(App):
             return
 
         # Emit command event with current state from StateManager
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": command, "game_state": state_manager.current_state},
+            {"command": command},
             "TextualGameUI"
         )
 
     def on_key(self, event):
         """Handle key press events."""
         # Victory finale in progress: any key fast-forwards the reveal.
-        if getattr(self, "_finale_timers", None):
-            self._skip_finale()
+        if self._finale.revealing:
+            self._finale.skip()
             event.stop()
             return
 
@@ -566,39 +624,42 @@ class TextualGameUI(App):
             # Defer to active modal screen (e.g., Settings) — its own ESC binding handles dismiss.
             if len(self.screen_stack) > 1:
                 return
+            # Esc mid-line cancels the line, like a shell. Only an Esc on an
+            # empty prompt means "quit" — a typo must never close the game.
+            if self._cancel_pending_input():
+                event.stop()
+                return
             # Emit quit command to use existing confirmation flow
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": "quit", "game_state": state_manager.current_state},
+                {"command": "quit"},
                 "TextualGameUI"
             )
             return
 
+        # A modal (Settings, a picker) owns the keys while it is up.
+        if len(self.screen_stack) > 1:
+            return
+
         # Main menu: arrow-key navigation; any other key fast-forwards typewriter
-        if state_manager.current_state == GameState.MENU:
-            if self._menu_state == "typing":
-                request_typewriter_skip()
+        if self.state_manager.current_state == GameState.MENU:
+            if self._title_menu.handle_key(event.key):
                 event.stop()
-                return
-            if self._menu_state == "menu_ready":
-                if event.key == "up":
-                    self._menu_index = (self._menu_index - 1) % 3
-                    self._render_intro()
-                    event.stop()
-                elif event.key == "down":
-                    self._menu_index = (self._menu_index + 1) % 3
-                    self._render_intro()
-                    event.stop()
-                elif event.key in ("enter", "return"):
-                    self._select_menu_option()
-                    event.stop()
+
+    def _cancel_pending_input(self) -> bool:
+        """Clear a half-typed command. True if there was one to clear."""
+        field = self.query_one("#input-field", Input)
+        if not field.value:
+            return False
+        field.value = ""
+        return True
 
     def on_input_blurred(self, event: Input.Blurred) -> None:
         """Handle when the input field loses focus (TAB pressed)."""
         # Show the selection-mode hint modal once ever (persisted), not every
         # session — after the first combat it never interrupts again.
         if (
-            state_manager.is_in_combat()
+            self.state_manager.is_in_combat()
             and not self._combat_hint_shown
             and not self._settings_manager.settings.get("seen_selection_mode", False)
         ):
@@ -613,33 +674,47 @@ class TextualGameUI(App):
 
     def action_request_quit(self) -> None:
         """Ask the domain to quit, so the usual save prompt runs first."""
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": "quit", "game_state": state_manager.current_state},
+            {"command": "quit"},
             "TextualGameUI",
         )
 
     def _on_quit_confirm_requested(self, event) -> None:
         """Show the quit chooser instead of making the player type a letter."""
         def answer(choice: str) -> None:
-            event_bus.emit_event(
+            self.bus.emit_event(
                 EventType.COMMAND_ENTERED,
-                {"command": choice, "game_state": state_manager.current_state},
+                {"command": choice},
                 "QuitConfirmScreen",
             )
 
+        if (event.data or {}).get("inCombat"):
+            screen = QuitConfirmScreen(answer, MID_FIGHT_CHOICES, "Leave mid-fight?")
+        else:
+            screen = QuitConfirmScreen(answer)
         # Deferred so the Enter/ESC that asked to quit cannot fall through onto
         # the new screen's own bindings and answer it instantly.
-        self.call_after_refresh(self.push_screen, QuitConfirmScreen(answer))
+        self.call_after_refresh(self.push_screen, screen)
 
     def _on_game_quit(self, event) -> None:
         """The domain confirmed the quit: stop the app so Textual restores the
         terminal on the way out."""
         self.exit()
 
+    def open_settings(self, on_close: Callable[[], None] | None = None) -> None:
+        """Open the settings modal: SETTINGS on the title menu, Ctrl+P anywhere."""
+        if any(isinstance(screen, SettingsScreen) for screen in self.screen_stack):
+            return
+        self.push_screen(SettingsScreen(self._settings_manager, on_close=on_close))
+
     def action_open_settings(self) -> None:
-        """Open the settings modal."""
-        self.push_screen(SettingsScreen(self._settings_manager))
+        """Ctrl+P. On the title, closing it redraws the menu."""
+        on_title = (
+            self.state_manager.current_state == GameState.MENU
+            and self._title_menu.state == "menu_ready"
+        )
+        self.open_settings(on_close=self._title_menu.render if on_title else None)
 
     def action_toggle_log_viewer(self) -> None:
         """Toggle the log viewer modal."""
@@ -654,7 +729,7 @@ class TextualGameUI(App):
         # Show restart message
         self.output_content = "[yellow]Restarting game...[/yellow]"
         # Emit restart request event to game engine
-        event_bus.emit_event(EventType.GAME_RESTART_REQUESTED, {}, "TextualGameUI")
+        self.bus.emit_event(EventType.GAME_RESTART_REQUESTED, {}, "TextualGameUI")
 
     def _bind_combat_hotkeys(self):
         """Dynamically bind combat hotkeys with actual attack names, plus the
@@ -666,22 +741,15 @@ class TextualGameUI(App):
             return
 
         try:
-            # Use available attacks from combat view data (list of AttackView dicts)
-            # Filter out attacks on cooldown
-            available_list = [
-                attack
-                for attack in self._available_attacks
-                if not attack.get('on_cooldown', False)
-            ]
-
-            # Bind keys dynamically
-            for i, attack_data in enumerate(available_list, 1):
+            # One key per attack in the panel's order, cooldowns included, so
+            # the number shown next to an attack is always the key that fires it.
+            for i, attack_data in enumerate(self._available_attacks, 1):
                 if i > 9:
                     break
 
                 key = str(i)
                 action = f"combat_hotkey_{i}"
-                attack_name = attack_data.get('name', attack_data.get('id', 'Unknown'))
+                attack_name = attack_data.name
 
                 # Bind the key
                 self.bind(key, action, description=attack_name, show=True)
@@ -722,76 +790,50 @@ class TextualGameUI(App):
     def action_combat_flee(self) -> None:
         """0 = flee. Emits the same event typed 'flee' produces, so
         combat.py's existing boss-block/success handling needs no changes."""
-        if not state_manager.is_in_combat():
+        if not self.state_manager.is_in_combat():
             return
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_ACTION_SELECTED,
             {"choice": "flee"},
             "TextualGameUI",
         )
 
     def _execute_combat_hotkey(self, hotkey_number: int):
-        """Execute combat action based on hotkey number - only available attacks."""
-        # Use StateManager to check combat state
-        if not state_manager.is_in_combat():
+        """Fire the attack the combat panel shows at this number. One that is
+        cooling down says so instead of firing anything."""
+        if not self.state_manager.is_in_combat():
             return
 
         try:
-            # Log all available attacks with cooldown status
-            logger.debug(f"Hotkey {hotkey_number} pressed. Available attacks: {len(self._available_attacks)}")
-            for i, attack in enumerate(self._available_attacks, 1):
-                on_cd = attack.get('on_cooldown', False)
-                cd_remaining = attack.get('cooldown_remaining', 0)
-                attack_name = attack.get('name', 'Unknown')
-                logger.debug(f"  [{i}] {attack_name}: on_cooldown={on_cd}, remaining={cd_remaining}")
-
-            # Use available attacks from combat view data (list of AttackView dicts)
-            # Only include attacks that are NOT on cooldown
-            available_list = [
-                attack
-                for attack in self._available_attacks
-                if not attack.get('on_cooldown', False)
-            ]
-
-            logger.debug(f"After cooldown filter: {len(available_list)} attacks available")
-
-            if 1 <= hotkey_number <= len(available_list):
-                attack_data = available_list[hotkey_number - 1]
-                attack_id = attack_data.get('id')
-                attack_name = attack_data.get('name')
-
-                logger.debug(f"Executing attack: {attack_name} (id={attack_id})")
-
-                event_bus.emit_event(
-                    EventType.COMBAT_ACTION_SELECTED,
-                    {"choice": attack_id},
-                    "TextualGameUI"
+            if not 1 <= hotkey_number <= len(self._available_attacks):
+                logger.debug(
+                    f"Hotkey [{hotkey_number}] out of range "
+                    f"(only {len(self._available_attacks)} attacks)"
                 )
+                return
 
-                # Don't show immediate feedback during combat - the combat log will show the results
-                # The combat system handles all output during combat mode
-            else:
-                # Check if hotkey corresponds to an attack on cooldown
-                if 1 <= hotkey_number <= len(self._available_attacks):
-                    attack_data = self._available_attacks[hotkey_number - 1]
-                    if attack_data.get('on_cooldown', False):
-                        attack_name = attack_data.get('name', 'Attack')
-                        cd_remaining = attack_data.get('cooldown_remaining', 0)
+            attack_data = self._available_attacks[hotkey_number - 1]
+            if attack_data.on_cooldown:
+                # Push cooldown notice to combat log so panel stays intact.
+                self._combat_log.append({
+                    "actor": "system",
+                    "message": (
+                        f"⏱ {attack_data.name} on cooldown "
+                        f"({attack_data.cooldown_remaining}t)"
+                    ),
+                })
+                if len(self._combat_log) > 10:
+                    self._combat_log.pop(0)
+                self._update_combat_main_output()
+                return
 
-                        # Push cooldown notice to combat log so panel stays intact.
-                        self._combat_log.append({
-                            "actor": "system",
-                            "message": f"⏱ {attack_name} on cooldown ({cd_remaining}t)"
-                        })
-                        if len(self._combat_log) > 10:
-                            self._combat_log.pop(0)
-                        self._update_combat_main_output()
-
-                        logger.debug(f"Hotkey [{hotkey_number}] - {attack_name} on cooldown for {cd_remaining} turns")
-                    else:
-                        logger.debug(f"Hotkey [{hotkey_number}] not available (only {len(available_list)} attacks ready)")
-                else:
-                    logger.debug(f"Hotkey [{hotkey_number}] out of range (only {len(self._available_attacks)} attacks)")
+            logger.debug(f"Executing attack: {attack_data.name} (id={attack_data.id})")
+            # The combat log shows the result; no immediate feedback here.
+            self.bus.emit_event(
+                EventType.COMBAT_ACTION_SELECTED,
+                {"choice": attack_data.id},
+                "TextualGameUI"
+            )
 
         except Exception as e:
             logger.error(f"Error executing combat hotkey {hotkey_number}: {e}")
@@ -835,7 +877,7 @@ class TextualGameUI(App):
         self._add_to_history(content)
 
         # During combat, preserve combat panel: append to log instead of replacing.
-        if state_manager.is_in_combat() and self._combat_view:
+        if self.state_manager.is_in_combat() and self._combat_view is not None:
             self._combat_log.append({"actor": "system", "message": content})
             if len(self._combat_log) > 10:
                 self._combat_log.pop(0)
@@ -843,6 +885,10 @@ class TextualGameUI(App):
             return
 
         self.output_content = content
+
+    def display_message(self, message: str) -> None:
+        """Show a one-off message (UIProtocol); same as replacing the output."""
+        self.update_output(message)
 
     def update_output_renderable(self, renderable) -> None:
         """Push a Rich Renderable (Panel, Group, Table) directly to the output
@@ -863,7 +909,7 @@ class TextualGameUI(App):
         self._add_to_history(content)
 
         # During combat the output panel is the combat log — same path as update_output.
-        if state_manager.is_in_combat() and self._combat_view:
+        if self.state_manager.is_in_combat() and self._combat_view is not None:
             self._combat_log.append({"actor": "system", "message": content})
             if len(self._combat_log) > 10:
                 self._combat_log.pop(0)
@@ -882,29 +928,6 @@ class TextualGameUI(App):
         else:
             self.output_content = f"{old}\n{content}"
 
-    def update_inventory(self, content: str) -> None:
-        """Update the inventory panel."""
-        self._check_ready()
-        self._ui_call(self._inv_panel.update, content)
-
-    def update_stats(self, content: str) -> None:
-        """Update the stats panel."""
-        self._check_ready()
-        self._ui_call(self._stats_panel.update, content)
-
-    def update_exits(self, exits: list) -> None:
-        """Update the scene's exits display (border subtitle)."""
-        self._check_ready()
-        if self._room_view:
-            room = dict(self._room_view)
-            room['exits'] = exits
-            self._ui_call(self._scene_view.show_explore, room)
-
-    def update_player_name(self, name: str) -> None:
-        """Update the player name display."""
-        self._check_ready()
-        self._ui_call(setattr, self, "header_content", f"Haunted Terminal - {name}")
-
     def clear_console(self) -> None:
         """Clear the output display."""
         self._check_ready()
@@ -912,45 +935,19 @@ class TextualGameUI(App):
         self.message_history.clear()
 
     def display_game_over(self) -> None:
-        """Show the game over screen."""
+        """Hand the keyboard back for the game-over choices. The screen itself
+        is the animation's final frame (GameFlow); writing a second card here
+        raced it and contradicted its r / n / q."""
         if self.ui_state != UIState.READY:
             return
-
-        self.clear_console()
-        # Death beat: the scene drains to black instead of showing the cheery room.
-        self._scene_view.play_death(
-            reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False))
-        )
-
-        player_name = self._player_view.get('player_name', 'Unknown Sysadmin')
-
-        game_over_content = f"""[bold red]GAME OVER[/bold red]
-
-[bold]System Critical Failure[/bold]
-
-Brave sysadmin {player_name}, your session has been terminated.
-
-[yellow]Press any key to return to the main menu...[/yellow]"""
-
-        self.update_output(game_over_content)
         self.query_one("#input-field").focus()
-
-    def save_current_game(self) -> None:
-        """Handle game saving UI feedback."""
-        event_bus.emit_event(EventType.GAME_SAVED, {"trigger": "ui_request"}, "TextualGameUI")
-        save_text = Text("Game saved successfully!", style="green")
-        self.update_output(save_text)
-
-    # =====================================
-    # COMBAT UI SYSTEM
-    # =====================================
 
     def _show_combat_ui(self):
         """Activate combat UI mode: battle scene + combat styling."""
         self.add_class("combat-active")
         self._scene_view.show_battle(
             self._combat_view,
-            self._player_view or {},
+            self._player_view,
             reduce_motion=bool(self._settings_manager.settings.get("reduce_motion", False)),
         )
         self._update_combat_panels()
@@ -958,8 +955,13 @@ Brave sysadmin {player_name}, your session has been terminated.
         input_field = self.query_one("#input-field")
         input_field.placeholder = "combat@system:~$ Enter command..."
 
-    def _hide_combat_ui(self):
+    def _hide_combat_ui(self, leave_battle: bool = True):
         """Deactivate combat UI mode.
+
+        leave_battle=False on a death: the game-over flow owns the scene
+        (play_death), and dropping out of battle mode would show the room
+        behind it. This comes from the COMBAT_ENDED payload, not the game
+        state: the UI hears COMBAT_ENDED before the engine sets GAME_OVER.
 
         Synchronous. This used to defer everything behind a 0.1s timer because
         the engine emitted ROOM_ENTERED *after* its panel refresh, so the fresh
@@ -971,120 +973,35 @@ Brave sysadmin {player_name}, your session has been terminated.
         self.query_one("#input-field").placeholder = "Enter command..."
         self._inv_panel.update_inventory(self._inventory_view)
         self._stats_panel.update_stats(self._player_view)
+        self._refresh_character()
 
-        # On death the game-over flow owns the scene (play_death); dropping out
-        # of battle mode here would flash the room behind it.
-        if not state_manager.is_in_game_over():
+        if leave_battle:
             self._scene_view.end_battle()
 
     def _update_combat_panels(self):
         """Update all combat-related panels."""
-        if not self._combat_view:
+        if self._combat_view is None:
             return
 
         self._scene_view.update_battle(self._combat_view)
         self._update_combat_main_output()
         self._stats_panel.refresh_combat(self._player_view, self._combat_view)
         self._inv_panel.update_inventory(self._inventory_view)
+        self._refresh_character()
 
     def _update_combat_main_output(self):
         """Update main output panel with combat log and actions."""
-        if not self._combat_view:
+        if self._combat_view is None:
             return
-
-        output_lines = []
-
-        if self._combat_log:
-            # Mid-combat: show only outcomes. Controls live in the footer; the
-            # attack list was shown at combat start. Keeps the log readable
-            # instead of re-dumping the full controls block every turn.
-            output_lines.append("[bold yellow]⚔ COMBAT LOG ⚔[/bold yellow]")
-            output_lines.append("=" * 40)
-
-            _ACTOR_FORMAT = {
-                "player": ("green",  "👤"),
-                "enemy":  ("red",    "👹"),
-                "system": ("yellow", "⚡"),
-            }
-            for action in self._combat_log[-10:]:
-                actor = action.get('actor', 'system')
-                message = action.get('message', 'Action performed')
-                color, icon = _ACTOR_FORMAT.get(actor, ("white", "📋"))
-                output_lines.append(f"[{color}]{icon} {message}[/{color}]")
-
-            output_lines.append("=" * 40)
-            output_lines.append(
-                "[dim]Attacks: number keys in the footer · "
-                "type 'use <item>' or 'flee'[/dim]"
-            )
-        else:
-            # Combat start: introduce the fight and show attack options once.
-            output_lines.extend([
-                "[bold yellow]⚔ BATTLE STARTED ⚔[/bold yellow]",
-                "=" * 40,
-                "[dim]Selection Mode active — press 1-9 to attack, 0 to flee. "
-                "TAB to type 'use <item>' instead.[/dim]",
-                "",
-                self._get_dynamic_hotkey_display(),
-            ])
-
-        content_text = "\n".join(output_lines)
+        content_text = render_combat_output(
+            self._combat_log, self._player_view, self._available_attacks,
+            player_hp=(
+                self._combat_view.player_health, self._combat_view.player_max_health
+            ),
+        )
         # Bypass update_output's combat-routing to avoid recursion.
         self._add_to_history(content_text)
         self.output_content = content_text
-
-    def _get_dynamic_hotkey_display(self):
-        """Generate dynamic hotkey display based on available attacks."""
-        if not self._player_view:
-            return "[dim]Attack options loading...[/dim]"
-
-        try:
-            # Use available attacks from combat view data (list of AttackView dicts)
-            hotkey_lines = ["[bold green]QUICK ATTACKS:[/bold green]"]
-
-            # Get base damage from player view
-            base_damage = self._player_view.get('damage', 0)
-
-            hotkey_num = 1
-            for attack_data in self._available_attacks:
-                if hotkey_num > 9:
-                    break
-
-                attack_name = attack_data.get('name', attack_data.get('id', 'Unknown'))
-                on_cooldown = attack_data.get('on_cooldown', False)
-
-                # Calculate total damage and gather metadata
-                bonus_damage = attack_data.get('bonus_damage', 0)
-                total_damage = base_damage + bonus_damage
-                accuracy = attack_data.get('accuracy', 100)
-                cooldown = attack_data.get('cooldown', 0)
-                atk_type = attack_data.get('type', '')
-                type_icon = {"physical": "⚔", "magical": "✨", "nature": "🌿"}.get(atk_type, "•")
-                cd_label = f"CD {cooldown}t" if cooldown > 0 else "no CD"
-
-                if not on_cooldown:
-                    hotkey_lines.append(
-                        f"[cyan][{hotkey_num}][/cyan] {type_icon} {attack_name} — "
-                        f"[yellow]{total_damage} dmg[/yellow] "
-                        f"([dim]{accuracy}% hit · {cd_label}[/dim])"
-                    )
-                    hotkey_num += 1
-                else:
-                    cooldown_remaining = attack_data.get('cooldown_remaining', 0)
-                    hotkey_lines.append(
-                        f"[dim][{hotkey_num}] {type_icon} {attack_name} — "
-                        f"on cooldown ({cooldown_remaining}t left)[/dim]"
-                    )
-                    hotkey_num += 1
-
-            if hotkey_num == 1:
-                hotkey_lines.append("[dim]No attacks available[/dim]")
-
-            return "\n".join(hotkey_lines)
-
-        except Exception as e:
-            logger.error(f"Error generating hotkey display: {e}")
-            return "[dim]Attack options loading...[/dim]"
 
     # =====================================
     # ENHANCED STYLING METHODS
@@ -1097,17 +1014,17 @@ Brave sysadmin {player_name}, your session has been terminated.
         "menu": "game-state-menu",
     }
 
-    def _apply_room_theme(self, room_id: str, room_data: dict):
+    def _apply_room_theme(self, room_id: str, room: RoomView):
         """Apply visual theme based on room characteristics."""
         for cls in self._ROOM_CLASSES:
             self.remove_class(cls)
 
-        desc = room_data.get("description", "").lower()
+        desc = room.description.lower()
         if "home" in room_id.lower():
             self.add_class("room-home")
-        elif room_data.get("enemies") or "danger" in desc:
+        elif room.enemies or "danger" in desc:
             self.add_class("room-dangerous")
-        elif room_data.get("safe", False) or "safe" in desc:
+        elif "safe" in desc:
             self.add_class("room-safe")
 
     def _apply_game_state_styling(self, state: str):
@@ -1172,125 +1089,4 @@ Brave sysadmin {player_name}, your session has been terminated.
 
     def _display_title_screen(self, skip_typewriter: bool = False):
         """Display the title screen, full-panel, with arrow-key main menu."""
-        title_ascii = '''
-██╗  ██╗ █████╗ ██╗   ██╗███╗   ██╗████████╗███████╗██████╗
-██║  ██║██╔══██╗██║   ██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗
-███████║███████║██║   ██║██╔██╗ ██║   ██║   █████╗  ██║  ██║
-██╔══██║██╔══██║██║   ██║██║╚██╗██║   ██║   ██╔══╝  ██║  ██║
-██║  ██║██║  ██║╚██████╔╝██║ ╚████║   ██║   ███████╗██████╔╝
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═════╝
-
-████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗
-╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║
-   ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║
-   ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║
-   ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗
-   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
-
-A Terminal Adventure by NoHudd'''
-
-        opening_story = '''
-
-[bold cyan]>>> INITIALIZING SYSTEM MEMORY... <<<[/bold cyan]
-Fragments of directories flicker. File clusters scream in silence.
-The great corruption has spread through the machine, leaving broken symlinks and
-phantom processes where life once pulsed.
-
-Once, sysadmins kept balance between order and entropy.
-But now… your body is gone. Your essence remains—
-a [green]Sysadmin Spirit[/green], bound to the filesystem.
-
-At the system's heart lurks the [red]Daemon Overlord[/red],
-a malignant process feeding on entropy,
-rewriting directories into its dominion of chaos.
-
-Your mission: traverse the haunted filesystem,
-purge corrupted sectors, reclaim lost commands,
-and [bold]restore the root.[/bold]
-
-Fail, and the machine is consumed.
-Succeed, and the filesystem breathes again.
-
-'''
-
-        # Switch to full-panel intro mode
-        self.add_class("intro-mode")
-        self._menu_index = 0
-        self._intro_title = Text(title_ascii, style="bold green", justify="center")
-        self._intro_skip_hint = Text(
-            "\n[press any key to skip intro]\n",
-            style="dim italic", justify="center",
-        )
-        self._intro_full_story = opening_story
-
-        if skip_typewriter:
-            self._intro_story_text = opening_story
-            self._menu_state = "menu_ready"
-            self._render_intro()
-            return
-
-        self._intro_story_text = ""
-        self._menu_state = "typing"
-        self._render_intro()
-
-        def run_typewriter():
-            try:
-                def cb(text: str):
-                    self._intro_story_text = text
-                    self.call_from_thread(self._render_intro)
-                TypewriterPresets.INTRO.type_text_sync(opening_story, cb)
-            except Exception as e:
-                logger.error(f"Typewriter effect failed for title screen: {e}")
-            finally:
-                self._intro_story_text = opening_story
-                self._menu_state = "menu_ready"
-                self.call_from_thread(self._render_intro)
-
-        threading.Thread(target=run_typewriter, daemon=True).start()
-
-    def _render_intro(self):
-        """Compose and display the intro screen for the current menu state."""
-        out = Text()
-        if self._intro_title is not None:
-            out.append_text(self._intro_title)
-        if self._intro_skip_hint is not None:
-            out.append_text(self._intro_skip_hint)
-
-        if self._intro_story_text:
-            story = Text.from_markup(self._intro_story_text)
-            story.justify = "center"
-            out.append_text(story)
-
-        if self._menu_state == "menu_ready":
-            out.append("\n")
-            labels = ["NEW GAME", "LOAD GAME", "EXIT"]
-            for i, label in enumerate(labels):
-                if i == self._menu_index:
-                    line = Text(f"  ▶  {label}  ◀  \n", style="reverse bold green", justify="center")
-                else:
-                    line = Text(f"     {label}     \n", style="dim cyan", justify="center")
-                out.append_text(line)
-            out.append_text(Text(
-                "\n↑/↓ to select   ↵ to confirm   esc to quit\n",
-                style="dim italic", justify="center",
-            ))
-
-        self.update_output(out)
-
-    def _select_menu_option(self):
-        """Confirm the highlighted main-menu option."""
-        if self._menu_state != "menu_ready":
-            return
-        choice = ["1", "2", "3"][self._menu_index]
-        self.remove_class("intro-mode")
-        self._menu_state = "idle"
-        try:
-            input_widget = self.query_one("#input-field", Input)
-            input_widget.focus()
-        except Exception:
-            pass
-        event_bus.emit_event(
-            EventType.COMMAND_ENTERED,
-            {"command": choice, "game_state": state_manager.current_state},
-            "TextualGameUI"
-        )
+        self._title_menu.show(skip_typewriter)

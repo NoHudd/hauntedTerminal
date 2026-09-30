@@ -25,9 +25,13 @@ DEBUG_CATEGORIES = {
     "world": DEBUG_WORLD,
 }
 
-def debug_log(message, category="system"):
+def debug_log(message: object, category: str = "system") -> None:
     """
-    Log a debug message to the debug log file and console if DEBUG_MODE is True.
+    Log a debug message to the debug log file if DEBUG_MODE is True.
+
+    File only: the game screen owns the terminal, and anything printed there
+    is left behind in the player's scrollback when they quit. The log panel
+    (L) shows the file.
     
     Args:
         message (str): The message to log
@@ -52,10 +56,6 @@ def debug_log(message, category="system"):
     # Format the log message
     log_message = f"[{timestamp}] [{category.upper()}] [{filename}:{function_name}:{line_number}] {message}"
     
-    # Print to console
-    print(log_message, file=sys.stderr)
-    
-    # Write to log file
     try:
         with open(DEBUG_LOG_FILE, "a") as f:
             f.write(log_message + "\n")

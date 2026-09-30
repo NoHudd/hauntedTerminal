@@ -11,46 +11,74 @@ piece together what happened — using real Unix commands (`ls`, `cd`, `cat`,
 `pwd`) as your only tools.
 
 The directories are real ones. `cd ..` walks up the tree, `ls -a` shows what is
-hidden, and a sealed directory stays sealed until you have permission to enter
-it — including permission on every directory above it. Type `man cd` and the
-game tells you what `cd` does in an actual shell, not just in here.
+hidden, and a locked directory doesn't even show up until you hold its key. Type
+`man cd` and the game tells you what `cd` does in an actual shell, not just in
+here.
+
+Every directory hides a flag. Some you just read with `cat`; some are buried in
+huge logs you'll need `grep` to search; some are rogue processes you find with
+`ps` and end with `kill`. Some flags hand you a key, and a new directory
+appears. Hold 11 flags and `/boot` — where the Daemon Overlord waits — opens.
+Stuck? Type `hint`.
 
 No prior command-line experience needed; the game teaches you as you go.
 
+What changed in each version: [CHANGELOG.md](CHANGELOG.md). The version you're
+running is on the title screen and on the first line of `debug.log`.
+
 ---
 
-![Exploring the Graveyard](./assets/screenshot-explore.svg)
-*Exploring the Graveyard — pixel scene view, live panels, ECHO guiding your first `ls`*
+<img src="./assets/screenshots/explore.svg" alt="Exploring the Graveyard" width="100%">
 
-| Pokemon-style battles | Pick your difficulty |
-|---|---|
-| ![Battle](./assets/screenshot-battle.svg) | ![Difficulty](./assets/screenshot-difficulty.svg) |
+_Exploring the Graveyard — pixel scene view, live panels, ECHO's quick reference_
+
+<table>
+  <tr>
+    <th width="50%">Pokemon-style battles</th>
+    <th width="50%">Pick your difficulty</th>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/battle.svg" alt="Battle" width="100%"></td>
+    <td><img src="./assets/screenshots/difficulty.svg" alt="Difficulty" width="100%"></td>
+  </tr>
+  <tr>
+    <th>Continue any run — one save slot per run</th>
+    <th>Settings — right from the main menu</th>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/saves.svg" alt="Save slots" width="100%"></td>
+    <td><img src="./assets/screenshots/settings.svg" alt="Settings" width="100%"></td>
+  </tr>
+</table>
 
 ---
 
 ## Getting Started
 
-### Step 0 — get the game and go INTO its folder
+### Step 0 — download the game and go INTO its folder
 
-All commands below must be run **from inside the repo folder**:
+Download **`haunted-terminal-v0.2.0.zip`** from the
+[Releases page](https://github.com/NoHudd/hauntedTerminal/releases/latest),
+unzip it, then open a terminal in that folder:
 
 ```bash
-git clone https://github.com/NoHudd/hauntedTerminal.git
-cd hauntedTerminal
+cd haunted-terminal
 ```
 
-(Downloaded a ZIP instead? Unzip it, then `cd` into the unzipped folder.)
+All commands below must be run **from inside the game folder**.
 
 ### Quick Start (Recommended)
 
-From inside the repo folder, run the start script for your system:
+From inside the game folder, run the start script for your system:
 
 **On Mac/Linux:**
+
 ```bash
 ./start.sh
 ```
 
 **On Windows:**
+
 ```cmd
 start.bat
 ```
@@ -72,7 +100,7 @@ python main.py
 
 ---
 
-Full command list, classes, mechanics, tips, and project structure live in
+Full command list, classes, mechanics and tips live in
 **[REFERENCE.md](./REFERENCE.md)** — the game teaches all of it as you play,
 so treat that as a lookup, not required reading.
 
@@ -112,5 +140,3 @@ This project is licensed under the MIT License — see the LICENSE file for deta
                 ||----w |
                 ||     ||
 ```
-
-*Type `./start.sh` (Mac/Linux) or `start.bat` (Windows) to begin your journey.*

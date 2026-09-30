@@ -10,6 +10,8 @@ from typing import Optional, Callable, List
 
 from textual.suggester import Suggester
 
+from src import room_paths
+
 
 # Map common shorthand -> canonical inventory id prefix
 _INVENTORY_SHORTCUTS = {
@@ -41,18 +43,18 @@ _VERB_SOURCE = {
     "cd": "exits",
     "talk": "npcs",
     "attack": "enemies",
+    "grep": "room_items",
 }
 
 
 class CommandSuggester(Suggester):
     """Suggest the rest of a command from live game state."""
 
-    def __init__(self, get_player: Callable, get_world: Callable, get_aliases: Callable):
+    def __init__(self, get_player: Callable, get_world: Callable):
         # Disable cache — suggestions depend on mutable game state.
         super().__init__(use_cache=False, case_sensitive=False)
         self._get_player = get_player
         self._get_world = get_world
-        self._get_aliases = get_aliases
 
     async def get_suggestion(self, value: str) -> Optional[str]:
         if not value:
@@ -65,6 +67,8 @@ class CommandSuggester(Suggester):
 
         verb, _, partial = value.partition(" ")
         verb_lower = verb.lower()
+        if verb_lower == "grep":
+            return self._suggest_grep_file(verb, partial)
         source = _VERB_SOURCE.get(verb_lower)
         if source is None:
             return None
@@ -88,6 +92,20 @@ class CommandSuggester(Suggester):
                 return f"{verb} {candidate}"
         return None
 
+    def _suggest_grep_file(self, verb: str, partial: str) -> Optional[str]:
+        """grep <word> <file>: complete the file, the last word typed."""
+        head, sep, last = partial.rpartition(" ")
+        if not sep or not last:
+            return None  # still typing the word to search for
+        player, world = self._get_player(), self._get_world()
+        if player is None or world is None:
+            return None
+        for candidate in self._room_item_candidates(player, world):
+            low = candidate.lower()
+            if low.startswith(last.lower()) and low != last.lower():
+                return f"{verb} {head} {candidate}"
+        return None
+
     def _suggest_verb(self, partial: str) -> Optional[str]:
         partial_lower = partial.lower()
         for verb in sorted(_VERB_SOURCE.keys()):
@@ -105,7 +123,7 @@ class CommandSuggester(Suggester):
             if source == "inventory":
                 return self._inventory_candidates(player)
             if source == "room_items":
-                return list(world.get_items_in_room(player.current_room))
+                return self._room_item_candidates(player, world)
             if source == "exits":
                 return self._exit_candidates(player, world)
             if source == "npcs":
@@ -115,6 +133,21 @@ class CommandSuggester(Suggester):
         except Exception:
             return []
         return []
+
+    @staticmethod
+    def _room_item_candidates(player, world) -> List[str]:
+        # Hidden files are offered as dotfiles — completing only from the
+        # leading dot, as in a real shell — and only once `ls -a` has listed
+        # them here, so Tab is never a way round `ls -a`.
+        room = player.current_room
+        listed = world.hidden_files_listed(room)
+        candidates: List[str] = []
+        for item_id in world.get_items_in_room(room):
+            if not getattr(world.get_item(item_id), "hidden", False):
+                candidates.append(item_id)
+            elif listed:
+                candidates.append(f".{item_id}")
+        return candidates
 
     def _inventory_candidates(self, player) -> List[str]:
         # Strip instance suffixes like "_1" so users can type the canonical id
@@ -132,27 +165,11 @@ class CommandSuggester(Suggester):
         return seen
 
     def _exit_candidates(self, player, world) -> List[str]:
-        try:
-            current = world.get_room(player.current_room) or {}
-            exits = list(current.get("exits", []))
-        except Exception:
-            exits = []
-
-        # Map room IDs to filesystem-style aliases for display, keep both forms
-        aliases = self._get_aliases() or {}
-        # Reverse map: room_id -> preferred path alias (longest path wins)
-        path_aliases: dict = {}
-        for alias, room_id in aliases.items():
-            if not alias.startswith("/"):
-                continue
-            existing = path_aliases.get(room_id)
-            if existing is None or len(alias) > len(existing):
-                path_aliases[room_id] = alias
-
+        # Only doors `ls` would show: Tab must not reveal a hidden room or a
+        # locked door the player hasn't earned sight of yet.
+        # Each door completes as its real path (what `ls` prints) or its id.
         suggestions: List[str] = []
-        for room_id in exits:
-            path = path_aliases.get(room_id)
-            if path:
-                suggestions.append(path)
+        for room_id in world.visible_exits(player.current_room):
+            suggestions.append(room_paths.room_path(room_id))
             suggestions.append(room_id)
         return suggestions

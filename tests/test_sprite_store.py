@@ -87,3 +87,26 @@ def test_backdrop_generated_when_no_art(tmp_path):
     # deterministic per zone
     bd2 = SpriteStore(assets_root=tmp_path).get_backdrop("mystery", "quantum", 40, 20)
     assert list(bd.getdata()) == list(bd2.getdata())
+
+
+def test_padding_is_cropped_and_a_small_figure_fills_the_box(tmp_path):
+    """NPC art like helper_script.bin draws a 14x12 figure on a 24x16 canvas,
+    so it rendered at half the size of the 24px enemies and classes."""
+    store = _make_store(tmp_path)
+    canvas = Image.new("RGBA", (24, 16), (0, 0, 0, 0))
+    canvas.paste(Image.new("RGBA", (12, 12), (255, 0, 0, 255)), (6, 2))
+    canvas.save(tmp_path / "npcs" / "tiny.bin.png")
+
+    sprite = store.get_sprite("npcs", "tiny.bin", 24, 24)
+    assert sprite.size == (24, 24)
+    assert sprite.getbbox() == (0, 0, 24, 24)  # no empty border left
+
+
+def test_every_shipped_sprite_fills_the_24px_box():
+    store = SpriteStore()
+    for kind in ("npcs", "enemies", "classes"):
+        for png in sorted((Path("assets/sprites") / kind).glob("*.png")):
+            sprite = store.get_sprite(kind, png.stem, 24, 24)
+            left, top, right, bottom = sprite.getbbox()
+            drawn = (right - left, bottom - top)
+            assert max(drawn) == 24, (kind, png.stem, drawn)

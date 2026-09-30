@@ -43,17 +43,6 @@ def test_registry_covers_every_verb() -> None:
         assert name in registry
 
 
-def test_legacy_dispatch_is_empty() -> None:
-    # Phase 3 complete: no verb should remain on the legacy dict.
-    from src.commands import build_registry  # noqa: F401
-    s = GameSession()
-    try:
-        s.new_game("T", "guardian")
-        assert s.engine.cmd_handler.commands == {}
-    finally:
-        s.close()
-
-
 def test_inventory_alias_matches(session: GameSession) -> None:
     assert _text(session.submit("inv")) == _text(session.submit("inventory"))
 
@@ -92,8 +81,9 @@ def test_inventory_shows_starter_items(session: GameSession) -> None:
 
 
 def test_keys_shows_progression(session: GameSession) -> None:
+    session.player.add_to_inventory("lib_key", session.world.get_item("lib_key"))
     out = _text(session.submit("keys"))
-    assert "KEY PROGRESSION" in out
+    assert "KEYS" in out
     assert "lib_key" in out
 
 
@@ -206,9 +196,12 @@ def test_tutorial_prescribed_commands_work(session: GameSession) -> None:
     from src.game_states import GameState
     if session.state == GameState.IN_COMBAT:
         session.submit("flee")
-    before = session.player.current_room
-    session.submit("cd /var")
-    assert session.player.current_room != before, "cd /var (tutorial nav) must move"
+    for cmd in ("ps", "pwd", "cd ..", "ls"):
+        out = _text(session.submit(cmd))
+        assert "Unknown command" not in out and "digital void" not in out, cmd
+    assert session.player.current_room == "root", "cd .. from /home must reach /"
+    session.submit("cd bin")
+    assert session.player.current_room == "bin_armory", "the tutorial's cd example must move"
 
 
 def test_ls_hints_toggle(session: GameSession) -> None:
@@ -243,8 +236,8 @@ def test_defeating_overlord_in_core_wins(session: GameSession) -> None:
     session.world.remove_enemy_from_room("daemon_overlord.sys")
     assert "daemon_overlord.sys" not in session.world.get_enemies_in_room("core")
 
-    assert h.check_game_completion() is True
-    assert h._game_won is True
+    assert h.flow.check_game_completion() is True
+    assert h.flow.game_won is True
     # win_game branches the ending by class and records the choice.
     assert session.player.story_flags["ending_chosen"] in {"restore", "rewrite", "reconcile"}
 
@@ -254,14 +247,14 @@ def test_win_is_not_triggered_early(session: GameSession) -> None:
     # In core but the Overlord still lives -> no win.
     session.player.current_room = "core"
     assert "daemon_overlord.sys" in session.world.get_enemies_in_room("core")
-    assert h.check_game_completion() is False
-    assert h._game_won is False
+    assert h.flow.check_game_completion() is False
+    assert h.flow.game_won is False
 
 
 def test_win_does_not_double_fire(session: GameSession) -> None:
     h = session.engine.cmd_handler
     session.player.current_room = "core"
     session.world.remove_enemy_from_room("daemon_overlord.sys")
-    assert h.check_game_completion() is True
+    assert h.flow.check_game_completion() is True
     # Already won: a second check must be a no-op, not a re-trigger.
-    assert h.check_game_completion() is False
+    assert h.flow.check_game_completion() is False

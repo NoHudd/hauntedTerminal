@@ -11,7 +11,8 @@ exits:
   - opt_mage_tower
   - srv_warrior_tomb
   - proc_secrets
-items: []
+items:
+  - lost_user_log
 # Items placed dynamically by class-based system
 enemy_tier: 2
 enemy_count: 1
@@ -25,3 +26,13 @@ class_affinity: "shaman"
 # Navigation: canonical path + everything a player may type to get here.
 path: "/mnt"
 aliases: ["/mnt", "mnt", "forest"]
+
+flag:
+  file: lost_user_log
+  via: grep
+  text: "FLAG{grep_finds_needles}"
+  grants: lib_key
+  nudge: "That log is hundreds of lines. Don't read it — search it."
+  command: "[bold]grep FLAG lost_user_log[/bold]"
+  teach: "The lost user's log here is hundreds of lines long — too long to read. [bold]grep[/bold] searches a file for a word and prints only the lines containing it. Type [bold]grep FLAG lost_user_log[/bold]."
+  clue: "I wrote everything down in my log... but it's so long now. I can't find anything in it."

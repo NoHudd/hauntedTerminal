@@ -6,7 +6,9 @@ detailed_description: The archive is filled with dust and fragments of old data.
   it holds secrets from before the system was corrupted.
 exits:
 - root
-items: []
+items:
+  - backup_tar_log
+  - backup_readme
 npcs: []
 enemy_tier: 1
 enemy_count: 1
@@ -15,3 +17,10 @@ hidden: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/var/backups"
 aliases: ["/var/backups", "/archive", "archive"]
+
+flag:
+  file: backup_tar_log
+  via: grep
+  text: "FLAG{backups_remember}"
+  nudge: "The backup log lists every file it saved. Search it."
+  command: "[bold]grep FLAG backup_tar_log[/bold]"

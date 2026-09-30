@@ -2,28 +2,26 @@
 
 The event bus is a process-wide singleton, so a CommandHandler that is dropped
 without unsubscribing keeps reacting to events with its dead player and world.
-The symptom is doubled work: ROOM_ENTERED fires check_for_enemies twice (every
-enemy fought twice) and ENEMY_DEFEATED fires twice (loot rolled twice).
+The symptom is doubled work: a dead run's tutorial reacting to the next run's
+fights alongside the live one.
 """
 from __future__ import annotations
 
 import pytest
 
 from engine.api import GameSession
-from src.events import EventType, event_bus
+from engine.events import EventType
 
 # Events a CommandHandler subscribes to. Exactly one handler may be listening on
 # each of these at a time, however many times the game has been restarted.
 HANDLER_EVENTS = [
-    EventType.ROOM_ENTERED,
-    EventType.ENEMY_DEFEATED,
-    EventType.ALL_ENEMIES_DEFEATED,
-    EventType.ROOM_CHANGED,
+    EventType.COMBAT_ENDED,
+    EventType.COMBAT_ACTION_RESULT,
 ]
 
 
-def _counts() -> dict[EventType, int]:
-    return {e: len(event_bus._listeners.get(e, [])) for e in HANDLER_EVENTS}
+def _counts(bus) -> dict[EventType, int]:
+    return {e: len(bus._listeners.get(e, [])) for e in HANDLER_EVENTS}
 
 
 @pytest.fixture
@@ -37,12 +35,12 @@ def session():
 
 def test_f5_restart_then_new_game_leaves_no_duplicate_handlers(session) -> None:
     session.new_game("First", "guardian")
-    baseline = _counts()
+    baseline = _counts(session.bus)
 
     session.engine.restart_game()      # the F5 path
     session.new_game("Second", "weaver")
 
-    assert _counts() == baseline, (
+    assert _counts(session.bus) == baseline, (
         "restart leaked the previous CommandHandler's subscriptions — "
         "enemies will be fought twice and loot rolled twice"
     )
@@ -50,10 +48,10 @@ def test_f5_restart_then_new_game_leaves_no_duplicate_handlers(session) -> None:
 
 def test_repeated_new_games_do_not_accumulate_handlers(session) -> None:
     session.new_game("One", "guardian")
-    baseline = _counts()
+    baseline = _counts(session.bus)
 
     for name, klass in (("Two", "weaver"), ("Three", "shaman"), ("Four", "guardian")):
         session.engine.restart_game()
         session.new_game(name, klass)
 
-    assert _counts() == baseline
+    assert _counts(session.bus) == baseline

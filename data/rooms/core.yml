@@ -33,8 +33,8 @@ items: []
 npcs: []
 enemies:
   - daemon_overlord.sys
-locked: true
-key_required: master_key
+locked: false
+flags_required: 11
 hidden: false
 zone: core
 zone_level: 10
@@ -45,3 +45,10 @@ story_location: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/boot"
 aliases: ["/boot", "/boot/kernel", "/core", "core", "kernel"]
+
+flag:
+  via: defeat
+  enemy: daemon_overlord.sys
+  text: "FLAG{kernel_panic_averted}"
+  nudge: "The Daemon Overlord holds this directory's flag."
+  command: "[bold]defeat the Daemon Overlord[/bold]"

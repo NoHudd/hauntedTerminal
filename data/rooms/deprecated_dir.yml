@@ -7,7 +7,8 @@ detailed_description: This deprecated directory exists in a strange state betwee
   back to the main filesystem, suggesting a way out.
 exits:
 - root
-items: []
+items:
+  - tmp_notice
 npcs: []
 enemies: []
 locked: false
@@ -16,3 +17,12 @@ hidden: false
 # Navigation: canonical path + everything a player may type to get here.
 path: "/var/tmp"
 aliases: ["/var/tmp", "/deprecated", "deprecated"]
+
+flag:
+  via: kill
+  enemy: zombie_tmpwatch.sh
+  pid: 2048
+  process: "tmpwatch --zombie"
+  text: "FLAG{zombies_need_reaping}"
+  nudge: "Read the notice, then find the dead-but-running process."
+  command: "[bold]ps[/bold], then [bold]kill 2048[/bold]"

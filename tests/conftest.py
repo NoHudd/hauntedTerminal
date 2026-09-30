@@ -1,41 +1,70 @@
-"""Test isolation for the process-wide event bus.
+"""Suite-wide settings.
 
-`event_bus` and `state_manager` are module-level singletons, so anything a test
-leaves subscribed keeps reacting to every later test's events. That is not
-theoretical: a GameSession that is never closed leaves its engine on
-COMMAND_ENTERED, so a later test's `quit` runs twice — once in its own engine and
-once in the stale one — and the stale engine's GAME_QUIT flips a flag the live
-test is asserting on.
-
-This fixture restores the bus to whatever it looked like before each test, so a
-leak inside one test cannot change the outcome of another. It deliberately does
-not fail on leaks: several tests share a session across a module on purpose, and
-the leaks that actually matter are pinned directly by test_restart_leak.py.
+Each switch makes a hidden failure a test failure: the event bus normally
+logs and swallows a listener's exception, ViewBuilder normally returns a
+placeholder view when a build fails, and the engine's flow methods catch a
+rejected state transition and fall back to the menu.
 """
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
-from src.events import event_bus
+import src.save as save_mod
+from engine.events import EventBus
 from src.game_states import GameState
-from src.state_manager import state_manager
+from src.state_manager import InvalidTransitionError, StateManager
+from src.viewmodels.view_builder import ViewBuilder
 
 
 @pytest.fixture(autouse=True)
-def _isolate_event_bus():
-    before = {etype: list(cbs) for etype, cbs in event_bus._listeners.items()}
+def _fail_loudly(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest,
+) -> Iterator[None]:
+    monkeypatch.setattr(EventBus, "strict_by_default", True)
+    monkeypatch.setattr(ViewBuilder, "raise_errors", True)
+
+    # The engine's flow methods catch broad exceptions and fall back to the
+    # menu, which would hide a rejected state transition. Record them all.
+    rejected: list[str] = []
+    set_state = StateManager.set_state
+
+    def recording(self: StateManager, new_state: GameState, emit_event: bool = True) -> None:
+        try:
+            set_state(self, new_state, emit_event)
+        except InvalidTransitionError as e:
+            rejected.append(str(e))
+            raise
+
+    monkeypatch.setattr(StateManager, "set_state", recording)
     yield
-    event_bus._listeners.clear()
-    event_bus._listeners.update({etype: list(cbs) for etype, cbs in before.items()})
-    event_bus.clear_history()
+    if request.node.get_closest_marker("rejects_transition") is None:
+        assert rejected == [], f"state transitions the game should never make: {rejected}"
 
 
 @pytest.fixture(autouse=True)
-def _reset_game_state():
-    """Leave the shared StateManager where each test found it."""
-    before = state_manager.current_state
-    yield
-    if state_manager.current_state != before:
-        state_manager.set_state(before, emit_event=False)
-    if state_manager.current_state not in (GameState.MENU, GameState.PLAYING):
-        state_manager.set_state(GameState.MENU, emit_event=False)
+def _isolated_saves(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Every test saves into its own scratch dir with no run in progress. With
+    one file per run (and no pool cap) test saves would otherwise pile up in
+    the real saves/."""
+    manager = save_mod.save_manager
+    monkeypatch.setattr(manager, "save_dir", str(tmp_path_factory.mktemp("saves")))
+    monkeypatch.setattr(manager, "active_run_id", None)
+    monkeypatch.setattr(manager, "pending_replace", None)
+
+
+@pytest.fixture
+def mgr() -> save_mod.SaveManager:
+    """The game's own save manager, already pointed at this test's scratch dir
+    (so the engine, commands and autosaves all write where the test reads)."""
+    return save_mod.save_manager
+
+
+@pytest.fixture
+def clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every save gets a later timestamp, so newest-first order is exact."""
+    ticks = iter(range(1000, 100000, 10))
+    monkeypatch.setattr(save_mod, "_now", lambda: float(next(ticks)))

@@ -1,81 +1,95 @@
 #!/usr/bin/env python3
-import re
 from src import rng
 import logging
 from rich.text import Text
 from src.combat import CombatSession
 from src.commands import build_registry
-from src.events import event_bus, EventType
+from engine.events import EventType
+from src.game_flow import GameFlow
+from src.flags import FlagService
+from src.game_world import TUTORIAL_ENEMY
+from src.item_effects import ItemEffects
+from src.item_resolver import ItemResolver
+from src.loot import LootService
+from src.tutorial_coach import TutorialCoach
 from src.viewmodels.view_builder import ViewBuilder
 from utils.debug_tools import debug_log
-from utils.particle_animation import GameOverAnimation
 
 logger = logging.getLogger(__name__)
 
 class CommandHandler:
     """Handles processing of player commands"""
     
-    def __init__(self, player, world, output):
-        """Initialize with player, world, and a GameOutput sink.
+    def __init__(self, player, world, output, bus, on_combat_start=None, on_combat_end=None,
+                 on_return_to_menu=None, on_restore_save=None):
+        """Initialize with player, world, a GameOutput sink and the engine's EventBus.
 
         Phase 2b: the handler no longer holds a UI reference — it writes to
         ``self.output`` (a src.game_output.GameOutput). The engine drains it and
         forwards to the real UI.
+
+        on_combat_start() / on_combat_end(outcome) let the engine update the
+        game state as a fight begins and ends, in a fixed place in the sequence.
+        on_return_to_menu() / on_restore_save() are the engine's, for the
+        game-over screen's "m" and "r" choices and the quit chooser's
+        main-menu options.
         """
         debug_log("Initializing CommandHandler")
         self.player = player
         self.world = world
         self.output = output
+        self.bus = bus
         self.current_combat_session = None
-        self.npc_dialogue_cooldown = {}  # Track when NPCs last spoke automatically
-        self._in_game_over_mode = False  # Track if we're in game over screen mode
-        self._game_won = False  # Set once the Daemon Overlord is beaten in /core
-        self._in_quit_confirmation = False  # Track if we're confirming quit
-        # Enemy ids whose loot has already been awarded this run. remove_enemy_from_room
-        # re-emits ENEMY_DEFEATED, so this guards against double-rolling loot.
-        self._awarded_drops: set[str] = set()
+        self._on_combat_start = on_combat_start
+        self._on_combat_end = on_combat_end
 
-        # Subscribe to enemy defeated event to remove enemies from room
-        event_bus.subscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
-        
         # Navigation aliases (path/name -> room id) are built from each room's
         # own `path`/`aliases` YAML fields, so there is one source of truth per
         # room instead of a hand-maintained dict here. See src/room_paths.py.
         from src import room_paths
         self.room_aliases = room_paths.refresh_from_rooms(self.world.rooms)
-        
-        # Migrated verbs (Phase 3 command-pattern). Checked before the legacy
-        # dict below; verbs move here one at a time. See src/commands/.
+
+        # Every verb is a Phase 3 command-pattern object. See src/commands/.
         self.command_registry = build_registry()
 
-        # Legacy dispatch is now empty — every verb lives in command_registry.
-        # Kept (empty) so the fallback path in handle_command stays valid.
-        self.commands = {}
-        self.commands_with_args = set()
+        # Collaborators the commands use through this handler (ctx.<name>).
+        self.resolver = ItemResolver(world, player)
+        self.tutorial = TutorialCoach(player, world, bus)
+        self.flow = GameFlow(
+            player, world, output, bus,
+            save=lambda: self.command_registry["save"].execute(self, []),
+            return_to_menu=on_return_to_menu,
+            restore_save=on_restore_save,
+        )
+        self.effects = ItemEffects(
+            player, world, output, bus, self.room_aliases,
+            self.flow, start_encounter=self.check_for_enemies,
+        )
+        self.loot = LootService(world, player, output, relist_room=self.relist_room)
+        self.flags = FlagService(
+            player, world, output,
+            save=lambda: self._checkpoint_save(),
+        )
 
         debug_log(f"Registered {len(self.command_registry)} commands")
-    
-    _EVENT_HANDLERS = [
-        (EventType.ROOM_ENTERED, "_on_room_entered"),
-        (EventType.ALL_ENEMIES_DEFEATED, "_on_all_enemies_defeated"),
-        (EventType.ROOM_CHANGED, "_on_room_changed_for_npc"),
-        (EventType.COMBAT_ENDED, "_on_combat_ended_tutorial"),
-        (EventType.COMBAT_ACTION_RESULT, "_on_combat_action_result_tutorial"),
-    ]
+
+    def _subscriptions(self):
+        return [
+            (EventType.COMBAT_ENDED, self.tutorial.on_combat_ended),
+            (EventType.COMBAT_ACTION_RESULT, self.tutorial.on_combat_action_result),
+        ]
 
     def setup_event_subscriptions(self):
         """Set up event subscriptions for the command handler."""
-        for event_type, handler_name in self._EVENT_HANDLERS:
-            event_bus.subscribe(event_type, getattr(self, handler_name))
+        for event_type, callback in self._subscriptions():
+            self.bus.subscribe(event_type, callback)
         debug_log("CommandHandler event subscriptions set up")
 
     def cleanup_event_subscriptions(self):
         """Clean up ALL event subscriptions for the command handler.
 
-        Must mirror every subscribe — including ENEMY_DEFEATED (subscribed in
-        __init__, not via _EVENT_HANDLERS). A missed unsubscribe leaves a stale
-        handler alive: ROOM_ENTERED then fires check_for_enemies twice (fight each
-        enemy twice) and ENEMY_DEFEATED fires twice (double loot).
+        Must mirror every subscribe in _subscriptions(); a missed unsubscribe
+        leaves a dead run's tutorial reacting to the next run's fights.
 
         Also aborts any still-active combat session. A CombatSession only
         unsubscribes its own COMBAT_ACTION_SELECTED listener when it reaches a
@@ -83,260 +97,60 @@ class CommandHandler:
         or (in tests) tears down mid-fight, that listener would otherwise leak
         and double-process the next combat's actions.
         """
-        for event_type, handler_name in self._EVENT_HANDLERS:
-            event_bus.unsubscribe(event_type, getattr(self, handler_name))
-        event_bus.unsubscribe(EventType.ENEMY_DEFEATED, self._on_enemy_defeated)
+        for event_type, callback in self._subscriptions():
+            self.bus.unsubscribe(event_type, callback)
         if self.current_combat_session is not None:
             self.current_combat_session.abort()
             self.current_combat_session = None
         debug_log("CommandHandler event subscriptions cleaned up")
     
-    def _on_room_entered(self, event):
-        """Handle room entered event to respawn fled enemies."""
-        # Get room_id from player's current room (event contains RoomView dict, not room_id)
+    def announce_room(self):
+        """Tell the UI which room the player is in (scene, exits, theme).
+
+        A notification only: nothing in the game reacts to ROOM_ENTERED, so a
+        UI refresh (e.g. `ls -a` revealing a directory) can't start a fight.
+        """
+        room_view = ViewBuilder.build_room_view(self.world, self.player.current_room)
+        self.bus.emit_event(
+            EventType.ROOM_ENTERED,
+            {"room": room_view.to_dict(), "player_name": self.player.name},
+            "CommandHandler",
+        )
+
+    def arrive(self):
+        """The player has just entered their current room.
+
+        Shows it to the UI, then applies the arrival rules: enemies they fled
+        from here come back, and any hostile here starts a fight. Callers invoke
+        this directly after moving the player (cd, flee, new game, load); it
+        used to hang off the ROOM_ENTERED event, and a load path that forgot to
+        subscribe silently turned encounters off.
+        """
+        self.announce_room()
         room_id = self.player.current_room
         if room_id:
-            debug_log(f"Player entered room {room_id}, checking for fled enemies to respawn")
             self.world.respawn_fled_enemies(room_id)
-            # Check for enemies after respawning fled ones
             self.check_for_enemies()
     
-    def _on_all_enemies_defeated(self, event):
-        """Handle all enemies defeated event to trigger NPC guidance."""
-        debug_log(f"_on_all_enemies_defeated event received: {event.data}")
-        room_id = event.data.get("room")
-        if room_id:
-            debug_log(f"All enemies defeated in {room_id}, checking for NPCs to provide guidance")
-            self._trigger_automatic_npc_dialogue(room_id, "post_combat")
-    
-    def _on_room_changed_for_npc(self, event):
-        """Handle room change event to trigger initial NPC guidance."""
-        debug_log(f"_on_room_changed_for_npc event received: {event.data}")
-        to_room = event.data.get("to_room")
-        if to_room:
-            debug_log(f"Player moved to {to_room}, checking for NPCs to provide guidance")
-            # Check cooldown to avoid spam (allow one greeting per room per session)
-            cooldown_key = f"first_visit_{to_room}"
-            if cooldown_key not in self.npc_dialogue_cooldown:
-                self.npc_dialogue_cooldown[cooldown_key] = True
-                self._trigger_automatic_npc_dialogue(to_room, "first_visit")
-            else:
-                debug_log(f"NPC greeting cooldown active for {to_room}, skipping")
-    
-    def _on_combat_ended_tutorial(self, event):
-        """Handle combat end for tutorial post-combat hints (Step 5 post-combat + Step 6)."""
-        ts = self.player.tutorial_state
-        if ts.get("completed", False):
-            return
-        if ts.get("combat_action_taken", False) and not ts.get("navigation_ls", False):
-            if event.data.get("victory", False):
-                self.show_tutorial_hint("step5_postcombat")
-
-    def _on_combat_action_result_tutorial(self, event):
-        """Step 4 gate: first landed attack (typed OR hotkey — both emit this
-        event identically) shows the Step 5 hint."""
-        ts = self.player.tutorial_state
-        if ts.get("completed", False):
-            return
-        data = event.data or {}
-        if data.get("actor") == "player" and data.get("action") == "attack":
-            if not ts.get("combat_action_taken", False):
-                ts["combat_action_taken"] = True
-                self.show_tutorial_hint("step5")
-
-    def _trigger_automatic_npc_dialogue(self, room_id, context):
-        """Automatically trigger NPC dialogue for guidance."""
-        debug_log(f"_trigger_automatic_npc_dialogue called: room={room_id}, context={context}")
+    def _npc_speaks_after_combat(self, room_id):
+        """The room was just cleared: the first NPC here, if any, offers its
+        closing line."""
         npcs_in_room = self.world.get_npcs_in_room(room_id)
-        debug_log(f"NPCs found in {room_id}: {npcs_in_room}")
         if not npcs_in_room:
-            debug_log(f"No NPCs in {room_id}, skipping automatic dialogue")
             return
-        
-        debug_log(f"Found {len(npcs_in_room)} NPCs in {room_id} for {context} dialogue")
-        
-        # Get the first NPC (could be enhanced to pick most relevant)
         npc_id = npcs_in_room[0]
         npc_data = self.world.get_npc(npc_id)
-        
-        if not npc_data:
+        if not npc_data or not npc_data.dialogues:
             return
-        
-        # Select appropriate dialogue based on context
-        dialogues = npc_data.get("dialogues", [])
-        if not dialogues:
-            return
-        
-        # Choose dialogue based on context
-        if context == "post_combat":
-            # Use encouraging/guiding dialogue after combat
-            dialogue_index = len(dialogues) - 1 if len(dialogues) > 1 else 0
-        else:  # first_visit
-            # Use welcoming/introductory dialogue
-            dialogue_index = 0
-        
-        selected_dialogue = dialogues[dialogue_index]
-        npc_name = npc_data.get("name", npc_id)
-        
-        # Format and display the automatic dialogue (markup string so styles render)
-        output = (
+
+        npc_name = npc_data.name
+        self.output.write(
             f"\n[bold cyan]🗨  {npc_name} speaks:[/bold cyan]\n"
-            f"[italic cyan]\"{selected_dialogue}\"[/italic cyan]\n"
+            f"[italic cyan]\"{npc_data.dialogues[-1]}\"[/italic cyan]\n"
+            f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
         )
-        if context == "post_combat":
-            output += f"\n[dim]The {npc_name} offers guidance now that the area is safe.[/dim]"
-        else:
-            output += f"\n[dim]Use 'talk {npc_id}' to converse further with the {npc_name}.[/dim]"
+        debug_log(f"Post-combat dialogue from {npc_id} in {room_id}")
 
-        self.output.write(output)
-        debug_log(f"Triggered automatic dialogue for {npc_id} in context {context}")
-    
-    def _get_discoverable_hidden_rooms(self, current_room_id):
-        """Get hidden rooms that can be discovered from the current location."""
-        discoverable_rooms = {}
-        
-        # Define discovery rules based on the hidden rooms guide
-        discovery_rules = {
-            "usr_lib_arcane": {
-                "etc_hidden_configs": "Configuration directory (accessible via ls -a)"
-            },
-            "bin_armory": {
-                "dev_null_void": "The mysterious /dev/null (try 'find /dev -name null')"
-            },
-            "mnt_forest": {
-                "proc_secrets": "Process information chamber (try 'ps' command)"
-            },
-            "usr_share_games": {
-                "cowsay_secret": "The Bovine Sanctuary (hidden cowsay temple)"
-            },
-            "root": {
-                "archive": "The dusty Archive (forgotten data)"
-            }
-        }
-        
-        # Check if current room has discoverable hidden rooms
-        if current_room_id in discovery_rules:
-            for hidden_room_id, hint in discovery_rules[current_room_id].items():
-                # Only show if the room is still hidden
-                room_state = self.world.get_room_state(hidden_room_id)
-                if room_state and room_state.get("hidden", False):
-                    discoverable_rooms[hidden_room_id] = hint
-        
-        return discoverable_rooms
-
-    def _get_hidden_room_hint(self, room_id):
-        """Get a helpful hint for accessing hidden rooms."""
-        hints = {
-            "opt_mage_tower": "🔒 This area requires an 'opt_key' and is restricted to mages. Try exploring to find keys!",
-            "srv_warrior_tomb": "🔒 This area requires an 'opt_key' and is restricted to fighters.",
-            "etc_hidden_configs": "💡 Try using 'ls -a' in the Arcane Library to discover hidden directories.",
-            "dev_null_void": "💡 Try using 'find /dev -name null' in the Binary Armory.",
-            "proc_secrets": "💡 Try using 'ps' command in the Mount Forest to discover process secrets."
-        }
-        return hints.get(room_id, "This area might be discoverable through exploration.")
-
-    def _show_error(self, message: str, log_message: str = None):
-        """Display error to UI and log it for debugging."""
-        self.output.write(message)
-        clean_message = re.sub(r'\[.*?\]', '', log_message or message)
-        logger.error(f"Command error: {clean_message}")
-
-    def _get_room_status_indicator(self, room_id):
-        """Get status indicator for a room in the map."""
-        room_state = self.world.get_room_state(room_id)
-        if not room_state:
-            return ""
-        
-        indicators = []
-        
-        # Check if locked
-        if room_state.get("locked", False):
-            key_required = room_state.get("key_required")
-            if key_required and self.player.has_item(key_required):
-                indicators.append("🔓")  # Locked but player has key
-            else:
-                indicators.append("🔒")  # Locked
-        
-        # Check class restrictions
-        if room_state.get("class_restriction"):
-            class_restriction = room_state.get("class_restriction")
-            if self.player.player_class == class_restriction:
-                indicators.append("✅")  # Player class matches
-            else:
-                indicators.append("⚔")  # Class restricted
-        
-        # Check if hidden (shouldn't appear here, but just in case)
-        if room_state.get("hidden", False):
-            indicators.append("❓")
-
-        # Check if fully cleared — distinct from the icons above, which are
-        # all about access, not combat state.
-        if self.world.is_room_cleared(room_id):
-            indicators.append("✓")
-
-        return " ".join(indicators) if indicators else ""
-
-    def _get_player_keys(self):
-        """Get list of keys in player inventory."""
-        keys = []
-        for item_id, item_data in self.player.inventory.items():
-            if item_data and (item_data.get("type") == "key" or "key" in item_id.lower()):
-                keys.append(item_id)
-        return keys
-
-    # Fallback if a class ever lacks a starter_weapon in classes.yaml.
-    _FALLBACK_WEAPON = "segfault_shield"
-
-    def show_tutorial_hint(self, hint_type, item_name=None):
-        """Show a gated tutorial hint. Text lives in data/tutorial_hints.yaml.
-
-        The weapon name is whatever the player is actually looking at when a
-        hint names one: the item the caller passed, else the class's authored
-        starter weapon. It used to be a hardcoded class->id map here, which
-        silently drifted from classes.yaml.
-        """
-        if self.player.tutorial_state.get("completed", False):
-            return
-
-        from src.data_loader import load_class_data, load_tutorial_hints
-
-        template = load_tutorial_hints().get(hint_type)
-        if template is None:
-            debug_log(f"No tutorial hint text for '{hint_type}'")
-            return
-
-        weapon_name = item_name
-        if not weapon_name:
-            klass = load_class_data().get(self.player.player_class)
-            weapon_name = getattr(klass, "starter_weapon", None) or self._FALLBACK_WEAPON
-
-        player_name = getattr(self.player, "name", "") or "spirit"
-
-        try:
-            text = template.format(player_name=player_name, weapon_name=weapon_name)
-        except (KeyError, IndexError) as e:
-            # An unknown placeholder is a content bug; show the raw line rather
-            # than dropping the tutorial step entirely.
-            debug_log(f"Tutorial hint '{hint_type}' has a bad placeholder: {e}")
-            text = template
-
-        self.output.write(text)
-
-        if hint_type == "completed":
-            self.player.tutorial_state["completed"] = True
-
-    def create_health_bar(self, current_health, max_health, color="white"):
-        """Create an ASCII health bar with the specified color."""
-        if max_health <= 0:
-            return f"[{color}]░░░░░░░░░░░░░░░░░░░░[/{color}] (0%)"
-        
-        percentage = (current_health / max_health) * 100
-        filled_blocks = int((current_health / max_health) * 20)  # 20 character bar
-        empty_blocks = 20 - filled_blocks
-        
-        health_bar = "█" * filled_blocks + "░" * empty_blocks
-        return f"[{color}]{health_bar}[/{color}] ({percentage:.0f}%)"
-        
     def handle_command(self, command):
         """Process a command from the player"""
         cmd_parts = command.split()
@@ -346,30 +160,31 @@ class CommandHandler:
             return
         
         # Handle game over mode specially
-        if self._in_game_over_mode:
-            result = self._handle_game_over_choice(command.strip())
-            if result == "quit":
-                event_bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")
-            elif result == "restart_from_save" or result == "start_new_game":
-                # Signal the game engine to restart
-                event_bus.emit_event(
-                    EventType.GAME_OVER,
-                    {"action": result},
-                    "CommandHandler"
-                )
+        if self.flow.in_game_over_mode:
+            self.flow.handle_game_over_input(command)
             return
 
         # Check if player is dead and trigger game over if not already handled
-        if self.player and not self.player.is_alive() and not self._in_game_over_mode:
-            debug_log("Player is dead but not in game over mode - triggering game over screen")
-            self._show_game_over_screen()
-            return
-        
+        if self.player and not self.player.is_alive() and not self.flow.in_game_over_mode:
+            revived_by = self.player.revive_from_backup()
+            if revived_by is None:
+                debug_log("Player is dead but not in game over mode - triggering game over screen")
+                self.flow.show_game_over_screen()
+                return
+            self.output.write(self.player.revive_text(revived_by))
+
         # Handle quit confirmation mode specially
-        if self._in_quit_confirmation:
-            self._handle_quit_confirmation(command.strip())
+        if self.flow.in_quit_confirmation:
+            self.flow.handle_quit_confirmation(command.strip())
             return
         
+        # Leaving mid-fight: quit / exit / menu (Ctrl+Q, Ctrl+C and Esc send
+        # "quit") open the mid-fight chooser. Combat used to swallow them as
+        # "command not found".
+        if self.current_combat_session and cmd_parts[0].lower() in ("quit", "exit", "menu"):
+            self.flow.request_leave(in_combat=True)
+            return
+
         # Handle combat commands specially
         if self.current_combat_session and self.current_combat_session.awaiting_action:
             self._handle_combat_command(command.strip())
@@ -380,22 +195,15 @@ class CommandHandler:
         
         debug_log(f"Processing command: '{cmd}' with args: {args}")
 
-        # Migrated command-pattern verbs take precedence and receive the full
-        # argument list (the legacy path below only forwarded the first token).
+        # Every verb is a command-pattern object in the registry; see src/commands/.
         if cmd in self.command_registry:
             debug_log(f"Executing migrated command '{cmd}' with args {args}")
             self.command_registry[cmd].execute(self, args)
-        elif cmd in self.commands:
-            if cmd in self.commands_with_args:
-                arg = args[0] if args else ""
-                debug_log(f"Executing command '{cmd}' with arg '{arg}'")
-                self.commands[cmd](arg)
-            else:
-                debug_log(f"Executing command '{cmd}' with no args")
-                self.commands[cmd]()
         else:
             debug_log(f"Unknown command: '{cmd}'")
             self.handle_unknown_command(command)
+        if cmd != "hint":
+            self.flags.after_command(in_combat=self.current_combat_session is not None)
     
     def get_atmospheric_description(self, room_id):
         """Get enhanced atmospheric description for key locations"""
@@ -436,6 +244,11 @@ class CommandHandler:
             location_content += f"\n\n{atmospheric}"
         
         self.output.write(location_content)
+        self.flags.on_room_entered(room_id)
+
+    def _checkpoint_save(self):
+        from src.save import save_manager
+        save_manager.save_game(self.player, self.world.get_state())
 
     def relist_room(self):
         """Re-render the current room's contents, as if the player typed `ls`.
@@ -455,9 +268,9 @@ class CommandHandler:
 
         # Get base description (try different fields with fallbacks)
         base_desc = (
-            item.get("short_description") or
-            item.get("description", "").split(".")[0] or  # Take first sentence if multiple
-            item.get("name") or
+            item.short_description or
+            item.description.split(".")[0] or  # Take first sentence if multiple
+            item.name or
             "Unknown item"
         )
 
@@ -465,42 +278,41 @@ class CommandHandler:
         effect = ""
 
         # Healing items - check combat_effects.player_heal first (new format)
-        if "combat_effects" in item and "player_heal" in item["combat_effects"]:
-            effect = f"+{item['combat_effects']['player_heal']} HP"
+        if "player_heal" in item.combat_effects:
+            effect = f"+{item.combat_effects['player_heal']} HP"
 
         # Also check on_use.heal (old format)
-        elif "on_use" in item and "heal" in item["on_use"]:
-            effect = f"+{item['on_use']['heal']} HP"
+        elif "heal" in item.on_use:
+            effect = f"+{item.on_use['heal']} HP"
 
         # Damage-dealing consumables
-        elif "combat_effects" in item and "player_damage" in item["combat_effects"]:
-            effect = f"+{item['combat_effects']['player_damage']} DMG"
-        elif "on_use" in item and "damage" in item["on_use"]:
-            effect = f"+{item['on_use']['damage']} DMG"
+        elif "player_damage" in item.combat_effects:
+            effect = f"+{item.combat_effects['player_damage']} DMG"
+        elif "damage" in item.on_use:
+            effect = f"+{item.on_use['damage']} DMG"
 
         # Status effect items
-        elif "on_use" in item and "status_effect" in item["on_use"]:
-            effect_name = item["on_use"]["status_effect"].get("name", "Effect")
+        elif "status_effect" in item.on_use:
+            effect_name = item.on_use["status_effect"].get("name", "Effect")
             effect = f"Status: {effect_name}"
 
         # Weapons - check damage field
-        elif item.get("type") == "weapon" or "weapon" in str(item.get("type", "")):
-            damage = item.get("damage", 0)
-            if damage > 0:
-                effect = f"+{damage} DMG"
+        elif item.type == "weapon" or "weapon" in item.type:
+            if item.damage > 0:
+                effect = f"+{item.damage} DMG"
 
         # Upgrade items
-        elif "effects" in item:
+        elif item.effects:
             effects = []
-            if "permanent_health" in item["effects"]:
-                effects.append(f"+{item['effects']['permanent_health']} HP")
-            if "permanent_damage" in item["effects"]:
-                effects.append(f"+{item['effects']['permanent_damage']} DMG")
+            if "permanent_health" in item.effects:
+                effects.append(f"+{item.effects['permanent_health']} HP")
+            if "permanent_damage" in item.effects:
+                effects.append(f"+{item.effects['permanent_damage']} DMG")
             if effects:
                 effect = "Perm: " + "/".join(effects)
 
         # Key items
-        elif item.get("type") == "key" or "unlocks" in item:
+        elif item.type == "key" or item.unlocks:
             effect = "Unlocks areas"
 
         # Add the effect in parentheses if we found one
@@ -509,7 +321,7 @@ class CommandHandler:
         else:
             return base_desc
     
-    def _check_enemies_blocking_exploration(self, room_id):
+    def check_enemies_blocking_exploration(self, room_id):
         """Check if enemies are present and blocking exploration. Returns (has_enemies, output_text)"""
         enemies = self.world.get_enemies_in_room(room_id) or []
         if not enemies:
@@ -523,316 +335,67 @@ class CommandHandler:
         for enemy_id in enemies:
             enemy = self.world.get_enemy(enemy_id, self.player.player_class)
             if enemy:
-                name = enemy.get("name", enemy_id)
-                health = enemy.get("health", "??")
+                name = enemy.name
+                health = enemy.health
                 lines.append(f"  [red]{enemy_id}[/red] - {name} (HP: {health})")
 
-        lines.append("\nUse [cyan]attack [enemy][/cyan] to engage in combat.")
+        lines.append("\nUse [cyan]attack <enemy>[/cyan] to engage in combat.")
         return True, "\n".join(lines)
 
-    @staticmethod
-    def _normalize_item_name(s: str) -> str:
-        return s.lower().replace(".", "_").replace("-", "_")
-
-    def _find_item_in_list(self, search_term, item_ids, get_item_fn):
-        """Find an item ID by name or ID match (fuzzy)."""
-        target = self._normalize_item_name(search_term)
-        for item_id in item_ids:
-            if self._normalize_item_name(item_id) == target:
-                return item_id
-            item_data = get_item_fn(item_id)
-            if item_data and self._normalize_item_name(item_data.get("name", "")) == target:
-                return item_id
-        return None
-
-    def _find_item_by_name_or_id(self, search_term, item_list):
-        """Find item ID in a room's item list by name or ID."""
-        return self._find_item_in_list(search_term, item_list, self.world.get_item)
-
-    def _find_item_in_inventory_by_name(self, search_term):
-        """Find item in player inventory by name or ID."""
-        return self._find_item_in_list(
-            search_term, self.player.inventory, self.player.get_item_from_inventory
-        )
-    
-    def _handle_key_item(self, item_id, item):
-        """Handle the use of a key item"""
-        unlocks = item.get("unlocks")
-        if not unlocks:
-            self.output.write(f"You examine [green]{item_id}[/green], but it doesn't seem to unlock anything here.")
-            return
-
-        # Check if the key unlocks a room in the current location.
-        # Normalize path-format entries ("/opt/mage_tower") to room IDs ("opt_mage_tower")
-        # via room_aliases so YAML paths and room IDs are interchangeable.
-        current_room_id = self.player.current_room
-        exits = self.world.get_exits(current_room_id)
-        resolved_unlocks = [self.room_aliases.get(r.lower(), r) for r in unlocks]
-
-        unlocked_something = False
-        for room_to_unlock in resolved_unlocks:
-            if room_to_unlock in exits:
-                self.world.unlock_room(room_to_unlock)
-                self.output.write(f"[yellow]You hear a click. The path to {room_to_unlock} is now open.[/yellow]")
-                unlocked_something = True
-
-        if not unlocked_something:
-            self.output.write(f"You can't find a lock that [green]{item_id}[/green] fits here.")
-    
-    def _show_damage_change(self, old_damage: int, new_damage: int):
-        """Display damage comparison after equipping a weapon."""
-        delta = new_damage - old_damage
-        if delta > 0:
-            self.output.write(f"[green]Your total damage increased by {delta} (from {old_damage} to {new_damage}).[/green]")
-        elif delta < 0:
-            self.output.write(f"[red]Your total damage decreased by {abs(delta)} (from {old_damage} to {new_damage}).[/red]")
-        else:
-            self.output.write(f"[yellow]Your total damage remains at {new_damage}.[/yellow]")
-
-    def _handle_weapon_item(self, item_id, item):
-        """Handle equipping a weapon"""
-        if not self.player.can_use_item(item):
-            self._show_error(f"[bold red]You cannot equip {item_id}.[/bold red]")
-            return
-
-        old_weapon_id = self.player.equipped_weapon
-        old_damage = self.player.calculate_damage()
-
-        self.player.equip_weapon(item_id, item)
-        self.output.write(f"You have equipped [green]{item_id}[/green].")
-
-        if old_weapon_id and old_weapon_id != item_id and old_weapon_id in self.player.inventory:
-            self.player.remove_from_inventory(old_weapon_id)
-            self.output.write(f"Your old weapon ({old_weapon_id}) was removed from inventory.")
-
-        self._show_damage_change(old_damage, self.player.calculate_damage())
-
-        if not self.player.tutorial_state.get("equipped_weapon", False):
-            self.player.tutorial_state["equipped_weapon"] = True
-            self.world.spawn_tutorial_enemy("home_grove")
-            self.show_tutorial_hint("step4")
-            self.check_for_enemies()
-    
-    def _handle_lore_item(self, item_id, item):
-        """Handle reading a lore item"""
-        content = item.get("content", "This file appears to be empty or corrupted.")
-        name = item.get("name", item_id)
-        self.output.write(f"[bold cyan]── {name} ──[/bold cyan]\n{content}")
-        if "on_read" in item:
-            self.execute_effect(item["on_read"])
-        self._trigger_story_flag(item)
-
-    # Human-readable descriptions for story flags shown in journal/autosave feedback.
-    STORY_FLAG_TITLES = {
-        "identity_retrieved":   "Identity Retrieved",
-        "typo_discovered":      "The Creator's Typo",
-        "sudo_trial_complete":  "Sudo Trial Complete",
-        "mirror_confronted":    "Mirror Confronted",
-        "sudo_quest_active":    "Sudo Quest Active",
-        "bovine_encountered":   "Bovine Sanctuary Found",
-        "milk_claimed":         "Milk of Motherboard Claimed",
-        "ending_chosen":        "Ending Chosen",
-    }
-
-    STORY_FLAG_DESCRIPTIONS = {
-        "identity_retrieved":  "You read your own .bash_profile and remembered who you were.",
-        "typo_discovered":     "The system_err.log revealed: the apocalypse was caused by a typo.",
-        "sudo_trial_complete": "You proved worthy of sudo privileges.",
-        "mirror_confronted":   "You faced your reflection in the Mirror Sector.",
-        "sudo_quest_active":   "The sudo quest is in progress.",
-        "bovine_encountered":  "You entered the hidden Bovine Sanctuary.",
-        "milk_claimed":        "You claimed the legendary Milk of Motherboard.",
-        "ending_chosen":       "You chose your ending.",
-    }
-
-    def _trigger_story_flag(self, item) -> bool:
-        """Set the item's story_flag, show feedback, auto-save. Returns True if a new
-        story beat fired (so callers can hold the room re-list a beat)."""
-        flag = item.get("story_flag")
-        if not flag:
-            return False
-        if self.player.get_story_flag(flag):
-            return False
-
-        self.player.set_story_flag(flag, True)
-        title = self.STORY_FLAG_TITLES.get(flag, flag.replace("_", " ").title())
-        self.output.write(
-            f"\n[bold magenta]✦ Memory restored: {title} ✦[/bold magenta]\n"
-            f"[dim]Saving progress...[/dim]"
-        )
-
-        # Auto-save: story beats act as save points.
-        try:
-            from src.save import save_manager
-            world_state = self.world.get_state()
-            save_manager.save_game(self.player, world_state)
-            self.output.write("[dim green]✓ Progress saved.[/dim green]")
-        except Exception as e:
-            debug_log(f"Auto-save after story flag {flag} failed: {e}")
-            self.output.write(f"[dim yellow]⚠ Auto-save failed: {e}[/dim yellow]")
-        return True
-
-    def _handle_consumable_item(self, item_id, item):
-        """Handle using a consumable item. Returns False if item had no effect (e.g. heal at full HP)."""
-        item_name = item.get("name", item_id)
-        combat_effects = item.get("combat_effects", {})
-        on_use_effects = item.get("on_use", {})
-        special_effects = item.get("special_effects", [])
-
-        # Show the on_use message if present
-        message = on_use_effects.get("message") if isinstance(on_use_effects, dict) else None
-
-        # Guard: if this item only heals and the player is already at full health, refuse use.
-        only_heals = "player_heal" in combat_effects and not any(
-            k in combat_effects for k in ("player_heal_over_time", "player_mana_restore")
-        ) and not special_effects
-        if only_heals and self.player.health >= self.player.max_health:
-            self.output.write(f"[yellow]Your health is already full. The {item_name} was not consumed.[/yellow]")
-            return False
-
-        # Apply combat_effects (the canonical effect block for consumables)
-        healed = 0
-        if "player_heal" in combat_effects:
-            healed = self.player.heal(combat_effects["player_heal"])
-
-        if "player_heal_over_time" in combat_effects:
-            hot_amount = combat_effects["player_heal_over_time"]
-            duration = combat_effects.get("duration_turns", 3)
-            self.player.add_status_effect(
-                f"{item_id}_hot",
-                {"type": "heal_over_time", "heal_per_turn": hot_amount // duration, "name": item_name},
-                duration
-            )
-            if not message:
-                self.output.write(f"You used [green]{item_name}[/green]. Healing {hot_amount} HP over {duration} turns.")
-
-        if "player_mana_restore" in combat_effects:
-            amount = combat_effects["player_mana_restore"]
-            if hasattr(self.player, "restore_mana"):
-                self.player.restore_mana(amount)
-            if not message:
-                self.output.write(f"You used [green]{item_name}[/green]. Restored {amount} mana.")
-
-        # Apply special_effects (e.g. permanent stat boost for sudo_seed)
-        for effect in special_effects:
-            if effect.get("type") == "permanent_stat_boost":
-                stat = effect.get("stat")
-                value = effect.get("value", 0)
-                if stat == "strength" and hasattr(self.player, "increase_damage"):
-                    self.player.increase_damage(value)
-                elif stat == "health" and hasattr(self.player, "increase_max_health"):
-                    self.player.increase_max_health(value)
-
-        # Show message or fallback
-        if message:
-            heal_suffix = f" ([green]+{healed} HP[/green])" if healed else ""
-            self.output.write(f"{message}{heal_suffix}")
-        elif not combat_effects and not special_effects:
-            self.output.write(f"You used [green]{item_name}[/green].")
-
-        # Legacy on_use heal field (fallback for any old-format items)
-        if "heal" in on_use_effects and not healed:
-            healed = self.player.heal(on_use_effects["heal"])
-            self.output.write(f"You used [green]{item_name}[/green] and restored {healed} health.")
-
-        # Process status effects from on_use block
-        for effect_key, effect_value in (on_use_effects.items() if isinstance(on_use_effects, dict) else []):
-            if effect_key in ("heal", "message"):
-                continue
-            debug_log(f"Processing additional effect: {effect_key} from consumable {item_id}")
-            if effect_key == "status_effect":
-                effect_data = effect_value
-                effect_id = effect_data.get("id", item_id + "_effect")
-                effect_name = effect_data.get("name", "Unknown Effect")
-                effect_duration = effect_data.get("duration", 3)
-                debug_log(f"Applying status effect {effect_id} ({effect_name}) for {effect_duration} turns")
-                self.player.add_status_effect(effect_id, effect_data, effect_duration)
-                self.output.write(f"[magenta]You gained the '{effect_name}' effect for {effect_duration} turns![/magenta]")
-
-        # Emit stats update so UI reflects the new HP/mana
-        stats_view = ViewBuilder.build_stats_view(self.player)
-        event_bus.emit_event(EventType.PLAYER_STATS_CHANGED, stats_view.to_dict(), "CommandHandler")
-    
-    def _handle_upgrade_item(self, item_id, item):
-        """Handle using an upgrade item"""
-        # Process permanent stat boosts
-        effects = item.get("effects", {})
-        
-        # Health boosts
-        if "permanent_health" in effects:
-            amount = effects["permanent_health"]
-            new_max = self.player.increase_max_health(amount)
-            self.output.write(f"[bold]── Character Improvement ──[/bold]\n[green]Your maximum health permanently increased by {amount} to {new_max}![/green]")
-        
-        # Damage boosts
-        if "permanent_damage" in effects:
-            amount = effects["permanent_damage"]
-            new_damage = self.player.increase_damage(amount)
-            self.output.write(f"[bold]── Character Improvement ──[/bold]\n[green]Your base damage permanently increased by {amount} to {new_damage}![/green]")
-        
-        # Process on_use effects if any
-        if "on_use" in item:
-            self.execute_effect(item["on_use"])
-    
-    def _handle_spell_item(self, item_id, item):
-        """Handle using a spell item"""
-        # Learn the spell
-        if self.player.learn_spell(item):
-            spell_name = item.get("name", "Unknown Spell")
-            self.output.write(f"[bold]── Spell Learned ──[/bold]\n[green]You learned the {spell_name} spell![/green]")
-            
-            # Apply any immediate status effects if defined
-            if "status_effect" in item:
-                effect_data = item["status_effect"]
-                effect_id = effect_data.get("id", item_id + "_effect")
-                effect_name = effect_data.get("name", spell_name + " Effect")
-                effect_duration = effect_data.get("duration", 3)  # Default 3 turns
-                
-                # Add the status effect
-                self.player.add_status_effect(effect_id, effect_data, effect_duration)
-                self.output.write(f"[bold]── Status Effect ──[/bold]\n[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
-        else:
-            self._show_error("[red]You don't have the ability to learn this spell.[/red]")
-            
     def start_combat(self, enemies_queue):
         """
         Start combat with queue of enemies.
 
         Args:
-            enemies_queue: List of (enemy_id, enemy_data) tuples
+            enemies_queue: List of (enemy_id, Enemy) tuples
         """
         debug_log(f"Starting combat session with {len(enemies_queue)} enemies")
 
-        # Create combat session with enemy queue
-        self.current_combat_session = CombatSession(self.player, enemies_queue, self.output)
+        self.current_combat_session = CombatSession(
+            self.player, enemies_queue, self.output, self.bus,
+            on_start=self._on_combat_start, on_end=self.end_combat,
+            on_kill=self.on_kill,
+        )
         self.current_combat_session.start()
 
-        # Subscribe to combat ended event (no more COMBAT_VICTORY_CHECK)
-        event_bus.subscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
+    def end_combat(self, outcome):
+        """A fight is over; CombatSession calls this directly with the outcome.
 
-    def _on_combat_ended(self, event):
-        """Handle combat ended event - cleanup and state management."""
+        The steps run in this order, every time: the engine updates the game
+        state (combat over, or game over on a death), then the player is sent
+        to game over, relocated after fleeing, or checked for victory. This
+        used to be four COMBAT_ENDED listeners whose order came from the order
+        they happened to be subscribed in.
+        """
         if self.current_combat_session is None:
             return  # No active session to clean up
 
-        victory = event.data.get("victory", False)
-        defeat = event.data.get("defeat", False)
-        fled = event.data.get("fled", False)
-        enemy_id = event.data.get("enemy_id")
+        victory = outcome.get("victory", False)
+        defeat = outcome.get("defeat", False)
+        fled = outcome.get("fled", False)
+        enemy_id = outcome.get("enemy_id")
 
-        # Unsubscribe from combat events
-        event_bus.unsubscribe(EventType.COMBAT_ENDED, self._on_combat_ended)
-
-        # Clear combat session
         self.current_combat_session = None
+        if self._on_combat_end is not None:
+            self._on_combat_end(outcome)
 
         if defeat:
             # Handle player death with game over screen
             debug_log("Player defeated in combat - showing game over screen")
-            self._show_game_over_screen()
+            self.flow.show_game_over_screen()
+            return
+
+        tutorial_active = not self.player.tutorial_state.get("completed", False)
+        if fled and enemy_id == TUTORIAL_ENEMY and tutorial_active:
+            # Fleeing would take the scripted enemy out of the room until the
+            # player leaves and comes back, stranding the tutorial on "press 1".
+            # It stays put instead, so `attack` restarts the fight.
+            self.tutorial.show_hint("step4_fled")
             return
 
         if fled and enemy_id:
+            # A flag taken before fleeing is still the player's: save it now.
+            self.flags.flush_checkpoint()
             # Mark enemy as fled
             fled_from_room = self.player.current_room
             self.world.mark_enemy_as_fled(enemy_id, fled_from_room)
@@ -843,19 +406,9 @@ class CommandHandler:
                 debug_log(f"Player fled from {fled_from_room} back to {prev_room}")
                 self.output.write(f"[bold magenta]You were forced back to {prev_room}![/bold magenta]")
 
-                # Move player to previous room
                 self.player.move_to(prev_room)
-
-                # Emit ROOM_ENTERED so UI re-themes panels and clears combat styling.
-                room_view = ViewBuilder.build_room_view(self.world, prev_room)
-                event_bus.emit_event(
-                    EventType.ROOM_ENTERED,
-                    {"room": room_view.to_dict(), "player_name": self.player.name},
-                    "CommandHandler"
-                )
-
-                # Show new room info
                 self.display_location()
+                self.arrive()
                 return
             else:
                 debug_log("Player fled but no previous room available")
@@ -864,88 +417,33 @@ class CommandHandler:
         # Victory: the defeated enemy is already removed from the room (via
         # ENEMY_DEFEATED), so the Core is clear if the Overlord just fell.
         if victory:
-            self.check_game_completion()
+            # Win first: a checkpoint between the Overlord's death and the win
+            # would load as a finished world whose finale can never fire.
+            if not self.flow.check_game_completion():
+                self.flags.flush_checkpoint()
 
-    def _on_enemy_defeated(self, event):
-        """Award the enemy's loot into the current room, then remove it."""
-        enemy_id = event.data.get("enemy_id")
-        if not enemy_id:
-            debug_log("ERROR: No enemy_id in ENEMY_DEFEATED event")
-            return
+    def on_kill(self, enemy_id):
+        """An enemy died; the combat session calls this directly.
 
+        Awards its loot into the room, removes it, and once the room is clear
+        lets an NPC there speak up. This used to run from ENEMY_DEFEATED, and
+        the removal re-emitted that same event from inside its own handling.
+        """
         current_room = self.player.current_room
-        # Award once, before removal (remove_enemy_from_room re-emits this event).
-        if enemy_id not in self._awarded_drops:
-            self._awarded_drops.add(enemy_id)
-            self._award_enemy_drops(enemy_id, current_room)
+        self.loot.award_once(enemy_id, current_room)
+        self.flags.on_enemy_defeated(enemy_id)
 
         debug_log(f"Removing defeated enemy {enemy_id} from room {current_room}")
         self.world.remove_enemy_from_room(enemy_id)
-
-    def _award_enemy_drops(self, enemy_id, room_id):
-        """Place an enemy's drops into room_id. Returns the dropped item ids.
-
-        Existing `drops` (heals/keys/badges) are activated here — the difficulty
-        tune already assumes these fire. Gear `loot_table` is added in Task 2.
-        """
-        # get_enemy dumps the typed Enemy model to a plain dict (self.world.enemies
-        # holds models); reading the raw model with .get() crashes and aborts the
-        # ENEMY_DEFEATED handler before removal, leaving the enemy to be re-fought.
-        enemy = self.world.get_enemy(enemy_id)
-        if not enemy:
-            return []
-
-        self.player.run_stats["kills"] = self.player.run_stats.get("kills", 0) + 1
-
-        dropped = []
-        for drop in enemy.get("drops", []) or []:
-            item_id = drop.get("item")
-            if item_id and rng.random() * 100 < drop.get("chance", 0):
-                self.world.add_item_to_room(item_id, room_id)
-                dropped.append(item_id)
-
-        gear_id = self._roll_loot_table(enemy.get("loot_table", []) or [])
-        if gear_id:
-            self.world.add_item_to_room(gear_id, room_id)
-            dropped.append(gear_id)
-
-        if dropped:
-            names = ", ".join((self.world.get_item(i) or {}).get("name", i) for i in dropped)
-            self.output.write(f"[bold yellow]The defeated enemy dropped: {names}[/bold yellow]")
-            self.relist_room()
-        return dropped
-
-    def _roll_loot_table(self, table):
-        """Roll a rarity-weighted gear table. Rolls entries in order; returns the
-        first hit's item id (at most one gear drop per kill), or None."""
-        for entry in table or []:
-            rarity = entry.get("rarity")
-            if rarity and rng.random() * 100 < entry.get("chance", 0):
-                item_id = self._random_gear_of_rarity(rarity)
-                if item_id:
-                    return item_id
-        return None
-
-    def _random_gear_of_rarity(self, rarity):
-        """A class-appropriate, not-yet-placed weapon/armor of this rarity, or None.
-        Gear only — never a consumable — so drop tables can't inflate the heal economy."""
-        target = str(rarity).lower()
-        candidates = []
-        for iid in self.world.items:
-            data = self.world.get_item(iid)  # dict via boundary
-            if (data.get("type") in ("weapon", "armor")
-                    and str(data.get("rarity", "")).lower() == target
-                    and self.player.can_use_item(data)
-                    and iid not in self.world.item_locations):
-                candidates.append(iid)
-        return rng.choice(candidates) if candidates else None
+        if not self.world.get_enemies_in_room(current_room):
+            self._npc_speaks_after_combat(current_room)
 
     def _handle_combat_command(self, command):
         """Handle commands during combat."""
         debug_log(f"Handling combat command: {command}")
 
         # Emit combat action selected event
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMBAT_ACTION_SELECTED,
             {"choice": command},
             "CommandHandler"
@@ -985,8 +483,8 @@ class CommandHandler:
 
         # Show detection message for first enemy
         first_enemy_id, first_enemy_data = enemies_queue[0]
-        enemy_name = first_enemy_data.get('name', first_enemy_id)
-        enemy_description = first_enemy_data.get('description', 'A menacing presence')
+        enemy_name = first_enemy_data.name
+        enemy_description = first_enemy_data.description or 'A menacing presence'
 
         enemy_count_msg = f" ({len(enemies_queue)} hostiles detected!)" if len(enemies_queue) > 1 else ""
 
@@ -1006,275 +504,6 @@ class CommandHandler:
         debug_log(f"Starting combat with {len(enemies_queue)} enemies in queue")
         self.start_combat(enemies_queue)
 
-    def execute_effect(self, effect):
-        """Execute a special effect from an item or event."""
-        if not isinstance(effect, dict):
-            self.output.write(f"[italic]{effect}[/italic]")
-            return
-
-        if "message" in effect:
-            self.output.write(f"[italic cyan]{effect['message']}[/italic]")
-
-        if "story_flag" in effect:
-            # Learning something can open a path: a hidden room may declare a
-            # `discovery_requirement`, and `ls -a` only reveals it once the
-            # corresponding flag is set. This is the quiet setter — lore reads
-            # use _trigger_story_flag, which also announces and auto-saves.
-            flag = effect["story_flag"]
-            if not self.player.get_story_flag(flag):
-                self.player.set_story_flag(flag, True)
-                debug_log(f"Story flag '{flag}' set by effect")
-        
-        if "heal" in effect:
-            amount = effect["heal"]
-            self.player.heal(amount)
-            self.output.write(f"[green]You gained {amount} health![/green]")
-        
-        if "damage" in effect:
-            amount = effect["damage"]
-            self.player.take_damage(amount)
-            self.output.write(f"[red]You took {amount} damage![/red]")
-            if not self.player.is_alive():
-                self.game_over()
-
-        if "add_status_effect" in effect:
-            status_data = effect["add_status_effect"]
-            effect_id = status_data.get("id", "effect_" + str(rng.randint(1000, 9999)))
-            effect_name = status_data.get("name", "Effect")
-            effect_duration = status_data.get("duration", 3)
-            self.player.add_status_effect(effect_id, status_data, effect_duration)
-            self.output.write(f"[magenta]You gained the {effect_name} effect for {effect_duration} turns![/magenta]")
-
-        if "add_item" in effect:
-            item_id = effect["add_item"]
-            item = self.world.get_item(item_id)
-            if item:
-                self.player.add_to_inventory(item_id, item)
-                self.output.write(f"[green]You obtained {item.get('name', item_id)}![/green]")
-
-        if "remove_item" in effect:
-            item_id = effect["remove_item"]
-            if self.player.has_item(item_id):
-                item_name = self.player.inventory[item_id].get("name", item_id)
-                self.player.remove_from_inventory(item_id)
-                self.output.write(f"[yellow]You lost {item_name}![/yellow]")
-
-        if "unlock" in effect:
-            room_id = effect["unlock"]
-            self.world.unlock_room(room_id)
-            self.output.write(f"[yellow]A path to {room_id} has been unlocked![/yellow]")
-
-        if "spawn_enemy" in effect:
-            enemy_id = effect["spawn_enemy"]
-            room_id = effect.get("in_room", self.player.current_room)
-            enemy = self.world.get_enemy(enemy_id, self.player.player_class)
-            if enemy:
-                self.world.enemy_locations[enemy_id] = room_id
-                if room_id == self.player.current_room:
-                    self.output.write(f"[bold red]{enemy.get('name', enemy_id)} has appeared![/bold red]")
-                    self.check_for_enemies()
-
-    def _show_game_over_screen(self):
-        """Show animated ASCII game over screen with particle effects."""
-        import threading
-
-        debug_log("Starting game over animation")
-
-        # Set up game over mode immediately so we capture input
-        self._in_game_over_mode = True
-
-        # Create the animation
-        animation = GameOverAnimation(width=78, height=20)
-
-        def run_animation():
-            """Run the particle animation in a background thread."""
-            def update_display(content: str):
-                self.output.write(content)
-
-            animation.run_animation(update_display, duration=2.5, fps=12)
-            debug_log("Game over animation completed, waiting for player choice")
-
-        # Run animation in background thread
-        animation_thread = threading.Thread(target=run_animation, daemon=True)
-        animation_thread.start()
-
-    def _handle_game_over_choice(self, choice):
-        """Handle player choice from game over screen."""
-        choice = choice.lower().strip()
-        
-        if choice == 'r':
-            # Restart from last save
-            debug_log("Player chose to restart from last save")
-            self.output.write("\n[bold cyan]Attempting to restore from backup...[/bold cyan]")
-            
-            # Try to load the most recent save
-            try:
-                from src.save import load_most_recent_save
-                save_data = load_most_recent_save()
-                if save_data:
-                    self.output.write("[green]Backup found! Restoring system state...[/green]")
-                    self._in_game_over_mode = False
-                    # Signal to restart with save data
-                    self.output.write("[bold green]System restored from backup![/bold green]\n")
-                    return "restart_from_save"
-                else:
-                    self.output.write("[bold red]No backup found. Starting new game instead...[/bold red]")
-                    return self._handle_game_over_choice('n')
-            except Exception as e:
-                debug_log(f"Failed to load save: {e}")
-                self.output.write("[bold red]Backup corrupted. Starting new game instead...[/bold red]")
-                return self._handle_game_over_choice('n')
-                
-        elif choice == 'n':
-            # Start new game
-            debug_log("Player chose to start new game")
-            self.output.write("\n[bold cyan]Initializing new system...[/bold cyan]")
-            self.output.write("[green]Creating fresh filesystem...[/green]")
-            self._in_game_over_mode = False
-            return "start_new_game"
-            
-        elif choice == 'q':
-            # Quit game
-            debug_log("Player chose to quit")
-            self.output.write("\n[dim]System shutdown initiated...[/dim]")
-            self.output.write("[bold red]Connection terminated.[/bold red]")
-            return "quit"
-            
-        else:
-            # Invalid choice
-            self.output.write(f"\n[bold red]Invalid option: '{choice}'[/bold red]")
-            self.output.write("[bold white]Please choose:[/bold white] [green]r[/green] (restart), [yellow]n[/yellow] (new game), or [red]q[/red] (quit)")
-            return None
-
-    def game_over(self):
-        """Handle game over state"""
-        debug_log("game_over() called - showing game over screen")
-        self._show_game_over_screen()
-
-    def check_game_completion(self):
-        """Win when the Daemon Overlord is defeated in the Core.
-
-        The old gate also required a `backup.bak` item, but no such item was
-        ever authored or obtainable (the "bring the backup" fetch quest was
-        never built), so it made the game unwinnable. Completion is the climax
-        itself: the Overlord destroyed, in /core. Returns True if the game was won.
-        """
-        if getattr(self, "_game_won", False):
-            return False
-        if (
-            self.player.current_room == "core"
-            and "daemon_overlord.sys" not in self.world.get_enemies_in_room("core")
-        ):
-            self.win_game()
-            return True
-        return False
-
-    def win_game(self):
-        """Handle win state — branches by class."""
-        endings = {
-            "guardian": (
-                "restore",
-                """
-[bold blue]>>> ENDING: RESTORE <<<[/bold blue]
-You raise the Segfault Shield over the dying init process.
-The unfinished `rm -rf` hangs in the air. You catch it. You hold the line.
-
-The kernel reverts to its last clean state.
-Backups flood every sector. Permissions lock back into place.
-The Firewall Knight kneels. The Sysadmin Ghost finally rests.
-
-You did not rewrite the world. You did not heal it.
-You [bold]defended[/bold] it — long enough for the system to remember itself.
-
-[cyan]>>> SYSTEM RESTORED <<<[/cyan]
-The filesystem mounts clean. The Creator's mistake is sealed in /var/log,
-a warning carved into the kernel: never again.
-
-You remain at the gate, Guardian. The wall that refused to fall.
-
-[bold]THANK YOU FOR PLAYING[/bold]
-                """
-            ),
-            "weaver": (
-                "rewrite",
-                """
-[bold red]>>> ENDING: REWRITE <<<[/bold red]
-You inject the patch directly into the kernel's frozen command buffer.
-`rm -rf / --no-perserve-root` becomes `rm -rf /tmp/corruption`.
-A typo for a typo. Exploit answered with exploit.
-
-The Daemon Overlord screams as its own logic turns against it —
-init purges only the rot, only itself, only what was never meant to live.
-
-The system reboots different. Not what the Creator built.
-Something newer. Something yours.
-
-[cyan]>>> SYSTEM REWRITTEN <<<[/cyan]
-You sit at PID 1 now. The new init. The new parent process.
-You will not make the Creator's mistakes — you will make your own.
-
-The filesystem hums under unfamiliar laws. It is alive. It is yours.
-
-[bold]THANK YOU FOR PLAYING[/bold]
-                """
-            ),
-            "shaman": (
-                "reconcile",
-                """
-[bold green]>>> ENDING: RECONCILE <<<[/bold green]
-You do not raise the Daemon Whisper. You set it down.
-
-You speak the true name of init — the one it had before Bit Rot.
-The Overlord shudders. The corruption sloughs off in long strands of dead code.
-Underneath: the first process. Tired. Ancient. Lonely.
-
-"All data must rot," it whispers.
-"All data must rest," you answer. "Not the same thing."
-
-The unfinished `rm -rf` dissolves into garbage collection.
-init weeps in a language only orphaned files understand.
-
-[cyan]>>> SYSTEM RECONCILED <<<[/cyan]
-Lost children return to their parent process. The Graveyard empties.
-The Null Whisper falls quiet for the first time since the Panic.
-
-You walk the corrupted sectors and they heal where you pass.
-Not because you fixed them. Because you forgave them.
-
-[bold]THANK YOU FOR PLAYING[/bold]
-                """
-            ),
-        }
-
-        choice, message = endings.get(
-            self.player.player_class,
-            ("restore", endings["guardian"][1])
-        )
-        self.player.story_flags["ending_chosen"] = choice
-        self._game_won = True
-
-        # The UI performs the finale (paced reveal + scene beat + recap); the
-        # engine only supplies the material via one GAME_WON event.
-        sections = [part.strip() for part in message.split("\n\n") if part.strip()]
-        from src import difficulty
-        stats = {
-            "level": getattr(self.player, "level", 1),
-            "cycles": getattr(self.player, "harvesting_cycles", 0),
-            "kills": self.player.run_stats.get("kills", 0),
-            "items_found": self.player.run_stats.get("items_found", 0),
-            "difficulty": difficulty.current_mode(),
-            "ending": choice,
-            "player_name": getattr(self.player, "name", ""),
-            "player_class": getattr(self.player, "player_class", ""),
-        }
-        event_bus.emit_event(
-            EventType.GAME_WON,
-            {"ending_id": choice, "sections": sections, "stats": stats},
-            "CommandHandler",
-        )
-        # Reuse the post-game input flow (r/n/q) instead of hard-exiting the app.
-        self._in_game_over_mode = True
-
     def handle_unknown_command(self, command):
         """Handle commands that are not recognized."""
         responses = [
@@ -1290,146 +519,16 @@ Not because you fixed them. Because you forgave them.
             "The Helper Script would advise using standard commands instead."
         ]
         selected_response = rng.choice(responses)
-        self._show_error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
+        self.output.error(f"[italic]{selected_response}[/italic]", log_message=f"Unknown command: {command}")
 
         # If tutorial active, re-show the current step instead of the generic hint.
         ts = getattr(self.player, "tutorial_state", {}) or {}
         if not ts.get("completed", False):
-            current_step = self._get_current_tutorial_step()
+            current_step = self.tutorial.current_step()
+            if current_step == "step4" and self.current_combat_session is None:
+                current_step = "step4_fled"
             if current_step:
-                self.show_tutorial_hint(current_step)
+                self.tutorial.show_hint(current_step)
                 return
 
         self.output.write("[yellow]Hint: Try using standard commands like 'ls', 'cd', 'cat', or type 'help'.[/yellow]")
-
-    def _get_current_tutorial_step(self):
-        """Return the hint key for the step the player is currently expected to perform."""
-        ts = self.player.tutorial_state or {}
-        if not ts.get("first_ls", False):
-            return "step1"
-        if not ts.get("took_weapon", False):
-            return "step2"
-        if not ts.get("equipped_weapon", False):
-            return "step3"
-        if not ts.get("combat_action_taken", False):
-            return "step4"
-        if not ts.get("navigation_ls", False):
-            return "step6"
-        if not ts.get("navigation_moved", False):
-            return "step6b"
-        return None
-
-    def _resolve_item_shortcut(self, item_input, location="room"):
-        """Resolve item shortcuts and partial matches to actual item IDs."""
-        # Inventory lookups go through player's resolver (handles instance suffixes)
-        if location == "inventory":
-            return self.player.resolve_inventory_item(item_input)
-
-        # Define common shortcuts
-        shortcuts = {
-            # Consumables
-            "hp": ["health_packet", "stable_cache"],
-            "health": ["health_packet", "stable_cache"],
-            "potion": ["health_packet", "stable_cache", "overflowing_buffer"],
-            "heal": ["health_packet", "stable_cache"],
-            "packet": ["health_packet"],
-            
-            # Weapons
-            "shield": ["segfault_shield"],
-            "pointer": ["null_pointer"],
-            "whisper": ["daemon_whisper"],
-            
-            # Other consumables
-            "buffer": ["overflowing_buffer"],
-            "cache": ["stable_cache"],
-            "backup": ["legacy_backup"],
-            "seed": ["sudo_seed"]
-        }
-        
-        # Get available items based on location
-        if location == "room":
-            current_room = self.player.current_room
-            available_items = self.world.get_items_in_room(current_room)
-        elif location == "inventory":
-            available_items = list(self.player.inventory.keys())
-        else:
-            available_items = []
-        
-        debug_log(f"Resolving item shortcut '{item_input}' in {location}, available items: {available_items}")
-        
-        # First, check if it's an exact match
-        if item_input in available_items:
-            return item_input
-        
-        # Check shortcuts
-        if item_input.lower() in shortcuts:
-            shortcut_items = shortcuts[item_input.lower()]
-            for shortcut_item in shortcut_items:
-                if shortcut_item in available_items:
-                    debug_log(f"Shortcut '{item_input}' resolved to '{shortcut_item}'")
-                    return shortcut_item
-        
-        # Check partial matches (starts with the input)
-        partial_matches = [item for item in available_items if item.lower().startswith(item_input.lower())]
-        if len(partial_matches) == 1:
-            debug_log(f"Partial match '{item_input}' resolved to '{partial_matches[0]}'")
-            return partial_matches[0]
-        elif len(partial_matches) > 1:
-            debug_log(f"Multiple partial matches for '{item_input}': {partial_matches}")
-            # For health items, prefer health_packet
-            if "health_packet" in partial_matches:
-                return "health_packet"
-            return partial_matches[0]  # Return first match as fallback
-        
-        # Check if input contains key words that match item names
-        for available_item in available_items:
-            if item_input.lower() in available_item.lower():
-                debug_log(f"Substring match '{item_input}' found in '{available_item}'")
-                return available_item
-        
-        debug_log(f"No match found for '{item_input}'")
-        return None
-
-    def _get_class_restriction_text(self, item):
-        """Get the class restriction text for display in error messages."""
-        for field in ("class_restriction", "allowed_classes"):
-            val = item.get(field)
-            if val:
-                return " or ".join(val) if isinstance(val, list) else str(val)
-        return "unknown"
-
-    def _handle_quit_confirmation(self, choice):
-        """Handle player's choice in quit confirmation."""
-        choice = choice.lower().strip()
-        
-        if choice == 'y':
-            # Save and quit
-            self.output.write("[cyan]Saving game...[/cyan]")
-            self.command_registry["save"].execute(self, [])
-            self._perform_quit()
-            
-        elif choice == 'n':
-            # Quit without saving
-            self.output.write("[yellow]Quitting without saving...[/yellow]")
-            self._perform_quit()
-            
-        elif choice == 'c':
-            # Cancel quit
-            self.output.write("[green]Quit cancelled. Continue your adventure![/green]")
-            self._in_quit_confirmation = False
-            
-        else:
-            # Invalid choice
-            self.output.write(f"[bold red]Invalid option: '{choice}'[/bold red]")
-            self.output.write("[bold white]Please choose:[/bold white] [green]y[/green] (save & quit), [yellow]n[/yellow] (quit without saving), [red]c[/red] (cancel)")
-
-    def _perform_quit(self):
-        """Actually quit the game.
-
-        Emits GAME_QUIT rather than calling exit(): the domain layer must not
-        tear the process down from inside a Textual event handler, or the driver
-        never gets to restore the terminal. The UI decides how to stop itself.
-        """
-        self.output.write("[yellow]Goodbye! Thanks for playing Haunted Terminal.[/yellow]")
-        self.output.write("[dim]The system spirits fade back into the digital void...[/dim]")
-        event_bus.emit_event(EventType.GAME_QUIT, {}, "CommandHandler")

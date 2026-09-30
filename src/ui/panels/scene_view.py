@@ -3,7 +3,10 @@ SceneView — the picture window. Explore mode: zone backdrop + NPC/enemy sprite
 Collapses to a one-line room strip when the terminal is too short for art.
 Rendering pipeline: SpriteStore (PIL) → compositor (PIL) → rich-pixels → Rich Group.
 """
+from __future__ import annotations
+
 import time
+from dataclasses import replace
 
 from rich.console import Group
 from rich.text import Text
@@ -20,9 +23,11 @@ from src.scene.effects import (
     lunge_offset,
 )
 from src.scene.sprite_store import SpriteStore, to_renderable
+from engine.view_models import CombatView, RoomView, StatsView
 
 MIN_SCENE_ROWS = 10        # below this, fall back to strip text
 SPRITE_MAX_PX = 24         # character sprites fit a 24×24 px box
+_NO_ROOM = RoomView(name="", description="")
 
 
 class SceneView(Static):
@@ -35,7 +40,7 @@ class SceneView(Static):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._store = SpriteStore()
-        self._room: dict | None = None
+        self._room: RoomView | None = None
         self._battle: dict | None = None
         self._ticker = None
         self._bob_timer = None
@@ -43,7 +48,7 @@ class SceneView(Static):
 
     # -- public API (called by TextualGameUI) --------------------------------
 
-    def show_explore(self, room: dict) -> None:
+    def show_explore(self, room: RoomView) -> None:
         self._room = room
         self._render_scene()
 
@@ -54,16 +59,18 @@ class SceneView(Static):
 
     # -- battle mode ----------------------------------------------------------
 
-    def show_battle(self, combat_view: dict, player_view: dict, reduce_motion: bool = False) -> None:
+    def show_battle(
+        self, combat_view: CombatView, player_view: StatsView | None, reduce_motion: bool = False
+    ) -> None:
         """Enter battle mode. Called once per combat (COMBAT_STARTED)."""
         self._battle = {
             "view": combat_view,
-            "player_name": player_view.get("player_name", "You"),
-            "player_class": player_view.get("player_class", ""),
+            "player_name": player_view.player_name if player_view else "You",
+            "player_class": player_view.player_class if player_view else "",
             "reduce_motion": reduce_motion,
             # displayed HP floats — drained smoothly toward the view's targets
-            "shown_player_hp": float(combat_view.get("player_health", 0)),
-            "shown_enemy_hp": float(combat_view.get("enemy_health", 0)),
+            "shown_player_hp": float(combat_view.player_health),
+            "shown_enemy_hp": float(combat_view.enemy_health),
             "fx_kind": None,      # "damage" | "heal"
             "fx_actor": None,     # "player" | "enemy"
             "fx_started": 0.0,
@@ -78,26 +85,26 @@ class SceneView(Static):
         if not reduce_motion and self._bob_timer is None:
             self._bob_timer = self.set_interval(0.2, self._bob_tick)
 
-    def update_battle(self, combat_view: dict) -> None:
+    def update_battle(self, combat_view: CombatView) -> None:
         """Per-turn frame update (COMBAT_FRAME_UPDATED): new HP targets."""
         if not self._battle:
             return
         b = self._battle
         prev = b["view"]
-        new_key = combat_view.get("enemy_id") or combat_view.get("enemy_name")
-        old_key = prev.get("enemy_id") or prev.get("enemy_name")
+        new_key = combat_view.enemy_id or combat_view.enemy_name
+        old_key = prev.enemy_id or prev.enemy_name
         if new_key != old_key:
             # Queue handoff: the next enemy walks in — fresh sprite, full bar.
             b["enemy_dead"] = False
-            b["shown_enemy_hp"] = float(combat_view.get("enemy_health", 0))
+            b["shown_enemy_hp"] = float(combat_view.enemy_health)
             b["pop_text"] = ""
             b["view"] = combat_view
             self._render_battle(self._bob_fx())
             return
         self._battle["view"] = combat_view
         if self._battle["reduce_motion"]:
-            self._battle["shown_player_hp"] = float(combat_view.get("player_health", 0))
-            self._battle["shown_enemy_hp"] = float(combat_view.get("enemy_health", 0))
+            self._battle["shown_player_hp"] = float(combat_view.player_health)
+            self._battle["shown_enemy_hp"] = float(combat_view.enemy_health)
             self._render_battle(FxState())
         else:
             self._ensure_ticker()
@@ -142,7 +149,7 @@ class SceneView(Static):
         if not self._battle:
             return
         b = self._battle
-        b["view"]["enemy_health"] = 0
+        b["view"] = replace(b["view"], enemy_health=0)
         b["enemy_dead"] = True
         if b["reduce_motion"]:
             b["shown_enemy_hp"] = 0.0
@@ -203,14 +210,14 @@ class SceneView(Static):
 
     def _render_finale(self, brightness: float) -> None:
         from PIL import ImageEnhance
-        room = self._room or {}
+        room = self._room or _NO_ROOM
         w_cells = max(20, self.content_size.width or 60)
         h_rows = self.content_size.height or 0
         if h_rows < MIN_SCENE_ROWS:
             self.update(Text.from_markup("[bold green]✨ The corruption lifts.[/bold green]"))
             return
         img_w, img_h = w_cells, h_rows * 2
-        backdrop = self._store.get_backdrop(room.get("id", ""), room.get("zone", ""), img_w, img_h)
+        backdrop = self._store.get_backdrop(room.id, room.zone, img_w, img_h)
         # Normalized against the install-time 0.62 dim: 1.15 reads "cleaner than ever".
         bright = ImageEnhance.Brightness(backdrop).enhance(brightness / 0.62)
         self.update(to_renderable(bright))
@@ -262,8 +269,8 @@ class SceneView(Static):
         view = b["view"]
 
         # HP drain toward targets
-        b["shown_player_hp"] = approach(b["shown_player_hp"], float(view.get("player_health", 0)), dt)
-        b["shown_enemy_hp"] = approach(b["shown_enemy_hp"], float(view.get("enemy_health", 0)), dt)
+        b["shown_player_hp"] = approach(b["shown_player_hp"], float(view.player_health), dt)
+        b["shown_enemy_hp"] = approach(b["shown_enemy_hp"], float(view.enemy_health), dt)
 
         # Active lunge/flash
         fx = FxState()
@@ -286,8 +293,8 @@ class SceneView(Static):
 
         # Idle again? stop burning CPU.
         hp_settled = (
-            b["shown_player_hp"] == float(view.get("player_health", 0))
-            and b["shown_enemy_hp"] == float(view.get("enemy_health", 0))
+            b["shown_player_hp"] == float(view.player_health)
+            and b["shown_enemy_hp"] == float(view.enemy_health)
         )
         if hp_settled and not b["fx_kind"] and not b["pop_text"]:
             self._stop_ticker()
@@ -297,29 +304,29 @@ class SceneView(Static):
         if not b:
             return
         view = b["view"]
-        room = self._room or {}
+        room = self._room or _NO_ROOM
 
         w_cells = max(20, self.content_size.width or 60)
         h_rows = self.content_size.height or 0
         if h_rows < MIN_SCENE_ROWS:
             self.update(Text.from_markup(
-                f"[bold red]⚔ {view.get('enemy_name', '?')}[/bold red] "
-                f"{int(b['shown_enemy_hp'])}/{view.get('enemy_max_health', 0)}"
+                f"[bold red]⚔ {view.enemy_name}[/bold red] "
+                f"{int(b['shown_enemy_hp'])}/{view.enemy_max_health}"
                 f"  vs  [bold green]{b['player_name']}[/bold green] "
-                f"{int(b['shown_player_hp'])}/{view.get('player_max_health', 0)}"
+                f"{int(b['shown_player_hp'])}/{view.player_max_health}"
             ))
             return
 
         # Two text rows (nameplates) + image
         img_w, img_h = w_cells, (h_rows - 2) * 2
-        backdrop = self._store.get_backdrop(room.get("id", ""), room.get("zone", ""), img_w, img_h)
+        backdrop = self._store.get_backdrop(room.id, room.zone, img_w, img_h)
         enemy_gone = b.get("enemy_dead") and b["shown_enemy_hp"] < 0.5
         if enemy_gone:
             from PIL import Image as _Image
             enemy_img = _Image.new("RGBA", (1, 1), (0, 0, 0, 0))   # vanished
         else:
             enemy_img = self._store.get_sprite(
-                "enemies", view.get("enemy_id") or view.get("enemy_name", "?"),
+                "enemies", view.enemy_id or view.enemy_name,
                 SPRITE_MAX_PX, SPRITE_MAX_PX,
             )
         player_img = self._store.get_sprite("classes", b["player_class"], SPRITE_MAX_PX, SPRITE_MAX_PX)
@@ -328,14 +335,14 @@ class SceneView(Static):
 
         pop = b["pop_text"]  # expiry is handled by the ticker / _clear_pop
         if enemy_gone:
-            enemy_line = f"[dim]💀 {view.get('enemy_name', '?').upper()} — defeated[/dim]"
+            enemy_line = f"[dim]💀 {view.enemy_name.upper()} — defeated[/dim]"
         else:
             enemy_line = nameplate(
-                view.get("enemy_name", "?"), int(b["shown_enemy_hp"]), view.get("enemy_max_health", 1),
+                view.enemy_name, int(b["shown_enemy_hp"]), view.enemy_max_health,
                 icon="💀", pop=pop if b["pop_target"] == "enemy" else "",
             )
         player_line = nameplate(
-            b["player_name"], int(b["shown_player_hp"]), view.get("player_max_health", 1),
+            b["player_name"], int(b["shown_player_hp"]), view.player_max_health,
             icon=self._CLASS_ICONS.get(b["player_class"], "🧙"), pop=pop if b["pop_target"] == "player" else "",
         )
         self.update(Group(
@@ -353,9 +360,9 @@ class SceneView(Static):
             self._render_scene()
 
     def _render_scene(self) -> None:
-        room = self._room or {}
-        name = room.get("name", "")
-        exits = room.get("exits", [])
+        room = self._room or _NO_ROOM
+        name = room.name
+        exits = room.exits
         self.border_title = f"🏠 {name}"
         self.border_subtitle = "  ".join(f"→ {e}" for e in exits) or "no exits"
 
@@ -367,14 +374,14 @@ class SceneView(Static):
 
         # 1 cell = 1 px wide × 2 px tall; reserve 1 row for the caption line
         img_w, img_h = w_cells, (h_rows - 1) * 2
-        backdrop = self._store.get_backdrop(room.get("id", ""), room.get("zone", ""), img_w, img_h)
+        backdrop = self._store.get_backdrop(room.id, room.zone, img_w, img_h)
 
         entities = [
             Placed(self._store.get_sprite("npcs", nid, SPRITE_MAX_PX, SPRITE_MAX_PX), nname, "npc")
-            for nid, nname in zip(room.get("npc_ids", []), room.get("npcs", []))
+            for nid, nname in zip(room.npc_ids, room.npcs)
         ] + [
             Placed(self._store.get_sprite("enemies", eid, SPRITE_MAX_PX, SPRITE_MAX_PX), ename, "enemy")
-            for eid, ename in zip(room.get("enemy_ids", []), room.get("enemies", []))
+            for eid, ename in zip(room.enemy_ids, room.enemies)
         ]
 
         img, caption = compose_explore(backdrop, entities)
@@ -383,12 +390,12 @@ class SceneView(Static):
         self.update(Group(*parts))
 
     @staticmethod
-    def _strip_fallback(room: dict) -> Text:
+    def _strip_fallback(room: RoomView) -> Text:
         """One-line summary for short terminals (the old strips' job)."""
         bits = []
-        for n in room.get("npcs", []):
+        for n in room.npcs:
             bits.append(f"[bold magenta]👤 {n}[/bold magenta]")
-        for n in room.get("enemies", []):
+        for n in room.enemies:
             bits.append(f"[bold red]💀 {n}[/bold red]")
         present = ("   " + "  ".join(bits)) if bits else ""
         return Text.from_markup(f"[dim]scene needs a taller terminal[/dim]{present}")

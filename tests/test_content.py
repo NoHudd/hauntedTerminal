@@ -18,6 +18,7 @@ from engine.content import (
     load_all,
 )
 from engine.schema import DanglingReferenceError, Room
+from src import room_paths
 
 START_ROOM = "home_grove"
 
@@ -32,7 +33,7 @@ def content() -> GameContent:
 def test_all_content_loads(content: GameContent) -> None:
     assert len(content.rooms) == 18
     assert len(content.classes) == 3
-    assert len(content.enemies) == 24
+    assert len(content.enemies) == 27
     assert content.items and content.npcs and content.abilities and content.attacks
 
 
@@ -127,24 +128,64 @@ def test_advisory_warnings_match_known_findings(content: GameContent) -> None:
     assert not unexpected, f"new advisory dangling refs: {sorted(unexpected)}"
 
 
-@pytest.mark.xfail(
-    reason="mirror_sector is hidden but has no exit, discovery rule, or cd alias "
-    "into it — genuinely unreachable content. Design decision pending.",
-    strict=True,
-)
-def test_mirror_sector_is_reachable_somehow(content: GameContent) -> None:
-    # Documents the known unreachable-content finding. Flips to a real pass once
-    # an entry path is added (or delete this test if mirror_sector is cut).
-    assert "mirror_sector" in _reachable(content)
+def test_hidden_rooms_reachable_via_path_tree(content: GameContent) -> None:
+    """Hidden rooms are not entered through `exits` — `cd` walks the path tree.
+
+    A hidden room is reachable when its parent directory is itself reachable,
+    since `ls -a` in the parent reveals the child. Guarding the parent link is
+    what catches a reparented or orphaned room.
+    """
+    reachable = _reachable(content)
+    by_path = {room.path: rid for rid, room in content.rooms.items()}
+
+    stranded = []
+    for rid, room in content.rooms.items():
+        if not room.hidden or rid in reachable:
+            continue
+        parent = by_path.get(room_paths.parent_path(room.path))
+        if parent is None or (parent not in reachable and not content.rooms[parent].hidden):
+            stranded.append(rid)
+
+    assert stranded == [], f"hidden rooms with no reachable parent directory: {stranded}"
+
+
+def test_discovery_requirements_are_granted_by_a_reachable_npc(
+    content: GameContent,
+) -> None:
+    """A `discovery_requirement` flag must be grantable, or the room is sealed.
+
+    mirror_sector (/proc/self, the Sudo Trial) is the live case: `ls -a` hides it
+    until `sudo_quest_active` is set, and only the Process Scheduler in /proc
+    sets it. If that NPC loses the flag or moves somewhere unreachable, the room
+    becomes permanently unenterable — which is what this fences.
+    """
+    reachable = _reachable(content)
+    granted: set[str] = set()
+    for rid, room in content.rooms.items():
+        if rid not in reachable:
+            continue
+        for npc_id in room.npcs or []:
+            npc = content.npcs.get(npc_id)
+            on_talk = getattr(npc, "on_talk", None) if npc else None
+            flag = (on_talk or {}).get("story_flag") if on_talk else None
+            if flag:
+                granted.add(flag)
+
+    ungrantable = sorted(
+        f"{rid} needs '{req}'"
+        for rid, room in content.rooms.items()
+        if (req := getattr(room, "discovery_requirement", None)) and req not in granted
+    )
+    assert ungrantable == [], f"discovery_requirement never granted: {ungrantable}"
 
 
 # --- C1: flat item files ----------------------------------------------------
 
-def test_items_load_flat_and_count_41() -> None:
+def test_items_load_flat_and_count_53() -> None:
     from engine.content.loader import load_items
 
     items = load_items("data")
-    assert len(items) == 41, len(items)
+    assert len(items) == 53, len(items)  # 44 + motd/.flag + 5 logs + 3 notes - master_key
     # every item carries an explicit type (no wrapper-derived category)
     assert all(getattr(i, "type", None) for i in items.values())
 

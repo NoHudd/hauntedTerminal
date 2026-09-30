@@ -43,3 +43,10 @@ boss_room: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/proc/self"
 aliases: ["/proc/self", "/mirror", "mirror"]
+
+flag:
+  via: defeat
+  enemy: shadow_process
+  text: "FLAG{you_were_root_all_along}"
+  nudge: "Your shadow holds this flag."
+  command: "[bold]defeat your shadow[/bold]"

@@ -1,0 +1,14 @@
+name: runaway_fork.bomb
+short_description: A fork bomb that keeps copying itself
+description: A process that forked and never stopped. Weak alone — there is just so much of it.
+health: 20
+damage: 2
+is_boss: false
+auto_attack: true
+dialogue: "fork() fork() fork() fork()..."
+drops: []
+on_defeat:
+  message: The last copy exits. The CPU fan finally slows.
+tier: 1
+pool_excluded: true  # rogue process: only `kill 1337` in /proc brings it out
+experience: 8

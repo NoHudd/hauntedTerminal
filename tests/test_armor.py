@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import pytest
 
+from engine.schema import Item
 from src.player import ARMOR_DEFENSE_TO_PCT, ARMOR_MITIGATION_CAP, Player
 
 
 def _guardian_with(item_id: str, defense: int) -> Player:
     p = Player("Tester", "guardian")
-    p.add_to_inventory(item_id, {"type": "armor", "defense": defense})
+    p.add_to_inventory(item_id, Item(name=item_id, type="armor", defense=defense))
     return p
 
 
@@ -59,7 +60,7 @@ def test_equip_command_equips_armor() -> None:
     try:
         h = s.engine.cmd_handler
         armor_data = h.world.items["immutable_shield"]  # guardian-usable rare armor
-        h.player.add_to_inventory("immutable_shield", dict(armor_data))
+        h.player.add_to_inventory("immutable_shield", armor_data.model_copy())
         s.submit("equip immutable_shield")
         assert h.player.equipped_armor == "immutable_shield"
         assert h.player.armor_mitigation > 0

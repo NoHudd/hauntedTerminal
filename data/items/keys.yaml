@@ -16,28 +16,6 @@ lib_key:
   on_use:
     message: The key glows with arcane energy, waiting to be used at the proper location.
 
-master_key:
-  name: Master Key
-  short_description: A master key for the core system
-  description: A digital master key that can unlock the core system directory. It's heavily encrypted and seems to be one-use only.
-  takeable: true
-  usable: true
-  type: "key"
-  unlocks: ["core"]
-  max_spawn: 1
-  allowed_rooms:
-    - archive
-  rarity: unique
-  only_in_unlocked: false
-  consumable: true
-  consumed_on_take: true
-  on_take:
-    message: As you take the master key, you feel the weight of its importance. The system itself seems to acknowledge its power.
-  on_use:
-    message: The master key pulses with intense energy as it interfaces with the core system lock.
-  on_examine:
-    message: This is the legendary master key, capable of unlocking the corrupted core. It can only be used once as it will dissolve into the lock mechanism.
-
 system_badge:
   name: System Badge
   short_description: An administrative access badge
@@ -58,8 +36,8 @@ system_badge:
     
 opt_key:
   name: "Optional Access Key"
-  description: "A powerful key that unlocks access to class-restricted areas like the mage tower and warrior tomb."
-  short_description: A key for accessing optional class-specific areas
+  description: "A heavy key handed out by the Arcane Library's flag. It opens /srv, the Warrior Tomb, and a secret directory not yet found."
+  short_description: Opens /srv, the Warrior Tomb
   type: "key"
   takeable: true
   usable: true
@@ -77,8 +55,8 @@ opt_key:
 # Great Kernel Panic Story Keys
 chmod_key:
   name: "chmod Key"
-  description: "A crystallized permission modifier. The Firewall Knight will recognize this as proof of your authority."
-  short_description: A key that grants permission to pass the Firewall Knight
+  description: "A crystallized permission modifier handed out by the Memory Banks' flag. It opens /etc, where the Firewall Knight guards the way to /boot."
+  short_description: Opens /etc, the Kernel Gate
   type: "key"
   takeable: true
   usable: true

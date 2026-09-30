@@ -33,8 +33,9 @@ def test_class_selection_renders_from_typed_display():
     from engine.api import GameSession
     s = GameSession()
     try:
-        s.ui.drain()
-        s.engine._show_class_selection()
-        assert s.ui.drain(), "class selection produced no output"
+        s.submit("1")  # New Game -> difficulty picker
+        out = s.submit("2")  # medium -> class selection
+        assert out, "class selection produced no output"
+        assert s.state.value == "waiting_for_class"
     finally:
         s.close()

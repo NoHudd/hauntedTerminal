@@ -11,7 +11,12 @@ broken reference in one run rather than fixing them one crash at a time.
 """
 from __future__ import annotations
 
-from engine.schema import DanglingReferenceError
+from collections.abc import Mapping
+from typing import Any
+
+from pydantic import BaseModel
+
+from engine.schema import DanglingReferenceError, RoomId
 
 from .world import GameContent
 
@@ -48,6 +53,7 @@ def find_broken_references(content: GameContent) -> list[str]:
 
     for cid, klass in content.classes.items():
         check(klass.starter_weapon, items, f"class '{cid}' starter_weapon", "item")
+        check(klass.starter_armor, items, f"class '{cid}' starter_armor", "item")
         for ability_ref in klass.starter_abilities:
             check(ability_ref, abilities, f"class '{cid}' starter_abilities", "ability")
         for attack_ref in klass.attacks:
@@ -153,6 +159,235 @@ def find_reference_warnings(content: GameContent) -> list[str]:
                 f"npc '{nid}' location: references unknown room '{npc.location}'"
             )
     return warnings
+
+
+def _room_lookup(content: GameContent) -> dict[str, str]:
+    """Every string a key may use for a room (id, path, alias) -> room id."""
+    table: dict[str, str] = {}
+    for rid, room in content.rooms.items():
+        table[str(rid).lower()] = str(rid)
+        if room.path:
+            table[room.path.lower()] = str(rid)
+        for alias in room.aliases:
+            table[alias.lower()] = str(rid)
+    return table
+
+
+def find_lock_problems(content: GameContent) -> list[str]:
+    """Keys and locks must agree (empty == clean).
+
+    A lock with no key can never open; a key whose ``unlocks`` misses the room
+    that asks for it opens nothing on ``use``; a key that claims a room guarded
+    by a different key is lying to the player. The reference checks above only
+    prove these ids exist, not that they point at each other.
+    """
+    problems: list[str] = []
+    lookup = _room_lookup(content)
+    for rid, room in content.rooms.items():
+        if room.locked and not room.key_required:
+            problems.append(f"room '{rid}': locked, but names no key_required")
+        if room.key_required and not room.locked:
+            problems.append(
+                f"room '{rid}': key_required '{room.key_required}', but it is not locked"
+            )
+        key = content.items.get(room.key_required) if room.key_required else None
+        if key is None:
+            continue  # a dangling key_required is find_broken_references' job
+        if key.type != "key":
+            problems.append(
+                f"room '{rid}': key_required '{room.key_required}' is a {key.type}, not a key"
+            )
+        opens = {lookup.get(str(target).lower(), str(target)) for target in key.unlocks}
+        if str(rid) not in opens:
+            problems.append(
+                f"room '{rid}': needs '{room.key_required}', but that key's unlocks "
+                "does not list it"
+            )
+    for iid, item in content.items.items():
+        for target in item.unlocks:
+            target_id = lookup.get(str(target).lower())
+            if target_id is None:
+                continue  # an unknown room is reported by find_reference_warnings
+            guard = content.rooms[RoomId(target_id)].key_required
+            if guard != iid:
+                problems.append(
+                    f"item '{iid}': unlocks '{target}', which "
+                    + (f"requires '{guard}' instead" if guard else "has no lock")
+                )
+    return problems
+
+
+# Content fields no code reads yet. The schema declares every field the game
+# reads, so an undeclared field is authored intent the game ignores — the
+# "phantom reward" bug class. These are known and accepted for now; anything
+# else undeclared fails validation, as does an entry here that no content uses.
+UNIMPLEMENTED_FIELDS: dict[str, frozenset[str]] = {
+    "room": frozenset({
+        "boss_room", "class_affinity", "easter_egg_trigger", "easter_egg_zone",
+        "final_confrontation", "gate_guardian", "level_requirement",
+        "special_event", "story_beats", "story_location", "visibility_requirement",
+    }),
+    "item": frozenset({
+        "auto_trigger", "consumed_on_take", "max_uses_per_run",
+        "readable", "trigger_condition", "triggers_npc_spawn",
+    }),
+    "enemy": frozenset({
+        "level_requirement", "loot", "on_defeat", "resistances", "weaknesses",
+    }),
+    "npc": frozenset({
+        "awakening_guide", "detailed_description", "easter_egg_npc", "gate_guardian",
+        "grants_unique_item", "helpful_guide", "hostile", "interaction_hints",
+        "lore_guide", "merchant", "requires_key", "story_npc", "unlocks_room",
+    }),
+}
+
+
+def find_flag_problems(content: GameContent) -> list[str]:
+    """Room flags must be findable (empty == clean): the flag file must be an
+    item placed in that room, the text must carry FLAG{...}, and a beginner
+    must be told what to type."""
+    problems: list[str] = []
+    for rid, room in content.rooms.items():
+        flag = room.flag
+        if flag is None:
+            continue
+        if flag.via in ("cat", "grep"):
+            if flag.file is None:
+                problems.append(f"room '{rid}': a {flag.via} flag needs a file")
+            elif flag.file not in content.items:
+                problems.append(f"room '{rid}': flag file '{flag.file}' is not an item")
+            elif flag.file not in room.items:
+                problems.append(
+                    f"room '{rid}': flag file '{flag.file}' is not in this room's items"
+                )
+        if flag.via in ("kill", "defeat"):
+            enemy = content.enemies.get(flag.enemy) if flag.enemy else None
+            if enemy is None:
+                problems.append(f"room '{rid}': {flag.via} flag names no known enemy")
+            elif flag.via == "defeat" and flag.enemy not in room.enemies:
+                problems.append(
+                    f"room '{rid}': defeat flag enemy '{flag.enemy}' is not in its enemies"
+                )
+            elif flag.via == "kill":
+                if flag.pid <= 1 or not flag.process.strip():
+                    problems.append(f"room '{rid}': kill flag needs a pid > 1 and a process")
+                if flag.enemy in room.enemies or not enemy.pool_excluded:
+                    problems.append(
+                        f"room '{rid}': rogue '{flag.enemy}' must be pool_excluded and "
+                        "not already in the room's enemies"
+                    )
+        if "FLAG{" not in flag.text:
+            problems.append(f"room '{rid}': flag text has no FLAG{{...}}")
+        if not flag.nudge.strip() or not flag.command.strip():
+            problems.append(f"room '{rid}': flag needs both a nudge and a command")
+        if flag.via not in ("cat", "grep", "kill", "defeat"):
+            problems.append(
+                f"room '{rid}': flag via '{flag.via}' is not cat, grep, kill or defeat"
+            )
+        if flag.via == "grep":
+            item = content.items.get(flag.file) if flag.file else None
+            if item is None or item.log is None:
+                problems.append(f"room '{rid}': grep flag file '{flag.file}' has no log")
+            elif flag.text not in item.log.flag_line:
+                problems.append(
+                    f"room '{rid}': flag text is not in '{flag.file}''s log flag_line"
+                )
+    main_flags = [
+        rid for rid, room in content.rooms.items()
+        if room.flag is not None and not room.hidden
+    ]
+    for rid, room in content.rooms.items():
+        if room.flags_required:
+            available = len([r for r in main_flags if r != rid])
+            if room.flags_required > available:
+                problems.append(
+                    f"room '{rid}': needs {room.flags_required} flags but only "
+                    f"{available} main flags exist outside it"
+                )
+    return problems
+
+
+def find_key_chain_problems(content: GameContent) -> list[str]:
+    """Flag-granted keys must be keys, and walking the chain from the start
+    must reach enough main flags to open every flag-gated room (empty ==
+    clean). Only non-hidden rooms count; boss drops are not relied on."""
+    problems: list[str] = []
+    grants: dict[str, str] = {}
+    for rid, room in content.rooms.items():
+        grant = room.flag.grants if room.flag is not None else None
+        if grant is None:
+            continue
+        item = content.items.get(grant)
+        if item is None or item.type != "key":
+            problems.append(f"room '{rid}': flag grants '{grant}', which is not a key")
+        grants[str(rid)] = str(grant)
+
+    by_path = {room.path: str(rid) for rid, room in content.rooms.items() if room.path}
+
+    def path_open(rid: str, held: set[str]) -> bool:
+        path = content.rooms[RoomId(rid)].path
+        while True:
+            owner = by_path.get(path)
+            if owner is not None:
+                room = content.rooms[RoomId(owner)]
+                if room.flags_required:
+                    return False
+                if room.locked and room.key_required not in held:
+                    return False
+            if path in ("/", ""):
+                return True
+            path = _parent_of(path)
+
+    held: set[str] = set()
+    while True:
+        open_rooms = [
+            str(rid) for rid, room in content.rooms.items()
+            if not room.hidden and path_open(str(rid), held)
+        ]
+        gained = {grants[r] for r in open_rooms if r in grants} - held
+        if not gained:
+            break
+        held |= gained
+
+    flags = len([r for r in open_rooms if content.rooms[RoomId(r)].flag is not None])
+    for rid, room in content.rooms.items():
+        if room.flags_required and flags < room.flags_required:
+            problems.append(
+                f"room '{rid}': needs {room.flags_required} flags but the key chain "
+                f"reaches only {flags} main flag rooms"
+            )
+    return problems
+
+
+def find_unread_fields(content: GameContent) -> list[str]:
+    """Undeclared content fields outside UNIMPLEMENTED_FIELDS (empty == clean)."""
+    sections: list[tuple[str, Mapping[Any, BaseModel]]] = [
+        ("room", content.rooms),
+        ("item", content.items),
+        ("enemy", content.enemies),
+        ("npc", content.npcs),
+        ("class", content.classes),
+        ("ability", content.abilities),
+        ("attack", content.attacks),
+    ]
+    problems: list[str] = []
+    for kind, entries in sections:
+        accepted = UNIMPLEMENTED_FIELDS.get(kind, frozenset())
+        used: set[str] = set()
+        for eid, model in entries.items():
+            for name in model.model_extra or {}:
+                used.add(name)
+                if name not in accepted:
+                    problems.append(
+                        f"{kind} '{eid}': field '{name}' is not in the schema, so no "
+                        "code reads it (declare it in engine/schema/models.py when "
+                        "the game uses it)"
+                    )
+        for stale in sorted(accepted - used):
+            problems.append(
+                f"UNIMPLEMENTED_FIELDS['{kind}'] lists '{stale}', but no {kind} uses it"
+            )
+    return problems
 
 
 def link(content: GameContent) -> GameContent:

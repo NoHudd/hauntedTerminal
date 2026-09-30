@@ -14,10 +14,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.events import EventType, event_bus
+from engine.events import EventBus, EventType
 from src.game_engine import ImprovedGameEngine
 from src.game_states import GameState
-from src.state_manager import state_manager
 
 from .headless import HeadlessUI
 
@@ -44,9 +43,9 @@ class GameSession:
     def submit(self, command: str) -> list[str]:
         """Run one command through the engine; return the text it produced."""
         self.ui.clear_console()
-        event_bus.emit_event(
+        self.bus.emit_event(
             EventType.COMMAND_ENTERED,
-            {"command": command, "game_state": state_manager.current_state},
+            {"command": command},
             "GameSession",
         )
         return self.ui.drain()
@@ -62,8 +61,15 @@ class GameSession:
         return self.engine.world
 
     @property
+    def bus(self) -> EventBus:
+        """This session's own event bus — nothing outside the session hears it."""
+        bus: EventBus = self.engine.bus
+        return bus
+
+    @property
     def state(self) -> GameState:
-        return state_manager.current_state
+        state: GameState = self.engine.state_manager.current_state
+        return state
 
     def close(self) -> None:
         self.engine._cleanup()

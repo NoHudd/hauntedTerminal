@@ -1,3 +1,42 @@
+# STARTER ARMOR — one per class, placed in /home at character creation.
+# Deliberately junk (defense 2 = 3% less damage): it exists so the tutorial can
+# teach `equip` for armor and the Defense stat; any armor found later is better.
+cracked_firewall:
+  name: "Cracked Firewall"
+  description: "A firewall ruleset with more holes than rules. It stops almost nothing, but almost is not nothing."
+  type: "armor"
+  defense: 2
+  allowed_classes:
+    - guardian
+  rarity: common
+  tags: ["armor", "starter"]
+  allowed_zones: ["home"]
+  persistence: "persistent"
+
+threadbare_buffer:
+  name: "Threadbare Buffer"
+  description: "A thin buffer woven from leftover threads. It overflows at the first hit, but it beats bare memory."
+  type: "armor"
+  defense: 2
+  allowed_classes:
+    - weaver
+  rarity: common
+  tags: ["armor", "starter"]
+  allowed_zones: ["home"]
+  persistence: "persistent"
+
+frayed_mantra_cloth:
+  name: "Frayed Mantra Cloth"
+  description: "A cloth once chanted with protective mantras. Most of the words have worn away."
+  type: "armor"
+  defense: 2
+  allowed_classes:
+    - shaman
+  rarity: common
+  tags: ["armor", "starter"]
+  allowed_zones: ["home"]
+  persistence: "persistent"
+
 # UNCOMMON ARMOR
 firewall_mantle:
   name: "Firewall Mantle"
@@ -70,7 +109,7 @@ null_void_cloak:
     - shaman
   rarity: epic
   tags: ["armor", "cloak", "evasion", "void"]
-  allowed_zones: ["dev", "root"]
+  allowed_zones: ["dev", "etc", "opt", "srv"]
   persistence: "persistent"
   special_effects:
     - type: "evasion_boost"
@@ -117,5 +156,5 @@ aegis_partition:
     - guardian
   rarity: epic
   tags: ["armor", "partition", "bulwark"]
-  allowed_zones: ["dev", "root"]
+  allowed_zones: ["dev", "etc", "opt", "srv"]
   persistence: "persistent"

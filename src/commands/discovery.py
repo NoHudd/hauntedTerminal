@@ -20,35 +20,27 @@ class FindCommand(Command):
 
     def execute(self, ctx: "CommandHandler", args: list[str]) -> None:
         if not args:
-            ctx.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
+            ctx.output.write("[yellow]Usage: find <path> -name <pattern>[/yellow]")
             return
 
         if len(args) >= 3 and args[1] == "-name":
             path = args[0]
             pattern = args[2]
 
-            if path == "/dev" and pattern == "null":
-                if ctx.player.current_room == "bin_armory":
-                    if ctx.world.discover_room("dev_null_void"):
-                        ctx.output.write("[bold green]Found: /dev/null_void[/bold green]")
-                        ctx.output.write(
-                            "A mysterious void where deleted data accumulates..."
-                        )
-                        ctx.output.write(
-                            "[yellow]You can now access it with: cd dev_null_void[/yellow]"
-                        )
-                    else:
-                        ctx.output.write(
-                            "[dim]Found: /dev/null_void (already discovered)[/dim]"
-                        )
-                else:
-                    ctx.output.write(
-                        "[red]find: '/dev': No such file or directory[/red]"
-                    )
+            # /dev exists for find only once the player can see its door: a
+            # locked /dev stays hidden until the Sudo Privileges Badge reveals it.
+            dev_visible = (
+                ctx.world.is_discovered("dev_null_void")
+                and ctx.world.door_visible("dev_null_void")
+            )
+            if path == "/dev" and pattern == "null" and dev_visible:
+                ctx.output.write("[bold green]Found: /dev/null[/bold green]")
+                ctx.output.write("A mysterious void where deleted data accumulates...")
+                ctx.output.write("[yellow]Go there with: [bold]cd /dev[/bold][/yellow]")
             else:
                 ctx.output.write(f"[red]find: '{path}': No such file or directory[/red]")
         else:
-            ctx.output.write("[yellow]Usage: find [path] -name [pattern][/yellow]")
+            ctx.output.write("[yellow]Usage: find <path> -name <pattern>[/yellow]")
 
 
 class PsCommand(Command):
@@ -59,7 +51,7 @@ class PsCommand(Command):
             lines = [
                 "PID  PPID  CMD",
                 "  1     0  /sbin/init",
-                " 42     1  [mount_daemon]",
+                " 42     1  \\[mount_daemon]",
                 "127     1  /proc/secrets_handler",
                 "...",
             ]
@@ -75,7 +67,14 @@ class PsCommand(Command):
             lines = [
                 "PID  PPID  CMD",
                 "  1     0  /sbin/init",
-                " 23     1  [kthreadd]",
-                " 42     1  [ksoftirqd/0]",
+                " 23     1  \\[kthreadd]",
+                " 42     1  \\[ksoftirqd/0]",
             ]
+        rogue = ctx.flags.rogue_process()
+        if rogue is not None:
+            pid, process = rogue
+            lines.append(
+                f"{pid:>5}     1  {process}   [bold red]← 99.9% CPU[/bold red]"
+            )
         ctx.output.write("\n".join(lines))
+        ctx.tutorial.after_ps()

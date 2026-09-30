@@ -39,3 +39,9 @@ easter_egg_zone: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/usr/games"
 aliases: ["/usr/games", "/usr/share", "/usr/share/games", "share", "games"]
+
+flag:
+  file: cow_wisdom_log
+  text: "FLAG{even_cows_have_wisdom}"
+  nudge: "Somebody hid a log of cow wisdom here."
+  command: "[bold]ls -a[/bold], then [bold]cat .cow_wisdom_log[/bold]"

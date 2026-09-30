@@ -15,8 +15,8 @@
 }
 
 #sidebar {
-    /* Vertical flow: inventory sizes to its contents (scrolls past 60%),
-       stats sits right below it and grows with its own content. */
+    /* Vertical flow: inventory fills the top and scrolls; Stats and
+       Character sit below it, each sized to its own content. */
     layout: vertical;
     height: 100%;
     width: 1fr;
@@ -30,20 +30,29 @@
 .intro-mode #sidebar { display: none; }
 .intro-mode #scene-view { display: none; }
 .intro-mode #input-field { display: none; }
+.intro-mode #echo-panel { display: none; }
 
 /* Selection mode (difficulty / class / name entry): the game panels carry no
    information yet — give the output panel the whole screen, keep the input. */
 .selection-mode #sidebar { display: none; }
 .selection-mode #scene-view { display: none; }
 .selection-mode #main-area { width: 1fr; }
+.selection-mode #echo-panel { display: none; }
 
-/* Name entry etc.: center the prose block like the title screen does. */
+/* Name entry, tutorial offer etc.: a single centered card, like the title
+   screen. The panel centers its child; the child sizes to its text. */
 .selection-mode #output-panel {
-    padding: 2 6;
+    align: center middle;
+    padding: 1 2;
 }
 .selection-mode #output-display {
-    width: 100%;
-    content-align: center middle;
+    width: 84;
+    max-width: 100%;
+    height: auto;
+    text-align: center;
+    border: round $success;
+    background: $success 6%;
+    padding: 1 4;
 }
 
 .intro-mode #main-area {
@@ -78,10 +87,10 @@
 #inventory-panel {
     border: round $warning;
     padding: 1 2;
-    /* Grows with its contents; caps at 65% of the sidebar and scrolls past
-       that so the stats panel always stays on screen below it. */
-    height: auto;
-    max-height: 65%;
+    /* Takes whatever Stats and Character leave, and scrolls past that, so
+       the two panels below always stay whole on screen. */
+    height: 1fr;
+    min-height: 6;
     overflow-y: auto;
     scrollbar-size-vertical: 1;
 }
@@ -90,6 +99,13 @@
     border: round $success;
     padding: 1 2;
     /* Flows directly below the inventory, sized to its own content. */
+    height: auto;
+}
+
+#character-panel {
+    border: round $accent;
+    padding: 0 1;
+    /* Below Stats: the player's model and gear. Sized to its content. */
     height: auto;
 }
 
@@ -214,6 +230,23 @@
 Footer {
     background: $primary-darken-3;
     color: white;
+}
+
+#echo-panel {
+    border: heavy $success;
+    border-title-style: bold;
+    border-title-color: $success;
+    background: $success 10%;
+    height: auto;
+    max-height: 8;
+    padding: 0 1;
+}
+
+/* The tutorial just started: pulse the panel so the player finds it. */
+#echo-panel.echo-flash {
+    border: heavy $warning;
+    border-title-color: $warning;
+    background: $warning 30%;
 }
 
 #input-field {

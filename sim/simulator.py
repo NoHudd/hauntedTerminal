@@ -14,9 +14,10 @@ from dataclasses import dataclass
 
 import yaml
 
+from engine.schema import Enemy
 from src import difficulty, rng
 from src.combat import combat_system
-from src.data_loader import load_class_data, load_enemy_data, load_room_data, load_weapon_data
+from src.data_loader import load_class_data, load_enemy_data, load_item, load_room_data
 from src.game_world import GameWorld
 from src.player import Player
 
@@ -41,6 +42,24 @@ SIM_OBTAINABLE_RARITIES = {"common", "uncommon", "rare", "epic"}
 
 # Consumable ids that restore HP, with the amount (from data/items/consumables.yaml).
 _HEAL_ITEMS = {"health_packet": 30, "stable_cache": 40}
+
+# Main-path flags a player holds by the Overlord fight (/boot's own flag is
+# captured by winning it, so it never feeds the fight).
+MAIN_FLAGS_BEFORE_BOSS = 12
+
+
+def flag_xp_schedule(n_fights: int, n_flags: int, xp_per_flag: int) -> list[int]:
+    """Flag XP to award after each fight, spreading n_flags evenly across the
+    run so every flag's XP has landed by the last fight."""
+    if n_fights <= 0:
+        return []
+    schedule = []
+    awarded = 0
+    for i in range(n_fights):
+        due = round(n_flags * (i + 1) / n_fights)
+        schedule.append((due - awarded) * xp_per_flag)
+        awarded = due
+    return schedule
 
 
 @dataclass
@@ -82,14 +101,6 @@ def _class_weapons(class_id: str) -> tuple[tuple[str, int], ...]:
     return tuple(usable)
 
 
-def _armor_data(armor_id: str) -> dict | None:
-    try:
-        with open("data/items/armor.yaml") as fh:
-            return (yaml.safe_load(fh) or {}).get(armor_id)
-    except Exception:
-        return None
-
-
 def _class_armor(class_id: str) -> tuple[tuple[str, int], ...]:
     """(armor_id, defense) obtainable by the class, ascending by defense.
 
@@ -119,7 +130,7 @@ def _equip_for_stage(player: Player, class_id: str, cleared: int, total: int) ->
         tier = min((cleared * len(weapons)) // max(1, total), len(weapons) - 1)
         weapon_id, _ = weapons[tier]
         if weapon_id != player.equipped_weapon:
-            weapon = load_weapon_data(weapon_id)
+            weapon = load_item(weapon_id)
             if weapon:
                 player.add_to_inventory(weapon_id, weapon)
                 player.equip_weapon(weapon_id)
@@ -129,7 +140,7 @@ def _equip_for_stage(player: Player, class_id: str, cleared: int, total: int) ->
         a_tier = min((cleared * len(armor)) // max(1, total), len(armor) - 1)
         armor_id, _ = armor[a_tier]
         if armor_id != player.equipped_armor:
-            adata = _armor_data(armor_id)
+            adata = load_item(armor_id)
             if adata:
                 player.add_to_inventory(armor_id, adata)
                 player.equip_armor(armor_id)
@@ -142,7 +153,7 @@ def _build_player(class_id: str) -> Player:
     cls = classes.get(class_id)
     weapon_id = cls.starter_weapon if cls else None
     if weapon_id:
-        weapon = load_weapon_data(weapon_id)
+        weapon = load_item(weapon_id)
         if weapon:
             player.add_to_inventory(weapon_id, weapon)
             player.equip_weapon(weapon_id)
@@ -150,10 +161,10 @@ def _build_player(class_id: str) -> Player:
     return player
 
 
-def _fight(player: Player, enemy: dict) -> bool:
+def _fight(player: Player, enemy: Enemy) -> bool:
     """Resolve one fight to the death. Returns True if the player survives."""
-    enemy_hp = enemy.get("health", 1)
-    enemy_damage = enemy.get("damage", 0)
+    enemy_hp = enemy.health
+    enemy_damage = enemy.damage
     pending_reduction = 0.0
 
     turns = 0
@@ -188,29 +199,55 @@ def _fight(player: Player, enemy: dict) -> bool:
     return player.is_alive() and enemy_hp <= 0
 
 
+def gear_stages(enemy_ids: list[str], rogues: set[str]) -> list[tuple[int, int]]:
+    """(cleared, total) gear progress to equip for before each fight. Rogue
+    fights drop no gear in the game, so they neither count as progress nor
+    toward the total — they sort first and would otherwise hand out tiers."""
+    total = sum(1 for e in enemy_ids if e not in rogues)
+    stages = []
+    cleared = 0
+    for enemy_id in enemy_ids:
+        stages.append((cleared, total))
+        if enemy_id not in rogues:
+            cleared += 1
+    return stages
+
+
+def _rogue_ids() -> set[str]:
+    return {
+        str(room.flag.enemy) for room in load_room_data().values()
+        if getattr(room, "flag", None) is not None and room.flag.via == "kill"
+    }
+
+
 def run_gauntlet(class_id: str, world: GameWorld, enemy_ids: list[str]) -> RunResult:
     player = _build_player(class_id)
     total = len(enemy_ids)
     cleared = 0
-    for enemy_id in enemy_ids:
+    from src.flags import FLAG_XP
+    flag_xp = flag_xp_schedule(total, MAIN_FLAGS_BEFORE_BOSS, FLAG_XP)
+    stages = gear_stages(enemy_ids, _rogue_ids())
+    for i, enemy_id in enumerate(enemy_ids):
         enemy = world.get_enemy(enemy_id, class_id)
         if not enemy:
             continue
-        _equip_for_stage(player, class_id, cleared, total)  # loot progression
+        _equip_for_stage(player, class_id, *stages[i])  # loot progression
         if not _fight(player, enemy):
             return RunResult(
                 False, enemy_id, cleared, player.level,
                 player.health / max(1, player.max_health),
             )
         cleared += 1
-        base = enemy.get("experience", 50)
-        if enemy.get("boss_room") or enemy.get("boss_enemy"):
-            base *= 3
+        base = enemy.experience
         player.harvest_cycles(difficulty.scale_xp(base))
+        if flag_xp[i]:
+            player.harvest_cycles(flag_xp[i])
+            # A capture restores full HP in the game (FlagService._capture).
+            player.health = player.max_health
         # Loot heals only if this enemy actually drops one and the roll hits —
         # faithful to the real (stingy) drop economy, not a free per-fight heal.
-        for drop in enemy.get("drops", []) or []:
-            if drop.get("item") in _HEAL_ITEMS and rng.random() * 100 < drop.get("chance", 0):
+        for drop in enemy.drops:
+            if drop.item in _HEAL_ITEMS and rng.random() * 100 < drop.chance:
                 player._sim_heals += 1  # type: ignore[attr-defined]
 
     return RunResult(

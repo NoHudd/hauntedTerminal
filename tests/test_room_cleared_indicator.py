@@ -1,17 +1,42 @@
 """GameWorld.is_room_cleared: derived from existing state, nothing new
-persisted. A room only reads as cleared once every enemy it ever had is
+persisted. A room with no enemies reads as cleared once visited; otherwise it
+only reads as cleared once every enemy it ever had is
 genuinely defeated — not just currently absent (a fled enemy is absent from
 enemy_locations too, but respawns on the next ROOM_ENTERED, so it must not
 read as cleared)."""
 from engine.api import GameSession
 
 
-def test_room_with_no_enemies_never_shown_as_cleared():
+def test_room_with_no_enemies_is_cleared_once_visited():
+    """Nothing to fight, so visiting is what clears it: /proc read as never
+    done even after the player had been there."""
     s = GameSession()
     try:
         s.new_game("t", "guardian")
-        # home_grove has no enemies declared at all (tutorial safe room).
-        assert s.world.is_room_cleared("home_grove") is False
+        # Every shipped room has a flag now; strip one to keep the visit rule.
+        s.world.rooms["proc_secrets"] = s.world.rooms["proc_secrets"].model_copy(
+            update={"flag": None}
+        )
+        assert s.world.is_room_cleared("proc_secrets") is False
+        s.world.set_room_visited("proc_secrets")
+        assert s.world.is_room_cleared("proc_secrets") is True
+    finally:
+        s.close()
+
+
+def test_proc_is_marked_in_the_tree_once_its_flag_is_taken():
+    s = GameSession()
+    try:
+        s.new_game("t", "guardian")
+        s.player.tutorial_state["completed"] = True
+        s.submit("cd /proc")
+        s.world.mark_flag_captured("proc_secrets")
+        s.submit("cd /")
+        proc_line = next(
+            line for line in "\n".join(str(x) for x in s.submit("tree")).splitlines()
+            if "proc/" in line
+        )
+        assert "✓" in proc_line
     finally:
         s.close()
 
@@ -22,6 +47,7 @@ def test_room_with_enemies_present_is_not_cleared():
         s.new_game("t", "guardian")
         enemy_id = next(iter(s.world.enemy_locations))
         room_id = s.world.enemy_locations[enemy_id]
+        s.world.mark_flag_captured(room_id)  # isolate the enemy rule from the flag
         assert s.world.is_room_cleared(room_id) is False
     finally:
         s.close()
@@ -33,6 +59,7 @@ def test_room_with_all_enemies_defeated_is_cleared():
         s.new_game("t", "guardian")
         enemy_id = next(iter(s.world.enemy_locations))
         room_id = s.world.enemy_locations[enemy_id]
+        s.world.mark_flag_captured(room_id)  # isolate the enemy rule from the flag
         assert s.world.is_room_cleared(room_id) is False
         s.world.remove_enemy_from_room(enemy_id)
         assert s.world.is_room_cleared(room_id) is True
@@ -46,6 +73,7 @@ def test_fled_enemy_room_is_not_cleared_until_respawn_and_redefeat():
         s.new_game("t", "guardian")
         enemy_id = next(iter(s.world.enemy_locations))
         room_id = s.world.enemy_locations[enemy_id]
+        s.world.mark_flag_captured(room_id)  # isolate the enemy rule from the flag
         s.world.mark_enemy_as_fled(enemy_id, room_id)
         # Fled — enemy is gone from enemy_locations, but it will respawn.
         assert enemy_id not in s.world.enemy_locations
@@ -69,6 +97,7 @@ def test_ls_marks_cleared_child_directory():
     s = GameSession()
     try:
         s.new_game("t", "guardian")
+        s.world.mark_flag_captured("var_dungeon")
         for enemy_id in list(s.world.enemy_locations):
             if s.world.enemy_locations[enemy_id] == "var_dungeon":
                 s.world.remove_enemy_from_room(enemy_id)
@@ -91,6 +120,7 @@ def test_tree_marks_cleared_room():
     try:
         s.new_game("t", "guardian")
         s.world.set_room_visited("var_dungeon")
+        s.world.mark_flag_captured("var_dungeon")
         for enemy_id in list(s.world.enemy_locations):
             if s.world.enemy_locations[enemy_id] == "var_dungeon":
                 s.world.remove_enemy_from_room(enemy_id)

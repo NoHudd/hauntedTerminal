@@ -15,4 +15,4 @@ def test_hint_documents_flee_and_tab_for_items():
     source = inspect.getsource(CombatModeHintScreen.on_mount)
     assert "0" in source
     assert "flee" in source.lower()
-    assert "use [item]" in source.lower() or "use[item]" in source.lower().replace(" ", "")
+    assert "use <item>" in source.lower()

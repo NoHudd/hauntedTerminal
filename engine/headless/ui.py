@@ -27,16 +27,32 @@ class HeadlessUI:
         # Set when the domain asks to quit; tests assert on it instead of the
         # process exiting.
         self.quit_requested = False
+        # Every tutorial hint shown, in order, so tests can assert which step
+        # fired without depending on its wording.
+        self.hints: list[dict[str, Any]] = []
         # Back-refs the engine assigns via _bind_ui_refs; unused here but must
         # be assignable.
         self._player_ref: object | None = None
         self._world_ref: object | None = None
         self._room_aliases_ref: object | None = None
         # The finale is delivered by event (the TUI performs it; headless just
-        # records the text so tests/sim can assert on the ending).
-        from src.events import EventType, event_bus
-        event_bus.subscribe(EventType.GAME_WON, self._on_game_won)
-        event_bus.subscribe(EventType.GAME_QUIT, self._on_game_quit)
+        # records the text so tests/sim can assert on the ending). The bus
+        # arrives from the engine via attach_bus.
+        self.bus: Any = None
+
+    def attach_bus(self, bus: Any, state_manager: Any) -> None:
+        from engine.events import EventType
+        self.shutdown()
+        self.bus = bus
+        self.state_manager = state_manager
+        bus.subscribe(EventType.GAME_WON, self._on_game_won)
+        bus.subscribe(EventType.GAME_QUIT, self._on_game_quit)
+        bus.subscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
+
+    def _on_tutorial_hint(self, event: Any) -> None:
+        data = getattr(event, "data", None) or {}
+        self.hints.append(data)
+        self.output_log.append(str(data.get("text", "")))
 
     def _on_game_quit(self, event: Any) -> None:
         self.quit_requested = True
@@ -49,10 +65,21 @@ class HeadlessUI:
 
     # --- output capture -----------------------------------------------------
 
+    @staticmethod
+    def _check_markup(content: object) -> None:
+        """Parse string output as Rich markup, as the real TUI does, so broken
+        markup (e.g. `[italic cyan]...[/italic]`) fails a test instead of
+        crashing the player's command."""
+        if isinstance(content, str):
+            from rich.markup import render
+            render(content)
+
     def update_output(self, content: str) -> None:
+        self._check_markup(content)
         self.output_log.append(str(content))
 
     def append_output(self, content: str) -> None:
+        self._check_markup(content)
         self.output_log.append(str(content))
 
     def update_output_renderable(self, renderable: object) -> None:
@@ -77,28 +104,14 @@ class HeadlessUI:
     def run(self) -> None:  # pragma: no cover - lifecycle no-op
         pass
 
-    def shutdown(self) -> None:  # pragma: no cover - lifecycle no-op
-        from src.events import EventType, event_bus
-        event_bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
-        event_bus.unsubscribe(EventType.GAME_QUIT, self._on_game_quit)
+    def shutdown(self) -> None:
+        if self.bus is None:
+            return
+        from engine.events import EventType
+        self.bus.unsubscribe(EventType.GAME_WON, self._on_game_won)
+        self.bus.unsubscribe(EventType.GAME_QUIT, self._on_game_quit)
+        self.bus.unsubscribe(EventType.TUTORIAL_HINT, self._on_tutorial_hint)
+        self.bus = None
 
-    def update_inventory(self, content: str) -> None:
-        pass
-
-    def update_stats(self, content: str) -> None:
-        pass
-
-    def update_exits(self, exits: list[object]) -> None:
-        pass
-
-    def update_player_name(self, name: str) -> None:
-        pass
-
-    def display_game_over(self) -> None:
-        pass
-
-    def save_current_game(self) -> None:
-        pass
-
-    def _display_title_screen(self) -> None:
+    def _display_title_screen(self, skip_typewriter: bool = False) -> None:
         self.output_log.append("[title screen]")

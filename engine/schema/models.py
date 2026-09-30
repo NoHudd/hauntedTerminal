@@ -45,6 +45,28 @@ def _falsey_to_bool(v: object) -> bool:
     return bool(v)
 
 
+class RoomFlag(_Base):
+    """A room's capture-the-flag: the file whose reading captures it, the
+    FLAG{...} text shown on capture, and beginner guidance (a nudge, the exact
+    command, and an optional first-visit lesson Echo gives)."""
+    file: ItemId | None = None
+    text: str
+    nudge: str
+    command: str
+    teach: str = ""
+    # How the flag is captured: "cat" (read the file) or "grep" (search it).
+    via: str = "cat"
+    # Said by any NPC in the room while the flag is still out there.
+    clue: str = ""
+    # kill / defeat flags: the enemy whose defeat captures the flag.
+    enemy: EnemyId | None = None
+    # kill flags: the rogue's line in ps.
+    pid: int = 0
+    process: str = ""
+    # A key this flag hands out on capture (the keys chain).
+    grants: ItemId | None = None
+
+
 class Room(_Base):
     id: RoomId = Field(default=RoomId(""))
     name: str
@@ -63,6 +85,18 @@ class Room(_Base):
     class_restriction: str = ""
     path: str = ""
     aliases: list[str] = Field(default_factory=list)
+    # Tier rooms roll `enemy_count` enemies from the `enemy_tier` pool at
+    # world-init (src/enemy_pools.py); rooms without a tier keep `enemies`.
+    enemy_tier: int | None = None
+    enemy_count: int | None = None
+    # A hidden room with this story flag set is revealed by `ls -a`.
+    discovery_requirement: str | None = None
+    # Capture-the-flag for this room (docs/ROOM_FLAGS_SPEC.md).
+    flag: RoomFlag | None = None
+    # An optional trial room open to every class; this class gets a bonus there.
+    trial_class: str = ""
+    # Entry needs this many main-room flags captured elsewhere (the finale gate).
+    flags_required: int = 0
 
     _coerce_locked = field_validator("locked", mode="before")(_falsey_to_bool)
     _coerce_hidden = field_validator("hidden", mode="before")(_falsey_to_bool)
@@ -86,6 +120,7 @@ class CharacterClass(_Base):
     base_health: int = Field(gt=0)
     base_damage: int = Field(gt=0)
     starter_weapon: ItemId | None = None
+    starter_armor: ItemId | None = None
     starter_abilities: list[AbilityId] = Field(default_factory=list)
     attacks: list[AttackId] = Field(default_factory=list)
     preferred_zones: list[str] = Field(default_factory=list)
@@ -125,6 +160,14 @@ class Enemy(_Base):
         return "" if v is None else str(v)
 
 
+class LogSpec(_Base):
+    """A long generated log (src/logs.py): `lines` look-alike lines drawn from
+    `templates`, with `flag_line` once. Templates may use {ts} and {n}."""
+    lines: int = 300
+    templates: list[str]
+    flag_line: str
+
+
 class Item(_Base):
     id: ItemId = Field(default=ItemId(""))
     name: str
@@ -145,6 +188,29 @@ class Item(_Base):
     consumed_on_use: bool = False
     takeable: bool = True
     droppable: bool = True
+    # A hidden item is omitted from plain `ls`; `ls -a` lists it. It stays
+    # readable/takeable by name either way, like a real dotfile.
+    hidden: bool = False
+    consumable: bool = False
+    defense: int = 0
+    healing: int | None = None
+    content: str = ""
+    story_flag: str = ""
+    class_restriction: str = ""
+    max_spawn: int = 1
+    allowed_rooms: list[RoomId] = Field(default_factory=list)
+    special_effects: list[dict[str, object]] = Field(default_factory=list)
+    on_use: dict[str, object] = Field(default_factory=dict)
+    effects: dict[str, object] = Field(default_factory=dict)
+    status_effect: dict[str, object] | None = None
+    # Effect hooks run by ItemEffects.execute_effect (a dict of effects, or
+    # a bare string that is shown as flavour text).
+    on_take: dict[str, object] | str | None = None
+    on_drop: dict[str, object] | str | None = None
+    on_examine: dict[str, object] | str | None = None
+    on_read: dict[str, object] | str | None = None
+    # A long generated log file; see LogSpec.
+    log: LogSpec | None = None
 
     @field_validator("rarity", mode="before")
     @classmethod
@@ -163,6 +229,8 @@ class Ability(_Base):
     char_class: str = Field(default="all", alias="class")
     cooldown: int = 0
     bonus_damage: int = 0
+    healing: int = 0
+    enemy_damage_reduction: float = 0
 
 
 class Attack(_Base):
@@ -173,6 +241,8 @@ class Attack(_Base):
     cooldown: int = 0
     accuracy: int = 100
     type: str = "physical"
+    healing: int = 0
+    enemy_damage_reduction: float = 0
 
 
 class NPC(_Base):
@@ -186,3 +256,4 @@ class NPC(_Base):
     dialogue: dict[str, object] = Field(default_factory=dict)
     dialogue_rules: list[dict[str, object]] = Field(default_factory=list)
     location: RoomId | None = None
+    on_talk: dict[str, object] | None = None

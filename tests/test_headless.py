@@ -4,9 +4,8 @@ Prove the engine runs, accepts commands, and never crashes on a scripted or
 randomised playthrough — with no Textual App. Formalises the manual "does it
 still work" check and a lite version of the playtest-simulator.
 
-Note: event_bus and state_manager are process-global singletons, so each test
-uses a fresh GameSession and closes it (unsubscribing its handlers) to stay
-isolated.
+Each GameSession owns its own event bus and state machine, so sessions are
+isolated from each other; tests still close them to release resources.
 """
 from __future__ import annotations
 
@@ -31,8 +30,7 @@ def test_headless_ui_satisfies_protocol() -> None:
     assert UIProtocol is not None  # imported contract we check against
     for name in (
         "run", "shutdown", "update_output", "append_output", "display_message",
-        "update_output_renderable", "update_inventory", "update_stats",
-        "update_exits", "update_player_name", "clear_console", "display_game_over",
+        "update_output_renderable", "clear_console",
     ):
         assert callable(getattr(ui, name, None)), f"HeadlessUI missing {name}"
 

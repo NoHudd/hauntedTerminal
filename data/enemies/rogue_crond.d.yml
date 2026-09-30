@@ -1,0 +1,14 @@
+name: rogue_crond.d
+short_description: A scheduler that rewrites every config it touches
+description: crond went rogue and schedules itself to rewrite /etc every minute.
+health: 22
+damage: 2
+is_boss: false
+auto_attack: true
+dialogue: "* * * * * rewrite /etc/everything"
+drops: []
+on_defeat:
+  message: The rogue crond stops. Your configs stop shifting.
+tier: 1
+pool_excluded: true  # rogue process: only `kill 4242` in /etc brings it out
+experience: 8

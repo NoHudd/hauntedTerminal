@@ -1,0 +1,175 @@
+"""One save slot per run: saves overwrite the run's own file, the picker lists
+runs, a replaced run survives until the new run's first save."""
+from __future__ import annotations
+
+import json
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+
+import src.save as save_mod
+from engine.api import GameSession
+from src.save import MAX_RUNS, SaveManager
+
+
+@pytest.fixture
+def session() -> Iterator[GameSession]:
+    s = GameSession()
+    s.new_game("Slotty", "guardian")
+    try:
+        yield s
+    finally:
+        s.close()
+
+
+def _save(mgr: SaveManager, s: GameSession) -> str:
+    return mgr.save_game(s.player, s.world.get_state())
+
+
+def test_saves_in_one_run_overwrite_one_file(mgr, session, clock) -> None:
+    mgr.begin_run()
+    first = json.loads(Path(_save(mgr, session)).read_text())
+    session.submit("cd root")
+    _save(mgr, session)
+
+    files = list(Path(mgr.save_dir).glob("run_*.json"))
+    assert len(files) == 1
+    data = json.loads(files[0].read_text())
+    assert data["runId"] == mgr.active_run_id
+    assert data["createdAt"] == first["createdAt"]
+    assert data["savedAt"] > first["savedAt"]
+    assert data["player"]["current_room"] == session.player.current_room
+
+
+def test_two_new_games_are_two_slots_even_with_the_same_hero(mgr, session) -> None:
+    mgr.begin_run()
+    _save(mgr, session)
+    mgr.begin_run()
+    _save(mgr, session)
+    assert len(mgr.list_runs()) == 2
+
+
+def test_saving_with_no_run_in_progress_starts_one(mgr, session) -> None:
+    assert mgr.active_run_id is None
+    _save(mgr, session)
+    assert mgr.active_run_id is not None
+    assert [r.run_id for r in mgr.list_runs()] == [mgr.active_run_id]
+
+
+def test_list_runs_is_newest_first_with_what_the_picker_shows(mgr, session, clock) -> None:
+    mgr.begin_run()
+    _save(mgr, session)
+    older = mgr.active_run_id
+    mgr.begin_run()
+    _save(mgr, session)
+    newer = mgr.active_run_id
+
+    runs = mgr.list_runs()
+    assert [r.run_id for r in runs] == [newer, older]
+    run = runs[0]
+    assert (run.player_name, run.player_class) == ("Slotty", "guardian")
+    assert (run.level, run.room_id) == (session.player.level, session.player.current_room)
+    assert (run.health, run.max_health) == (session.player.health, session.player.max_health)
+    assert run.cleared is False
+
+
+def test_replace_happens_on_the_new_runs_first_save(mgr, session) -> None:
+    mgr.begin_run()
+    _save(mgr, session)
+    old = mgr.active_run_id
+
+    mgr.begin_run(replace=old)
+    assert [r.run_id for r in mgr.list_runs()] == [old]  # backing out now loses nothing
+
+    _save(mgr, session)
+    assert [r.run_id for r in mgr.list_runs()] == [mgr.active_run_id]
+    assert mgr.pending_replace is None
+
+
+def test_resuming_a_run_cancels_a_pending_replace(mgr, session) -> None:
+    mgr.begin_run()
+    _save(mgr, session)
+    old = mgr.active_run_id
+    mgr.begin_run(replace=old)
+    mgr.resume_run(old)
+    _save(mgr, session)
+    assert [r.run_id for r in mgr.list_runs()] == [old]
+
+
+def test_end_run_clears_the_run_in_progress(mgr) -> None:
+    mgr.begin_run(replace="abc")
+    mgr.end_run()
+    assert (mgr.active_run_id, mgr.pending_replace) == (None, None)
+
+
+def test_runs_full_at_nine(mgr, session) -> None:
+    assert MAX_RUNS == 9
+    for _ in range(MAX_RUNS - 1):
+        mgr.begin_run()
+        _save(mgr, session)
+    assert not mgr.runs_full()
+    mgr.begin_run()
+    _save(mgr, session)
+    assert mgr.runs_full()
+
+
+def test_mark_cleared_flips_only_the_flag(mgr, session) -> None:
+    path = Path(_save(mgr, session))
+    before = json.loads(path.read_text())
+    mgr.mark_cleared()
+    after = json.loads(path.read_text())
+    assert after.pop("cleared") is True
+    before.pop("cleared")
+    assert after == before
+
+    _save(mgr, session)  # a later save keeps the mark
+    assert json.loads(path.read_text())["cleared"] is True
+
+
+def test_delete_run(mgr, session) -> None:
+    _save(mgr, session)
+    run_id = mgr.active_run_id
+    assert mgr.delete_run(run_id) is True
+    assert mgr.list_runs() == []
+    assert mgr.delete_run(run_id) is False
+
+
+def test_unreadable_run_file_is_skipped(mgr, session) -> None:
+    _save(mgr, session)
+    (Path(mgr.save_dir) / "run_deadbeef.json").write_text("{not json")
+    assert len(mgr.list_runs()) == 1
+    assert mgr.load_run("deadbeef") is None
+
+
+def test_atomic_write_leaves_no_temp_file(mgr, session) -> None:
+    _save(mgr, session)
+    assert list(Path(mgr.save_dir).glob("*.tmp")) == []
+
+
+
+@pytest.mark.parametrize("bad", [
+    {"version": 6, "player": {"level": None}},
+    {"version": 6, "player": [1, 2]},
+    {"version": 6, "player": {"health": "lots"}},
+])
+def test_a_malformed_run_file_is_skipped_not_fatal(mgr, session, bad) -> None:
+    _save(mgr, session)
+    (Path(mgr.save_dir) / "run_badbad00.json").write_text(json.dumps(bad))
+    assert [r.run_id for r in mgr.list_runs()] == [mgr.active_run_id]
+    assert not mgr.runs_full()
+
+
+def test_a_failed_migration_does_not_block_the_run_list(
+    mgr, session, monkeypatch,
+) -> None:
+    _save(mgr, session)
+    old_save = {"version": 5, "player": {"name": "Old"}}
+    (Path(mgr.save_dir) / "save_1.json").write_text(json.dumps(old_save))
+
+    def broken_replace(src, dst):
+        raise OSError("read-only disk")
+
+    monkeypatch.setattr(save_mod.os, "replace", broken_replace)
+    monkeypatch.setattr(mgr, "_write", lambda path, data: None)
+    assert len(mgr.list_runs()) == 1
