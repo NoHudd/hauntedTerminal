@@ -215,3 +215,149 @@ flag:
     root was here.
 
     FLAG{root_sees_all}
+
+lost_user_log:
+  name: "lost_user_log"
+  short_description: "A lost user's log — hundreds of lines, never reread"
+  description: "Everything the lost user ever typed, written down and never read."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "flag"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  log:
+    lines: 300
+    templates:
+      - "[{ts}] user: cd /mnt/drive{n}"
+      - "[{ts}] user: ls"
+      - "[{ts}] user: where did I put it"
+      - "[{ts}] user: cat notes{n}.txt"
+      - "[{ts}] user: I know it's in here somewhere"
+    flag_line: "[{ts}] user: note to self, the flag is FLAG{grep_finds_needles}"
+
+catalog_db:
+  name: "catalog_db"
+  short_description: "The library's catalog — every title ever written"
+  description: "The Arcane Library's catalog. Nobody reads it front to back."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "flag"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  log:
+    lines: 400
+    templates:
+      - "[{ts}] catalog: shelf {n} — Advanced Pointer Arithmetic"
+      - "[{ts}] catalog: shelf {n} — The Joy of Segfaults"
+      - "[{ts}] catalog: shelf {n} — Recursion, Recursion, Recursion"
+      - "[{ts}] catalog: shelf {n} — Regular Expressions for the Weary"
+    flag_line: "[{ts}] catalog: shelf 404 — FLAG{knowledge_is_searchable}"
+
+kern_log:
+  name: "kern_log"
+  short_description: "The kernel log — even the void writes one"
+  description: "Kernel messages from the edge of /dev. Most of them are noise."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "flag"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  log:
+    lines: 400
+    templates:
+      - "[{ts}] kernel: /dev/null: discarded {n} bytes"
+      - "[{ts}] kernel: usb {n}-1: device descriptor read failed"
+      - "[{ts}] kernel: void: nothing happened again"
+      - "[{ts}] kernel: tty{n}: hangup"
+    flag_line: "[{ts}] kernel: void: something survived: FLAG{even_the_void_logs}"
+
+access_log:
+  name: "access_log"
+  short_description: "The tomb's access log — every challenger who came"
+  description: "Who entered the Warrior Tomb, and when. Hundreds of names."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "flag"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  log:
+    lines: 400
+    templates:
+      - "[{ts}] access: challenger {n} entered"
+      - "[{ts}] access: challenger {n} fled"
+      - "[{ts}] access: challenger {n} fell"
+      - "[{ts}] access: gate check passed"
+    flag_line: "[{ts}] access: the victor carved FLAG{warriors_leave_access_logs}"
+
+backup_tar_log:
+  name: "backup_tar_log"
+  short_description: "A backup job's log — thousands of archived files"
+  description: "What the last backup saved before everything broke."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: rare
+  tags: ["lore", "flag"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  log:
+    lines: 500
+    templates:
+      - "[{ts}] tar: added home/user{n}/notes.txt"
+      - "[{ts}] tar: added etc/config{n}.conf"
+      - "[{ts}] tar: skipped socket /tmp/sock{n}"
+    flag_line: "[{ts}] tar: added root/FLAG{backups_remember}"
+
+access_readme:
+  name: "access_readme"
+  short_description: "A note left by the tomb's keeper"
+  description: "A short note about the access log."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "note"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  content: |
+    The access log is hundreds of lines long. Don't read it.
+    If you want one word out of a big file, search for it:
+
+        grep <word> access_log
+
+backup_readme:
+  name: "backup_readme"
+  short_description: "The backup job's own note"
+  description: "Instructions left by whoever ran the backup."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "note"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  content: |
+    Backup finished. The log lists every file it saved.
+    Looking for one? grep the log for it.

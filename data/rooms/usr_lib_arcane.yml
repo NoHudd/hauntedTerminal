@@ -20,7 +20,8 @@ exits:
 - var_dungeon
 - usr_share_games
 - etc_hidden_configs
-items: []
+items:
+  - catalog_db
 enemy_tier: 3
 enemy_count: 1
 npcs:
@@ -33,3 +34,11 @@ hidden: false
 # Navigation: canonical path + everything a player may type to get here.
 path: "/usr"
 aliases: ["/usr", "/usr/lib", "/usr/lib/arcane", "usr", "lib", "arcane"]
+
+flag:
+  file: catalog_db
+  via: grep
+  text: "FLAG{knowledge_is_searchable}"
+  nudge: "The catalog is far too long to read. Search it for the word FLAG."
+  command: "[bold]grep FLAG catalog_db[/bold]"
+  clue: "The catalog holds every title ever written. Nobody reads it front to back; they search it."

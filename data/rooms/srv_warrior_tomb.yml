@@ -16,7 +16,9 @@ detailed_description: 'The /srv directory has transformed into a massive stone f
   '
 exits:
 - mnt_forest
-items: []
+items:
+  - access_log
+  - access_readme
 enemies:
 - tomb_guardian.sys
 - corruption_overlord.exe
@@ -29,3 +31,10 @@ hidden: false
 # Navigation: canonical path + everything a player may type to get here.
 path: "/srv"
 aliases: ["/srv", "srv", "tomb"]
+
+flag:
+  file: access_log
+  via: grep
+  text: "FLAG{warriors_leave_access_logs}"
+  nudge: "Read the keeper's note, then search the access log."
+  command: "[bold]grep FLAG access_log[/bold]"

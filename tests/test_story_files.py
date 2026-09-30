@@ -30,11 +30,11 @@ def session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[GameSes
 
 
 def _lore(s: GameSession) -> dict[str, object]:
-    """Story files: lore that restores a memory. Plain flag files (tagged
-    "flag", like /'s motd) are lore too but carry no memory."""
+    """Story files: lore that restores a memory. Plain flag files and notes
+    (tagged "flag" or "note") are lore too but carry no memory."""
     return {
         iid: it for iid, it in s.world.items.items()
-        if it.type == "lore" and "flag" not in it.tags
+        if it.type == "lore" and not {"flag", "note"} & set(it.tags)
     }
 
 
