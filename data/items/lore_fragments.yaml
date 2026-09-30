@@ -361,3 +361,21 @@ backup_readme:
   content: |
     Backup finished. The log lists every file it saved.
     Looking for one? grep the log for it.
+
+tmp_notice:
+  name: "tmp_notice"
+  short_description: "A cleanup notice pinned to the door"
+  description: "Someone's warning about /var/tmp."
+  type: "lore"
+  allowed_classes: [guardian, weaver, shaman]
+  rarity: common
+  tags: ["lore", "note"]
+  allowed_zones: []
+  persistence: "persistent"
+  usable: false
+  readable: true
+  takeable: false
+  content: |
+    NOTICE: the cleanup job here died but is still running.
+    ps shows every process in this directory, with its PID.
+    kill <PID> ends one. Don't kill PID 1.

@@ -39,3 +39,13 @@ gate_guardian: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/etc"
 aliases: ["/etc", "/etc/iptables", "/etc/configs", "etc", "configs"]
+
+flag:
+  via: kill
+  enemy: rogue_crond.d
+  pid: 4242
+  process: "crond --rewrite-all"
+  text: "FLAG{configs_restored}"
+  nudge: "Something keeps rewriting these configs. Find it in ps."
+  command: "[bold]ps[/bold], then [bold]kill 4242[/bold]"
+  clue: "A scheduler is rewriting my rules faster than I can guard them. ps will show it."

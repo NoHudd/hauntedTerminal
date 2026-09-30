@@ -60,10 +60,10 @@ def test_story_file_flag_restores_memory_and_saves_once(s: GameSession, tmp_path
 
 def test_counts_split_main_and_secret(s: GameSession) -> None:
     flags = s.engine.cmd_handler.flags
-    assert flags.counts() == (0, 9, 0, 3)
+    assert flags.counts() == (0, 13, 0, 5)
     s.submit("cat motd")
-    assert flags.counts() == (1, 9, 0, 3)
-    assert flags.summary() == "Flags 1/9 · Secrets 0/3"
+    assert flags.counts() == (1, 13, 0, 5)
+    assert flags.summary() == "Flags 1/13 · Secrets 0/5"
 
 
 def test_story_flag_is_in_the_checkpoint_on_disk_and_not_recaptured(s: GameSession) -> None:

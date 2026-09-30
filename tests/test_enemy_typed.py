@@ -12,7 +12,7 @@ from engine.schema import Enemy
 def test_load_enemy_data_returns_typed_models():
     from src.data_loader import load_enemy_data
     enemies = load_enemy_data()
-    assert len(enemies) == 24
+    assert len(enemies) == 27
     for eid, e in enemies.items():
         assert isinstance(e, Enemy), (eid, type(e))
         assert e.health > 0

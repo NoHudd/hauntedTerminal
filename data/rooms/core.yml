@@ -45,3 +45,10 @@ story_location: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/boot"
 aliases: ["/boot", "/boot/kernel", "/core", "core", "kernel"]
+
+flag:
+  via: defeat
+  enemy: daemon_overlord.sys
+  text: "FLAG{kernel_panic_averted}"
+  nudge: "The Daemon Overlord holds this directory's flag."
+  command: "[bold]defeat the Daemon Overlord[/bold]"

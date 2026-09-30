@@ -29,3 +29,10 @@ hidden: true
 # Navigation: canonical path + everything a player may type to get here.
 path: "/opt"
 aliases: ["/opt", "opt", "tower"]
+
+flag:
+  via: defeat
+  enemy: corruption_lord.exe
+  text: "FLAG{the_tower_answers}"
+  nudge: "The tower's master holds its flag."
+  command: "[bold]defeat the Corruption Lord[/bold]"

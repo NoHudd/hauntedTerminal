@@ -33,7 +33,7 @@ def content() -> GameContent:
 def test_all_content_loads(content: GameContent) -> None:
     assert len(content.rooms) == 18
     assert len(content.classes) == 3
-    assert len(content.enemies) == 24
+    assert len(content.enemies) == 27
     assert content.items and content.npcs and content.abilities and content.attacks
 
 
@@ -181,11 +181,11 @@ def test_discovery_requirements_are_granted_by_a_reachable_npc(
 
 # --- C1: flat item files ----------------------------------------------------
 
-def test_items_load_flat_and_count_53() -> None:
+def test_items_load_flat_and_count_54() -> None:
     from engine.content.loader import load_items
 
     items = load_items("data")
-    assert len(items) == 53, len(items)  # 44 + motd/.flag + 5 logs + 2 notes
+    assert len(items) == 54, len(items)  # 44 + motd/.flag + 5 logs + 3 notes
     # every item carries an explicit type (no wrapper-derived category)
     assert all(getattr(i, "type", None) for i in items.values())
 

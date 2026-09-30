@@ -33,4 +33,4 @@ def test_first_grep_room_teaches_then_grep_captures(s: GameSession) -> None:
     assert not s.world.flag_captured("mnt_forest")
     out = _out(s, "grep FLAG lost_user_log")
     assert s.world.flag_captured("mnt_forest")
-    assert "Flags 1/9" in out
+    assert "Flags 1/13" in out

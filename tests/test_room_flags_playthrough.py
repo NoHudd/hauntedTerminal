@@ -40,4 +40,4 @@ def test_tutorial_then_first_plain_flag(s: GameSession) -> None:
     s.submit("cd /")
     out = "\n".join(str(x) for x in s.submit("cat motd"))
     assert s.world.flag_captured("root")
-    assert "Flags 2/9" in out
+    assert "Flags 2/13" in out

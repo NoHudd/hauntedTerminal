@@ -27,7 +27,7 @@ def test_journal_counts_and_lists_captured_flags(s: GameSession) -> None:
     s.player.current_room = "root"
     s.submit("cat motd")
     out = _out(s, "journal")
-    assert "Flags 1/9 · Secrets 0/3" in out
+    assert "Flags 1/13 · Secrets 0/5" in out
     assert "FLAG{cat_reads_files}" in out
 
 
@@ -35,7 +35,7 @@ def test_tree_shows_counts_and_marks_captured_rooms(s: GameSession) -> None:
     s.player.current_room = "root"
     s.submit("cat motd")
     out = _out(s, "tree")
-    assert "Flags 1/9 · Secrets 0/3" in out
+    assert "Flags 1/13 · Secrets 0/5" in out
     root_line = next(line for line in out.splitlines() if "Root" in line)
     assert "⚑" in root_line
     assert "⚑ flag captured" in out
