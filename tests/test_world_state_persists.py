@@ -53,6 +53,7 @@ def test_cleared_room_still_reads_cleared_after_load() -> None:
     world = _world()
     for enemy_id in list(world.get_enemies_in_room("core")):
         world.remove_enemy_from_room(enemy_id)
+    world.mark_flag_captured("core")  # /boot's flag drops with the Overlord
 
     assert _round_trip(world).is_room_cleared("core")
 

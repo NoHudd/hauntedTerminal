@@ -28,7 +28,9 @@ def test_a_flag_room_is_not_done_until_its_flag_is_captured() -> None:
 
 
 def test_rooms_without_a_flag_keep_the_old_rule() -> None:
+    """Every shipped room has a flag now; strip one to keep the rule honest."""
     w = _world()
+    w.rooms["proc_secrets"] = w.rooms["proc_secrets"].model_copy(update={"flag": None})
     w.set_room_visited("proc_secrets")
     assert w.is_room_cleared("proc_secrets") is True
 
