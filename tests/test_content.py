@@ -181,11 +181,11 @@ def test_discovery_requirements_are_granted_by_a_reachable_npc(
 
 # --- C1: flat item files ----------------------------------------------------
 
-def test_items_load_flat_and_count_44() -> None:
+def test_items_load_flat_and_count_46() -> None:
     from engine.content.loader import load_items
 
     items = load_items("data")
-    assert len(items) == 44, len(items)
+    assert len(items) == 46, len(items)  # 44 + the motd and .flag flag files
     # every item carries an explicit type (no wrapper-derived category)
     assert all(getattr(i, "type", None) for i in items.values())
 

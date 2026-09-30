@@ -39,6 +39,10 @@ def _fired_after_pressing(key: str) -> list[str]:
     # that can land after combat starts and swallow the keypress as typing.
     skip_intro, tui.SKIP_INTRO = tui.SKIP_INTRO, True
     app = TextualGameUI()
+    # Combat blurs the command box, and the first blur ever opens the one-time
+    # Selection Mode popup, which would swallow the key. Whether it has been
+    # "seen" lives in the settings file, so it varies with test order.
+    app._combat_hint_shown = True
     fired: list[str] = []
     app.bus.subscribe(
         EventType.COMBAT_ACTION_SELECTED, lambda e: fired.append(e.data.get("choice"))

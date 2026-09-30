@@ -30,7 +30,12 @@ def session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[GameSes
 
 
 def _lore(s: GameSession) -> dict[str, object]:
-    return {iid: it for iid, it in s.world.items.items() if it.type == "lore"}
+    """Story files: lore that restores a memory. Plain flag files (tagged
+    "flag", like /'s motd) are lore too but carry no memory."""
+    return {
+        iid: it for iid, it in s.world.items.items()
+        if it.type == "lore" and "flag" not in it.tags
+    }
 
 
 def test_every_lore_file_is_a_hidden_titled_memory(session: GameSession) -> None:
