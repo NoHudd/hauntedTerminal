@@ -33,9 +33,9 @@ def test_skipping_the_tutorial_still_explains_the_goal() -> None:
         assert word in summary, f"skip summary never mentions {word}"
 
 
-def test_first_flag_lesson_links_flags_to_keys_and_boot() -> None:
-    lesson = load_tutorial_hints()["step_cat"]
-    assert "key" in lesson and "/boot" in lesson
+def test_tutorial_ends_on_the_mission() -> None:
+    lesson = load_tutorial_hints()["completed"]
+    assert all(word in lesson for word in ("flag", "key", "/boot", "restore"))
 
 
 def _yaml(path: str) -> dict:

@@ -41,7 +41,7 @@
 "step_hidden": |-
   [bold green]ECHO>[/bold green] There — [bold].bash_profile[/bold], your own configuration file, hidden until now. The leading dot is what hides it. [bold]ls -a[/bold] reveals hidden files anywhere, so try it in every new place. Read this one: type [bold]cat .bash_profile[/bold] ([bold]cat .[/bold] then [bold]Tab[/bold] finishes it)
 "step_cat": |-
-  [bold green]ECHO>[/bold green] Feel that? A memory restored — and your first [bold]flag[/bold] captured. Every directory hides one; [bold]tree[/bold] and [bold]journal[/bold] count them. Some flags hand you a key, and a new directory appears. Hold 11 and [bold]/boot[/bold] opens. The system saved your progress too. Every memory you recover with [bold]cat[/bold] is a checkpoint: if you fall, you resume from the last one. Keep reading what you find. Corrupted processes hide all over the system too — type: [bold]ps[/bold] to list what's running here.
+  [bold green]ECHO>[/bold green] That file was one of your lost memories — reading it restored it, and captured your first [bold]flag[/bold]. Every directory hides one; [bold]tree[/bold] and [bold]journal[/bold] count them. The system saved your progress too: every memory you recover with [bold]cat[/bold] is a checkpoint, and if you fall, you resume from the last one. Corrupted processes hide all over the system — type: [bold]ps[/bold] to list what's running here.
 "step_ps": |-
   [bold green]ECHO>[/bold green] That's [bold]ps[/bold]: the processes running in this directory. Most belong to the system, but an odd one out can give away something hidden, so run it in new places. Now — do you know where you are? Type: [bold]pwd[/bold]
 "step_up": |-
@@ -66,4 +66,4 @@
     • [bold]TAB[/bold] in combat — type 'use <item>' instead
     • [bold]help[/bold] — if you get stuck
     • [bold]man <command>[/bold] — what a command really does, outside this place
-  Good luck out there.
+  [bold]Your mission:[/bold] explore every directory and capture its [bold]flag[/bold] — some flags hand you a key that opens a new directory. Hold [bold]11[/bold] flags and [bold]/boot[/bold] opens. Go down there, face the Daemon Overlord, and restore the system.
