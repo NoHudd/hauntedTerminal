@@ -1,5 +1,5 @@
 # Dev tooling (tests + static checks) — NOT needed to play the game.
-# Players run start.bat/start.sh, which install only requirements.txt.
+# Players install only requirements.txt (see README).
 # Contributors: pip install -r requirements.txt -r requirements-dev.txt
 -r requirements.txt
 
