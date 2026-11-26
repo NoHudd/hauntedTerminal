@@ -54,6 +54,7 @@ files = [
     "src/ui/panels/stats_panel.py",
     "src/version.py",
     "src/move_info.py",
+    "src/sound/player.py",
 ]
 strict = true
 plugins = ["pydantic.mypy"]
@@ -95,6 +96,7 @@ module = [
     "src.ui.panels.echo_panel",
     "src.ui.panels.inventory_panel",
     "src.ui.panels.stats_panel",
+    "src.sound.player",
 ]
 follow_imports = "normal"
 

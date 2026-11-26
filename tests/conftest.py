@@ -13,6 +13,7 @@ import pytest
 
 import src.save as save_mod
 from engine.events import EventBus
+import src.sound.player as sound_player
 from src.game_states import GameState
 from src.state_manager import InvalidTransitionError, StateManager
 from src.viewmodels.view_builder import ViewBuilder
@@ -24,6 +25,8 @@ def _fail_loudly(
 ) -> Iterator[None]:
     monkeypatch.setattr(EventBus, "strict_by_default", True)
     monkeypatch.setattr(ViewBuilder, "raise_errors", True)
+    # No test makes noise: every player the suite builds is silent.
+    monkeypatch.setattr(sound_player, "ENABLED", False)
 
     # The engine's flow methods catch broad exceptions and fall back to the
     # menu, which would hide a rejected state transition. Record them all.
