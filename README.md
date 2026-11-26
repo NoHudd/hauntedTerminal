@@ -63,27 +63,6 @@ Four flags, four commands — each clip is one way to capture a flag.
   </tr>
 </table>
 
-### Screens
-
-<table>
-  <tr>
-    <th width="50%">Pokemon-style battles</th>
-    <th width="50%">Pick your difficulty</th>
-  </tr>
-  <tr>
-    <td><img src="./assets/screenshots/battle.svg" alt="Battle" width="100%"></td>
-    <td><img src="./assets/screenshots/difficulty.svg" alt="Difficulty" width="100%"></td>
-  </tr>
-  <tr>
-    <th>Continue any run — one save slot per run</th>
-    <th>Settings — right from the main menu</th>
-  </tr>
-  <tr>
-    <td><img src="./assets/screenshots/saves.svg" alt="Save slots" width="100%"></td>
-    <td><img src="./assets/screenshots/settings.svg" alt="Settings" width="100%"></td>
-  </tr>
-</table>
-
 ---
 
 ## Getting Started
