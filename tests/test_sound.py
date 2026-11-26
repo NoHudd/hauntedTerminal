@@ -45,3 +45,16 @@ def test_backend_failure_is_swallowed():
         raise OSError("no audio device")
 
     P.CommandPlayer(["afplay"], spawn=spawn).play("hit")  # must not raise
+
+
+NAMES = ["step", "alert", "hit", "hurt", "heal", "defeat", "gameover", "victory"]
+
+
+def test_all_sounds_exist_and_are_short():
+    import wave
+
+    assert P.SOUNDS_DIR.is_absolute()
+    for name in NAMES:
+        with wave.open(str(P.SOUNDS_DIR / f"{name}.wav")) as w:
+            assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 22050)
+            assert 0 < w.getnframes() / w.getframerate() <= 1.5
