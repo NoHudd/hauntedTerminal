@@ -22,10 +22,19 @@ FADE = 0.005  # seconds of fade in/out on every sound, to avoid clicks
 
 # Grit applied to every sound (see grit()). Raise HOLD / HISS or lower BITS
 # for dirtier; HOLD 1, BITS 16, HISS 0 is the clean original.
-GRIT_HOLD = 3     # ~7.3 kHz effective rate
+GRIT_HOLD = 4     # ~5.5 kHz effective rate
 GRIT_BITS = 5     # 32 levels
 GRIT_HISS = 0.25
 _GRIT_RNG = random.Random(4242)
+
+# Detune: every tone is pitched a little flat, wobbles, and carries a second
+# voice slightly sharp of it, so notes beat and sound sour rather than clean.
+# DETUNE_CENTS 0, WOBBLE_DEPTH 0, BEAT_MIX 0 is in tune.
+DETUNE_CENTS = -35    # whole-tone offset (100 cents = one semitone)
+WOBBLE_HZ = 7.0       # warble speed
+WOBBLE_DEPTH = 0.012  # warble width, fraction of pitch
+BEAT_RATIO = 1.027    # second voice's pitch relative to the first
+BEAT_MIX = 0.45       # second voice's level
 
 Samples = list[float]
 
@@ -35,14 +44,22 @@ def _n(seconds: float) -> int:
 
 
 def sweep(f0: float, f1: float, seconds: float, duty: float = 0.5) -> Samples:
-    """Square wave gliding from f0 to f1 Hz (f0 == f1 for a steady tone)."""
+    """Detuned square wave gliding from f0 to f1 Hz (f0 == f1 for a steady tone).
+
+    Pitched DETUNE_CENTS off, warbling, with a second voice at BEAT_RATIO.
+    """
     out: Samples = []
-    phase = 0.0
+    phase = beat = 0.0
     n = _n(seconds)
+    offset = 2 ** (DETUNE_CENTS / 1200)
     for i in range(n):
-        f = f0 + (f1 - f0) * i / max(n - 1, 1)
+        wobble = 1 + WOBBLE_DEPTH * math.sin(2 * math.pi * WOBBLE_HZ * i / RATE)
+        f = (f0 + (f1 - f0) * i / max(n - 1, 1)) * offset * wobble
         phase = (phase + f / RATE) % 1.0
-        out.append(1.0 if phase < duty else -1.0)
+        beat = (beat + f * BEAT_RATIO / RATE) % 1.0
+        main = 1.0 if phase < duty else -1.0
+        second = 1.0 if beat < duty else -1.0
+        out.append((main + BEAT_MIX * second) / (1 + BEAT_MIX))
     return out
 
 
