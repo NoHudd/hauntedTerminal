@@ -20,6 +20,13 @@ RATE = 22050
 PEAK = 0.35
 FADE = 0.005  # seconds of fade in/out on every sound, to avoid clicks
 
+# Grit applied to every sound (see grit()). Raise HOLD / HISS or lower BITS
+# for dirtier; HOLD 1, BITS 16, HISS 0 is the clean original.
+GRIT_HOLD = 3     # ~7.3 kHz effective rate
+GRIT_BITS = 5     # 32 levels
+GRIT_HISS = 0.25
+_GRIT_RNG = random.Random(4242)
+
 Samples = list[float]
 
 
@@ -72,8 +79,26 @@ def notes(freqs: list[float], each: float, hold_last: float = 0.0,
     return out
 
 
+def grit(samples: Samples, rng: random.Random, hold: int = GRIT_HOLD,
+         bits: int = GRIT_BITS, hiss: float = GRIT_HISS) -> Samples:
+    """Dirty a clean signal: hiss under it, then crush rate and bit depth.
+
+    ``hold`` repeats each sample that many times (fake low sample rate, so
+    the tone aliases and buzzes); ``bits`` quantises to 2**bits levels.
+    """
+    levels = 2 ** (bits - 1)
+    out: Samples = []
+    held = 0.0
+    for i, s in enumerate(samples):
+        if i % hold == 0:
+            held = s + rng.uniform(-hiss, hiss) * (abs(s) + 0.1)
+        out.append(round(max(-1.0, min(1.0, held)) * levels) / levels)
+    return out
+
+
 def finish(samples: Samples, gain: float = 1.0) -> Samples:
-    """Normalise to PEAK * gain and apply the anti-click fades."""
+    """Grit, normalise to PEAK * gain, and apply the anti-click fades."""
+    samples = grit(samples, _GRIT_RNG)
     top = max((abs(s) for s in samples), default=0.0) or 1.0
     scale = PEAK * gain / top
     out = [s * scale for s in samples]
