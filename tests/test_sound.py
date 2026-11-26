@@ -1,6 +1,12 @@
 """Sound effects: playback backends, generated files, and the event board."""
 from __future__ import annotations
 
+import wave
+
+import pytest
+
+from engine.events import EventBus
+from engine.events import EventType as E
 from src.sound import player as P
 
 
@@ -51,10 +57,65 @@ NAMES = ["step", "alert", "hit", "hurt", "heal", "defeat", "gameover", "victory"
 
 
 def test_all_sounds_exist_and_are_short():
-    import wave
-
     assert P.SOUNDS_DIR.is_absolute()
     for name in NAMES:
         with wave.open(str(P.SOUNDS_DIR / f"{name}.wav")) as w:
             assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 22050)
             assert 0 < w.getnframes() / w.getframerate() <= 1.5
+
+
+class Recorder:
+    def __init__(self) -> None:
+        self.played: list[str] = []
+
+    def play(self, name: str) -> None:
+        self.played.append(name)
+
+
+@pytest.mark.parametrize("etype,data,expected", [
+    (E.ROOM_ENTERED, {}, "step"),
+    (E.COMBAT_STARTED, {}, "alert"),
+    (E.COMBAT_ACTION_RESULT, {"actor": "player", "damage": 7}, "hit"),
+    (E.COMBAT_ACTION_RESULT, {"actor": "enemy", "damage": 3}, "hurt"),
+    (E.COMBAT_ACTION_RESULT, {"actor": "player", "damage": 0, "healing": 5}, "heal"),
+    (E.COMBAT_ACTION_RESULT, {"actor": "player", "damage": 0}, None),
+    (E.COMBAT_ACTION_RESULT, {"actor": "system", "damage": 0}, None),
+    (E.ENEMY_DEFEATED, {}, "defeat"),
+    (E.GAME_OVER, {"reason": "defeat"}, "gameover"),
+    (E.GAME_OVER, {"reason": "menu"}, None),
+    (E.GAME_WON, {}, "victory"),
+])
+def test_board_maps_events(etype, data, expected):
+    from src.sound.board import SoundBoard
+
+    bus, rec = EventBus(), Recorder()
+    SoundBoard(rec, lambda: True).attach(bus)
+    bus.emit_event(etype, data, "test")
+    assert rec.played == ([expected] if expected else [])
+
+
+def test_board_silent_when_disabled_and_after_detach():
+    from src.sound.board import SoundBoard
+
+    bus, rec, on = EventBus(), Recorder(), [True]
+    board = SoundBoard(rec, lambda: on[0])
+    board.attach(bus)
+    on[0] = False
+    bus.emit_event(E.ROOM_ENTERED, {}, "test")
+    on[0] = True
+    board.detach()
+    bus.emit_event(E.ROOM_ENTERED, {}, "test")
+    assert rec.played == []
+
+
+def test_sound_setting_defaults_on_and_has_a_row(tmp_path):
+    from config.settings_manager import SettingsManager
+    from src.ui.screens.settings_screen import ROWS
+
+    m = SettingsManager(str(tmp_path / "s.json"))
+    m.load()
+    assert m.settings["sound"] is True
+    row = next(r for r in ROWS if r.key == "sound")
+    assert (row.label, row.values, row.names) == ("Sound", (True, False), ("On", "Off"))
+    row.apply(m, False)
+    assert m.settings["sound"] is False

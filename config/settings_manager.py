@@ -12,6 +12,7 @@ DEFAULTS = {
     "text_speed": "normal",
     "reduce_motion": False,
     "hints": True,  # in-game inline affordances (→ take/cat/cd)
+    "sound": True,  # sound effects (src/sound/)
     "seen_selection_mode": False,  # combat selection-mode modal: show once ever
 }
 
@@ -117,6 +118,10 @@ class SettingsManager:
         self.settings["hints"] = enabled
         import config.dev_config as dev_cfg
         dev_cfg.SHOW_HINTS = enabled
+
+    def set_sound(self, enabled: bool) -> None:
+        """Toggle sound effects; the sound board reads this on every event."""
+        self.settings["sound"] = enabled
 
     def save(self) -> None:
         """Write current settings to JSON file."""

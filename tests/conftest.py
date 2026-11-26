@@ -12,8 +12,8 @@ from collections.abc import Iterator
 import pytest
 
 import src.save as save_mod
-from engine.events import EventBus
 import src.sound.player as sound_player
+from engine.events import EventBus
 from src.game_states import GameState
 from src.state_manager import InvalidTransitionError, StateManager
 from src.viewmodels.view_builder import ViewBuilder

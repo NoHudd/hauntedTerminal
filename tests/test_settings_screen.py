@@ -33,9 +33,9 @@ def _screen(manager: SettingsManager, on_close=None) -> SettingsScreen:
     return screen
 
 
-def test_rows_are_the_four_settings() -> None:
+def test_rows_are_the_five_settings() -> None:
     assert [row.label for row in ROWS] == [
-        "Color palette", "Text speed", "Reduce motion", "In-game hints",
+        "Color palette", "Text speed", "Reduce motion", "In-game hints", "Sound",
     ]
 
 
@@ -56,12 +56,12 @@ def test_down_down_right_turns_reduce_motion_on(manager: SettingsManager) -> Non
     assert dev_cfg.DISABLE_ANIMATIONS is True
 
 
-def test_up_from_the_top_wraps_to_hints(manager: SettingsManager) -> None:
+def test_up_from_the_top_wraps_to_the_last_row(manager: SettingsManager) -> None:
     screen = _screen(manager)
     screen.action_move(-1)
-    assert ROWS[screen._index].label == "In-game hints"
+    assert ROWS[screen._index].label == "Sound"
     screen.action_change(1)
-    assert manager.settings["hints"] is False
+    assert manager.settings["sound"] is False
 
 
 def test_escape_saves_and_calls_on_close(manager: SettingsManager, tmp_path: Path) -> None:

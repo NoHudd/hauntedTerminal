@@ -43,6 +43,8 @@ from src.ui.command_suggester import CommandSuggester
 from src.ui.endings import FinaleReveal
 from src.ui.title_menu import TitleMenu
 from config.settings_manager import SettingsManager
+from src.sound.board import SoundBoard
+from src.sound.player import make_player
 
 import logging
 import os
@@ -81,6 +83,10 @@ class TextualGameUI(App):
         # Store view data (dicts) instead of backend objects
         self._settings_manager = SettingsManager()
         self._settings_manager.load()
+        self._sound = SoundBoard(
+            make_player(),
+            lambda: bool(self._settings_manager.settings.get("sound", True)),
+        )
         self._player_view: Optional[StatsView] = None
         self._inventory_view: Optional[InventoryView] = None
         self._room_view: Optional[RoomView] = None
@@ -135,10 +141,12 @@ class TextualGameUI(App):
         """Subscribe to relevant game events."""
         for event_type, handler_name in self._EVENT_HANDLERS:
             self.bus.subscribe(event_type, getattr(self, handler_name))
+        self._sound.attach(self.bus)
 
     def _teardown_event_subscriptions(self):
         for event_type, handler_name in self._EVENT_HANDLERS:
             self.bus.unsubscribe(event_type, getattr(self, handler_name))
+        self._sound.detach()
 
     def compose(self) -> ComposeResult:
         """Create the main UI layout."""

@@ -61,6 +61,11 @@ ROWS: tuple[SettingRow, ...] = (
         (True, False), ("On", "Off"),
         SettingsManager.set_hints,
     ),
+    SettingRow(
+        "sound", "Sound", "Play short sound effects.",
+        (True, False), ("On", "Off"),
+        SettingsManager.set_sound,
+    ),
 )
 
 
