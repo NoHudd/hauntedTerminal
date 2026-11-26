@@ -5,6 +5,16 @@ name = "haunted-terminal"
 # PATCH for a fix-only release. Tag main (vX.Y.Z) when it merges.
 version = "0.2.0"
 requires-python = ">=3.10"
+# Same list as requirements.txt: pip users install from that file, uv users run
+# `uv run main.py`, which reads this one. tests/test_version.py fails if they drift.
+dependencies = [
+    "rich>=13.3.3",
+    "pyyaml>=6.0.1",
+    "textual==8.2.8",
+    "rich-pixels>=3",
+    "Pillow>=10",
+    "pydantic>=2",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -55,7 +65,7 @@ explicit_package_bases = true
 module = "yaml"
 ignore_missing_imports = true
 
-# Optional local dev flags, gitignored (copied from settings.example.py);
+# Optional local dev flags, gitignored (copy settings.example.py to create it);
 # config/dev_config.py falls back to defaults when it is absent.
 [[tool.mypy.overrides]]
 module = "config.settings"

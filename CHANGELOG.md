@@ -6,6 +6,12 @@ the title screen and on the first line of `debug.log` (with the git commit next
 to it when run from a git checkout), so a screenshot or log names the build it
 came from.
 
+## Unreleased
+
+### Install
+- `start.sh` and `start.bat` are gone. Install with three plain commands
+  (make a venv, pip install, run) or `uv run main.py` — see the README.
+
 ## v0.2.0 — 2026-09-30
 
 ### ⚠ Saves

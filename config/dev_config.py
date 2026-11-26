@@ -22,10 +22,9 @@ try:
     )
 except ImportError:
     # No settings.py: use player defaults. Deliberately silent — this is the
-    # normal case for anyone who installed by hand rather than via the launcher,
-    # and printing to stdout here scribbles on the terminal right before the TUI
-    # takes it over. Contributors who want the dev flags copy
-    # config/settings.example.py to config/settings.py (see REFERENCE.md).
+    # normal case for every player, and printing to stdout here scribbles on the
+    # terminal right before the TUI takes it over. Contributors who want the dev
+    # flags copy config/settings.example.py to config/settings.py.
     DEV_MODE = False
     DEBUG_MODE = False
     DEBUG_COMMAND = False

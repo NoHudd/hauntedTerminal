@@ -50,3 +50,7 @@ docs/
 
 # sim/tune.py writes its proposal here for a human to review; never committed
 data/difficulty.proposed.yaml
+
+# uv (`uv run main.py`) creates these next to the game
+.venv/
+uv.lock

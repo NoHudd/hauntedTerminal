@@ -1,7 +1,3 @@
-# Batch files must be CRLF — LF-only .bat parses unreliably on Windows
-*.bat text eol=crlf
-# Shell scripts stay LF
-*.sh text eol=lf
 # Release zips (GitHub "Source code" downloads and `git archive`) carry only the
 # game: development tooling stays in the repo for contributors and forks.
 tests/                export-ignore

@@ -24,10 +24,19 @@ def test_version_comes_from_pyproject() -> None:
     assert re.fullmatch(r"\d+\.\d+\.\d+", declared), "use MAJOR.MINOR.PATCH"
 
 
+def test_pip_and_uv_install_the_same_dependencies() -> None:
+    """pip players install requirements.txt; `uv run main.py` reads pyproject."""
+    with open("pyproject.toml", "rb") as f:
+        declared = tomllib.load(f)["project"]["dependencies"]
+    lines = Path("requirements.txt").read_text().splitlines()
+    required = [ln.split("#")[0].strip() for ln in lines]
+    assert sorted(declared) == sorted(r for r in required if r)
+
+
 def test_version_works_on_python_3_10_without_tomllib(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The launchers accept Python 3.10, which has no tomllib."""
+    """The game supports Python 3.10 (requires-python), which has no tomllib."""
     monkeypatch.setitem(sys.modules, "tomllib", None)  # import tomllib -> ImportError
     fresh = importlib.reload(version)
     try:
