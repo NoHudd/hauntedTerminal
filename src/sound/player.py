@@ -28,7 +28,8 @@ _LINUX_PLAYERS: tuple[list[str], ...] = (["pw-play"], ["paplay"], ["aplay", "-q"
 
 
 class Player(Protocol):
-    def play(self, name: str) -> None: ...
+    def play(self, name: str, force: bool = False) -> None:
+        """Play ``name``.wav. ``force`` skips the concurrency cap."""
 
 
 def _path(name: str) -> str:
@@ -38,7 +39,7 @@ def _path(name: str) -> str:
 class SilentPlayer:
     """No audio available (or wanted)."""
 
-    def play(self, name: str) -> None:
+    def play(self, name: str, force: bool = False) -> None:
         pass
 
 
@@ -60,11 +61,11 @@ class CommandPlayer:
         self._spawn = spawn
         self._running: list[Any] = []
 
-    def play(self, name: str) -> None:
+    def play(self, name: str, force: bool = False) -> None:
         try:
             # poll() reaps finished children, so none linger as zombies.
             self._running = [p for p in self._running if p.poll() is None]
-            if len(self._running) >= MAX_CONCURRENT:
+            if len(self._running) >= MAX_CONCURRENT and not force:
                 return
             self._running.append(self._spawn([*self._argv, _path(name)]))
         except Exception as e:
@@ -78,7 +79,7 @@ class WinsoundPlayer:
         import winsound
         self._winsound: Any = winsound
 
-    def play(self, name: str) -> None:
+    def play(self, name: str, force: bool = False) -> None:
         try:
             w = self._winsound
             w.PlaySound(_path(name), w.SND_FILENAME | w.SND_ASYNC | w.SND_NODEFAULT)

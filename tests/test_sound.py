@@ -68,7 +68,7 @@ class Recorder:
     def __init__(self) -> None:
         self.played: list[str] = []
 
-    def play(self, name: str) -> None:
+    def play(self, name: str, force: bool = False) -> None:
         self.played.append(name)
 
 
@@ -119,3 +119,44 @@ def test_sound_setting_defaults_on_and_has_a_row(tmp_path):
     assert (row.label, row.values, row.names) == ("Sound", (True, False), ("On", "Off"))
     row.apply(m, False)
     assert m.settings["sound"] is False
+
+
+def test_kill_burst_keeps_the_big_sounds():
+    """The killing blow fires hit, defeat, a room redraw and victory in one
+    tick: the redraw blip must not stomp the kill, and victory must play."""
+    from src.sound.board import SoundBoard
+
+    bus, rec = EventBus(), Recorder()
+    SoundBoard(rec, lambda: True, clock=lambda: 10.0).attach(bus)
+    bus.emit_event(E.COMBAT_ACTION_RESULT, {"actor": "player", "damage": 9}, "test")
+    bus.emit_event(E.ENEMY_DEFEATED, {}, "test")
+    bus.emit_event(E.ROOM_ENTERED, {}, "test")
+    bus.emit_event(E.GAME_WON, {}, "test")
+    assert rec.played == ["hit", "defeat", "victory"]
+
+
+def test_step_plays_once_the_burst_is_over():
+    from src.sound.board import SoundBoard
+
+    now = [10.0]
+    bus, rec = EventBus(), Recorder()
+    SoundBoard(rec, lambda: True, clock=lambda: now[0]).attach(bus)
+    bus.emit_event(E.ENEMY_DEFEATED, {}, "test")
+    now[0] += 1.0
+    bus.emit_event(E.ROOM_ENTERED, {}, "test")
+    assert rec.played == ["defeat", "step"]
+
+
+def test_forced_sound_ignores_the_cap():
+    spawned = []
+
+    def spawn(argv):
+        spawned.append(argv)
+        return FakeProc()
+
+    p = P.CommandPlayer(["afplay"], spawn=spawn)
+    for _ in range(P.MAX_CONCURRENT):
+        p.play("hit")
+    p.play("victory", force=True)
+    assert spawned[-1][-1].endswith("victory.wav")
+    assert len(spawned) == P.MAX_CONCURRENT + 1

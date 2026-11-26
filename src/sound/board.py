@@ -6,6 +6,7 @@ Textual UI owns one, so the headless driver and the tests run without sound.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 
 from engine.events import Event, EventBus, EventType
@@ -21,6 +22,23 @@ _EVENTS = (
     EventType.GAME_OVER,
     EventType.GAME_WON,
 )
+
+
+#: Rank of each sound. Events in one burst (the killing blow fires hit,
+#: defeat, a room redraw and victory in a single tick) would otherwise stomp
+#: each other: on Windows the last sound cuts the rest, elsewhere the
+#: process cap drops whatever comes last. Within BURST_SECONDS, a sound
+#: ranked below one already played is skipped.
+PRIORITY = {
+    "step": 0,
+    "hit": 1, "hurt": 1,
+    "heal": 2, "alert": 2,
+    "defeat": 3,
+    "gameover": 4, "victory": 4,
+}
+#: Rank at which a sound skips the player's concurrency cap.
+FORCE_PRIORITY = 4
+BURST_SECONDS = 0.05
 
 
 def sound_for(event: Event) -> str | None:
@@ -46,10 +64,14 @@ def sound_for(event: Event) -> str | None:
 
 
 class SoundBoard:
-    def __init__(self, player: Player, enabled: Callable[[], bool]) -> None:
+    def __init__(self, player: Player, enabled: Callable[[], bool],
+                 clock: Callable[[], float] = time.monotonic) -> None:
         self._player = player
         self._enabled = enabled
+        self._clock = clock
         self._bus: EventBus | None = None
+        self._last_at = float("-inf")
+        self._last_rank = -1
 
     def attach(self, bus: EventBus) -> None:
         self.detach()
@@ -69,7 +91,15 @@ class SoundBoard:
             if not self._enabled():
                 return
             name = sound_for(event)
-            if name is not None:
-                self._player.play(name)
+            if name is None:
+                return
+            rank = PRIORITY[name]
+            now = self._clock()
+            in_burst = now - self._last_at < BURST_SECONDS
+            if in_burst and rank < self._last_rank:
+                return
+            self._player.play(name, force=rank >= FORCE_PRIORITY)
+            self._last_at = now
+            self._last_rank = max(rank, self._last_rank) if in_burst else rank
         except Exception as e:
             logger.debug("sound board skipped %s: %s", event.type, e)
