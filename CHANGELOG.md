@@ -6,7 +6,7 @@ the title screen and on the first line of `debug.log` (with the git commit next
 to it when run from a git checkout), so a screenshot or log names the build it
 came from.
 
-## v0.3.0 — 2026-11-26
+## Unreleased
 
 ### New: sound
 - The game has sound effects: entering a room, a fight starting, hits, heals,
