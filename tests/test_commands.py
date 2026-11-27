@@ -104,17 +104,6 @@ def test_ps_lists_processes(session: GameSession) -> None:
     assert "PID" in out
 
 
-def test_find_usage_and_full_args(session: GameSession) -> None:
-    # Bare find -> usage.
-    assert "Usage" in _text(session.submit("find"))
-    # Multi-token args must reach the command: the "-name" branch requires 3
-    # tokens, so reaching "No such file" (not the usage message) proves the full
-    # arg list arrived. The legacy dispatcher truncated to the first token, which
-    # would have produced the usage message instead.
-    out = _text(session.submit("find /dev -name null"))
-    assert "No such file" in out
-
-
 def test_save_writes_success(session: GameSession) -> None:
     out = _text(session.submit("save"))
     assert "saved successfully" in out

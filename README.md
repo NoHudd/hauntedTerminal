@@ -123,7 +123,8 @@ Launch the game, press **Enter** on **NEW GAME**, then answer four prompts:
 4. **Tutorial?** — `yes` for a 12-step guided tour by ECHO, your guide, or `skip`
 
 You wake up in `/home`. From here on you type commands at the prompt at the
-bottom of the screen. This is a real opening, output trimmed:
+bottom of the screen. This is a real opening as a Guardian, output trimmed
+(Weavers and Shamans find their own weapon here):
 
 ```console
 > ls
@@ -199,7 +200,7 @@ Three commands get you unstuck anywhere:
 | `cat <file>` | read a file |
 | `grep <word> <file>` | show only the lines that contain a word |
 | `ps` · `kill <PID>` | list processes · end one |
-| `tree` · `find <path> -name <pattern>` | map of what you have discovered · search for a file |
+| `tree` · `find <path> -name <pattern>` | map of what you have discovered · search by name (`*` matches anything) |
 | `take` · `equip` · `use` · `examine` | pick up · ready · consume · inspect an item |
 | `talk <npc>` · `attack <enemy>` | get hints and lore · start a fight |
 | `inventory` · `keys` · `journal` | your items · your keys · your flags and recovered memories |

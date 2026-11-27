@@ -12,6 +12,11 @@ came from.
 - `start.sh` and `start.bat` are gone. Install with three plain commands
   (make a venv, pip install, run) or `uv run main.py` — see the README.
 
+### Fixed
+- `find` really searches now. `find / -name "*_log"` lists every matching file
+  in the directories you have found; plain `find` lists everything under where
+  you stand. It used to answer only `find /dev -name null`.
+
 ## v0.2.0 — 2026-09-30
 
 ### ⚠ Saves

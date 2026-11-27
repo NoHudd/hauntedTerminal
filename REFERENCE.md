@@ -21,7 +21,8 @@ one does in an actual terminal.
 - `grep [word] [file]` — print only the lines of a file that contain a word
 - `kill [PID]` — end a process (find its PID with `ps`)
 - `tree` — show the filesystem you have discovered so far
-- `find [path] -name [pattern]` — search for a file
+- `find [path] -name [pattern]` — list everything under a path, or only the names
+  that match a pattern (`find / -name "*_log"`); `*` matches anything
 - `ps` — list running processes
 - `whoami` — your name, class and level
 - `echo [text]`, `clear`, `man [command]`

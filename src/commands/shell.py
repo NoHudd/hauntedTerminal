@@ -60,10 +60,11 @@ MANPAGES: dict[str, tuple[str, str, str, str, str]] = {
     ),
     "find": (
         "1", "search for files in a directory tree", "find [path] -name [pattern]",
-        "Walks a directory tree and prints the paths that match. -name matches\n"
-        "against the filename.",
-        "Only a few searches are meaningful here; most of the filesystem is found\n"
-        "by walking it with ls and cd.",
+        "Walks a directory tree and prints every path under it; -name keeps only\n"
+        "the names that match a pattern, where * matches anything. With no path\n"
+        "it starts at the current directory (.).",
+        "It searches what you have found: a hidden directory stays hidden until\n"
+        "ls -a reveals it, and a sealed one answers Permission denied.",
     ),
     "ps": (
         "1", "report running processes", "ps",

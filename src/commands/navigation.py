@@ -33,6 +33,11 @@ HOME_PATH = "/home"
 # --- shared helpers ----------------------------------------------------------
 
 
+def listed_name(item_id: str, item: object) -> str:
+    """The filename a player sees and types: a hidden file is a dotfile."""
+    return f".{item_id}" if getattr(item, "hidden", False) else item_id
+
+
 def _unlock_with_held_key(ctx: "CommandHandler", room_id: str) -> bool:
     """If the player carries the key for room_id, spend it: unlock and reveal.
 
@@ -340,7 +345,7 @@ class LsCommand(Command):
             item = ctx.world.get_item(item_id)
             # A hidden file is a dotfile: listed, hinted and completed with its
             # leading dot, so what the player sees is what they type.
-            shown = f".{item_id}" if item and item.hidden else item_id
+            shown = listed_name(item_id, item)
             description = ctx.get_formatted_item_description(item)
             # Colour the file by rarity so value reads at a glance. Common maps to
             # white, invisible against the description, so commons get green.
