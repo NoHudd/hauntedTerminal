@@ -6,11 +6,21 @@ the title screen and on the first line of `debug.log` (with the git commit next
 to it when run from a git checkout), so a screenshot or log names the build it
 came from.
 
-## Unreleased
+## v0.3.0 — 2026-11-26
+
+### New: sound
+- The game has sound effects: entering a room, a fight starting, hits, heals,
+  kills, defeat and victory each play a short chiptune effect.
+- Turn it off with the **Sound** row in Settings (title menu, or Ctrl+P
+  in-game); the change applies at once.
+- It uses what your system already has — `afplay` on Mac, `winsound` on
+  Windows, `pw-play`/`paplay`/`aplay` on Linux — and stays silent if none is
+  found. Nothing extra to install.
 
 ### Install
 - `start.sh` and `start.bat` are gone. Install with three plain commands
   (make a venv, pip install, run) or `uv run main.py` — see the README.
+- The README no longer offers a ZIP download; get the game with `git clone`.
 
 ### Fixed
 - `find` really searches now. `find / -name "*_log"` lists every matching file

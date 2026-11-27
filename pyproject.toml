@@ -3,7 +3,7 @@ name = "haunted-terminal"
 # The game's version, shown on the title screen and at the top of debug.log.
 # 0.MINOR.PATCH while playtesting: bump MINOR for each dev -> main release,
 # PATCH for a fix-only release. Tag main (vX.Y.Z) when it merges.
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.10"
 # Same list as requirements.txt: pip users install from that file, uv users run
 # `uv run main.py`, which reads this one. tests/test_version.py fails if they drift.

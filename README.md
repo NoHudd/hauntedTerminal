@@ -77,10 +77,6 @@ git clone https://github.com/NoHudd/hauntedTerminal.git
 cd hauntedTerminal
 ```
 
-No git? Click **Code → Download ZIP** on this page
-([direct link](https://github.com/NoHudd/hauntedTerminal/archive/refs/heads/main.zip)),
-unzip it, and open a terminal in the `hauntedTerminal-main` folder.
-
 ### 2. Install and play
 
 **Mac / Linux**
